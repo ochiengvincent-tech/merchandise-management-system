@@ -30,9 +30,12 @@ export async function createVendorProductController(
 
     const data = createVendorProductSchema.parse(req.body);
 
-    const vendorProduct = await createVendorProductService(vendorId, data);
+    const result = await createVendorProductService(
+      vendorId,
+      data,
+    );
 
-    if (!vendorProduct) {
+    if (!result) {
       return res.status(404).json({
         error: {
           message: "Vendor not found",
@@ -41,13 +44,12 @@ export async function createVendorProductController(
     }
 
     return res.status(201).json({
-      data: vendorProduct,
+      data: result.vendorProduct,
     });
   } catch (error) {
     next(error);
   }
 }
-
 export async function getVendorProductsController(
   req: Request,
   res: Response,

@@ -1,14 +1,12 @@
 import {
-  createVendorProduct,
+  createVendorProductWithPrice,
   findVendorProductById,
   findVendorProductByVendorAndProduct,
   listVendorProducts,
-  updateVendorProduct,
+  updateVendorProductWithPrice,
   updateVendorProductStatus,
 } from "./vendor-product.repository.js";
-import {
-  findVendorById,
-} from "../vendors/vendor.repository.js";
+import { findVendorById } from "../vendors/vendor.repository.js";
 
 export async function createVendorProductService(
   vendorId: string,
@@ -29,23 +27,28 @@ export async function createVendorProductService(
     throw new Error("Cannot add product to an inactive vendor");
   }
 
-  const existingVendorProduct =
-    await findVendorProductByVendorAndProduct(
-      vendorId,
-      data.productId,
-    );
+  const existingVendorProduct = await findVendorProductByVendorAndProduct(
+    vendorId,
+    data.productId,
+  );
 
   if (existingVendorProduct) {
     throw new Error("Vendor already supplies this product");
   }
 
-  return createVendorProduct({
-    vendorId,
-    productId: data.productId,
-    supplierProductCode: data.supplierProductCode,
-    currentPrice: data.currentPrice,
-    leadTimeDays: data.leadTimeDays,
-  });
+  const effectiveFrom = new Date();
+
+  return createVendorProductWithPrice(
+    {
+      vendorId,
+      productId: data.productId,
+      supplierProductCode: data.supplierProductCode,
+      currentPrice: data.currentPrice,
+      leadTimeDays: data.leadTimeDays,
+    },
+    data.currentPrice,
+    effectiveFrom,
+  );
 }
 
 export async function getVendorProductByIdService(id: string) {
@@ -76,7 +79,7 @@ export async function updateVendorProductService(
     return null;
   }
 
-  return updateVendorProduct(id, data);
+  return updateVendorProductWithPrice(id, data);
 }
 
 export async function deactivateVendorProductService(id: string) {

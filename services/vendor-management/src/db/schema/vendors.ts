@@ -17,6 +17,7 @@ export const vendors = pgTable(
     email: varchar("email", { length: 255 }),
     phone: varchar("phone", { length: 30 }),
     address: text("address"),
+    paymentTerms: varchar("payment_terms", { length: 50 }),
     status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
     createdAt: timestamp("created_at", {
       withTimezone: true,

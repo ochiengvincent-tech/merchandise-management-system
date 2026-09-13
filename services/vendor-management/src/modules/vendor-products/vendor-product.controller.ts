@@ -12,12 +12,18 @@ import {
   updateVendorProductSchema,
 } from "./vendor-product.schema.js";
 
+const systemActorId = process.env.SYSTEM_ACTOR_ID;
+
 export async function createVendorProductController(
   req: Request,
   res: Response,
   next: NextFunction,
 ) {
   try {
+    if (!systemActorId) {
+      throw new Error("SYSTEM_ACTOR_ID is not configured");
+    }
+
     const { vendorId } = req.params;
 
     if (typeof vendorId !== "string") {
@@ -33,6 +39,7 @@ export async function createVendorProductController(
     const result = await createVendorProductService(
       vendorId,
       data,
+      systemActorId,
     );
 
     if (!result) {
@@ -50,6 +57,7 @@ export async function createVendorProductController(
     next(error);
   }
 }
+
 export async function getVendorProductsController(
   req: Request,
   res: Response,
@@ -124,31 +132,27 @@ export async function updateVendorProductController(
   next: NextFunction,
 ) {
   try {
+    if (!systemActorId) {
+      throw new Error("SYSTEM_ACTOR_ID is not configured");
+    }
     const { id } = req.params;
-
     if (typeof id !== "string") {
-      return res.status(400).json({
-        error: {
-          message: "Invalid vendor product ID",
-        },
-      });
+      return res
+        .status(400)
+        .json({ error: { message: "Invalid vendor product ID" } });
     }
-
     const data = updateVendorProductSchema.parse(req.body);
-
-    const vendorProduct = await updateVendorProductService(id, data);
-
+    const vendorProduct = await updateVendorProductService(
+      id,
+      data,
+      systemActorId,
+    );
     if (!vendorProduct) {
-      return res.status(404).json({
-        error: {
-          message: "Vendor product not found",
-        },
-      });
+      return res
+        .status(404)
+        .json({ error: { message: "Vendor product not found" } });
     }
-
-    return res.status(200).json({
-      data: vendorProduct,
-    });
+    return res.status(200).json({ data: vendorProduct });
   } catch (error) {
     next(error);
   }
@@ -160,29 +164,25 @@ export async function deactivateVendorProductController(
   next: NextFunction,
 ) {
   try {
+    if (!systemActorId) {
+      throw new Error("SYSTEM_ACTOR_ID is not configured");
+    }
     const { id } = req.params;
-
     if (typeof id !== "string") {
-      return res.status(400).json({
-        error: {
-          message: "Invalid vendor product ID",
-        },
-      });
+      return res
+        .status(400)
+        .json({ error: { message: "Invalid vendor product ID" } });
     }
-
-    const vendorProduct = await deactivateVendorProductService(id);
-
+    const vendorProduct = await deactivateVendorProductService(
+      id,
+      systemActorId,
+    );
     if (!vendorProduct) {
-      return res.status(404).json({
-        error: {
-          message: "Vendor product not found",
-        },
-      });
+      return res
+        .status(404)
+        .json({ error: { message: "Vendor product not found" } });
     }
-
-    return res.status(200).json({
-      data: vendorProduct,
-    });
+    return res.status(200).json({ data: vendorProduct });
   } catch (error) {
     next(error);
   }
@@ -194,29 +194,25 @@ export async function reactivateVendorProductController(
   next: NextFunction,
 ) {
   try {
+    if (!systemActorId) {
+      throw new Error("SYSTEM_ACTOR_ID is not configured");
+    }
     const { id } = req.params;
-
     if (typeof id !== "string") {
-      return res.status(400).json({
-        error: {
-          message: "Invalid vendor product ID",
-        },
-      });
+      return res
+        .status(400)
+        .json({ error: { message: "Invalid vendor product ID" } });
     }
-
-    const vendorProduct = await reactivateVendorProductService(id);
-
+    const vendorProduct = await reactivateVendorProductService(
+      id,
+      systemActorId,
+    );
     if (!vendorProduct) {
-      return res.status(404).json({
-        error: {
-          message: "Vendor product not found",
-        },
-      });
+      return res
+        .status(404)
+        .json({ error: { message: "Vendor product not found" } });
     }
-
-    return res.status(200).json({
-      data: vendorProduct,
-    });
+    return res.status(200).json({ data: vendorProduct });
   } catch (error) {
     next(error);
   }

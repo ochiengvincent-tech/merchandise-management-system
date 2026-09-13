@@ -43,6 +43,13 @@
       "when": 1789119544380,
       "tag": "0005_last_kylun",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789289040646,
+      "tag": "0006_cultured_silk_fever",
+      "breakpoints": true
     }
   ]
 }

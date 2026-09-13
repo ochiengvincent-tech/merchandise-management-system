@@ -10,7 +10,9 @@ export const createVendorSchema = z.object({
   phone: z.string().trim().max(30).optional(),
 
   address: z.string().trim().optional(),
+  paymentTerms: z.string().trim().max(50).optional(),
 });
+
 export const updateVendorSchema = z
   .object({
     name: z.string().trim().min(1).max(255).optional(),
@@ -20,6 +22,7 @@ export const updateVendorSchema = z
     phone: z.string().trim().max(30).optional(),
 
     address: z.string().trim().optional(),
+    paymentTerms: z.string().trim().max(50).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one field must be provided",

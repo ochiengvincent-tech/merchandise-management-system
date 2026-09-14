@@ -128,7 +128,6 @@ vendor_id
 product_id
 supplier_product_code
 current_price
-currency
 lead_time_days
 status
 created_at

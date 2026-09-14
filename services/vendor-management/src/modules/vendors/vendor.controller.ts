@@ -7,7 +7,12 @@ import {
   reactivateVendorService,
   updateVendorService,
 } from "./vendor.service.js";
-import { createVendorSchema, updateVendorSchema } from "./vendor.schema.js";
+import {
+  createVendorSchema,
+  listVendorsQuerySchema,
+  updateVendorSchema,
+} from "./vendor.schema.js";
+import { z } from "zod";
 
 const systemActorId = process.env.SYSTEM_ACTOR_ID;
 
@@ -39,21 +44,8 @@ export async function getVendorsController(
   next: NextFunction,
 ) {
   try {
-    const page = Number(req.query.page ?? 1);
-    const limit = Number(req.query.limit ?? 20);
-
-    const status =
-      typeof req.query.status === "string" ? req.query.status : undefined;
-
-    const search =
-      typeof req.query.search === "string" ? req.query.search : undefined;
-
-    const result = await getVendorsService({
-      page,
-      limit,
-      status,
-      search,
-    });
+    const query = listVendorsQuerySchema.parse(req.query);
+    const result = await getVendorsService(query);
 
     return res.status(200).json(result);
   } catch (error) {
@@ -67,15 +59,15 @@ export async function getVendorByIdController(
   next: NextFunction,
 ) {
   try {
-    const { id } = req.params;
-
-    if (typeof id !== "string") {
+    const parsedId = z.uuid().safeParse(req.params.id);
+    if (!parsedId.success) {
       return res.status(400).json({
         error: {
           message: "Invalid vendor ID",
         },
       });
     }
+    const id = parsedId.data;
 
     const vendor = await getVendorByIdService(id);
 
@@ -105,15 +97,15 @@ export async function updateVendorController(
       throw new Error("SYSTEM_ACTOR_ID is not configured");
     }
 
-    const { id } = req.params;
-
-    if (typeof id !== "string") {
+    const parsedId = z.uuid().safeParse(req.params.id);
+    if (!parsedId.success) {
       return res.status(400).json({
         error: {
           message: "Invalid vendor ID",
         },
       });
     }
+    const id = parsedId.data;
 
     const data = updateVendorSchema.parse(req.body);
 
@@ -144,15 +136,15 @@ export async function deactivateVendorController(
     if (!systemActorId) {
       throw new Error("SYSTEM_ACTOR_ID is not configured");
     }
-    const { id } = req.params;
-
-    if (typeof id !== "string") {
+    const parsedId = z.uuid().safeParse(req.params.id);
+    if (!parsedId.success) {
       return res.status(400).json({
         error: {
           message: "Invalid vendor ID",
         },
       });
     }
+    const id = parsedId.data;
 
     const vendor = await deactivateVendorService(id, systemActorId);
 
@@ -181,15 +173,15 @@ export async function reactivateVendorController(
     if (!systemActorId) {
       throw new Error("SYSTEM_ACTOR_ID is not configured");
     }
-    const { id } = req.params;
-
-    if (typeof id !== "string") {
+    const parsedId = z.uuid().safeParse(req.params.id);
+    if (!parsedId.success) {
       return res.status(400).json({
         error: {
           message: "Invalid vendor ID",
         },
       });
     }
+    const id = parsedId.data;
     const vendor = await reactivateVendorService(id, systemActorId);
 
     if (!vendor) {

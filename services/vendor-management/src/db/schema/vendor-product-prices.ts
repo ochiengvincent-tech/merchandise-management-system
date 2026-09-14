@@ -3,7 +3,8 @@ import {
   uuid,
   numeric,
   timestamp,
-  check
+  check,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { vendorProducts } from "./vendor-products.js";
@@ -38,6 +39,9 @@ export const vendorProductPrices = pgTable(
     check(
       "vendor_product_prices_price_check",
       sql`${table.price} >= 0`
-    )
+    ),
+    uniqueIndex("vendor_product_prices_one_current_price_unique")
+      .on(table.vendorProductId)
+      .where(sql`${table.effectiveTo} IS NULL`),
   ]
 );

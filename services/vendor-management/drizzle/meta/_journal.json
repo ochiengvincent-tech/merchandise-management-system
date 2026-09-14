@@ -50,6 +50,13 @@
       "when": 1789289040646,
       "tag": "0006_cultured_silk_fever",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789385258000,
+      "tag": "0007_rare_sentinel",
+      "breakpoints": true
     }
   ]
 }

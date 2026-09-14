@@ -103,6 +103,7 @@ export async function updateVendor(
     email?: string;
     phone?: string;
     address?: string;
+    paymentTerms?: string;
   },
 ) {
   const [vendor] = await db
@@ -126,6 +127,7 @@ export async function updateVendorWithDatabase<
     email?: string;
     phone?: string;
     address?: string;
+    paymentTerms?: string;
   },
   database: T,
 ) {

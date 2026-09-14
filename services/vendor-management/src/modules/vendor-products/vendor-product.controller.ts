@@ -11,6 +11,7 @@ import {
   createVendorProductSchema,
   updateVendorProductSchema,
 } from "./vendor-product.schema.js";
+import { z } from "zod";
 
 const systemActorId = process.env.SYSTEM_ACTOR_ID;
 
@@ -24,15 +25,15 @@ export async function createVendorProductController(
       throw new Error("SYSTEM_ACTOR_ID is not configured");
     }
 
-    const { vendorId } = req.params;
-
-    if (typeof vendorId !== "string") {
+    const parsedVendorId = z.uuid().safeParse(req.params.vendorId);
+    if (!parsedVendorId.success) {
       return res.status(400).json({
         error: {
           message: "Invalid vendor ID",
         },
       });
     }
+    const vendorId = parsedVendorId.data;
 
     const data = createVendorProductSchema.parse(req.body);
 
@@ -64,15 +65,15 @@ export async function getVendorProductsController(
   next: NextFunction,
 ) {
   try {
-    const { vendorId } = req.params;
-
-    if (typeof vendorId !== "string") {
+    const parsedVendorId = z.uuid().safeParse(req.params.vendorId);
+    if (!parsedVendorId.success) {
       return res.status(400).json({
         error: {
           message: "Invalid vendor ID",
         },
       });
     }
+    const vendorId = parsedVendorId.data;
 
     const vendorProducts = await getVendorProductsService(vendorId);
 
@@ -98,15 +99,15 @@ export async function getVendorProductByIdController(
   next: NextFunction,
 ) {
   try {
-    const { id } = req.params;
-
-    if (typeof id !== "string") {
+    const parsedId = z.uuid().safeParse(req.params.id);
+    if (!parsedId.success) {
       return res.status(400).json({
         error: {
           message: "Invalid vendor product ID",
         },
       });
     }
+    const id = parsedId.data;
 
     const vendorProduct = await getVendorProductByIdService(id);
 
@@ -135,12 +136,13 @@ export async function updateVendorProductController(
     if (!systemActorId) {
       throw new Error("SYSTEM_ACTOR_ID is not configured");
     }
-    const { id } = req.params;
-    if (typeof id !== "string") {
+    const parsedId = z.uuid().safeParse(req.params.id);
+    if (!parsedId.success) {
       return res
         .status(400)
         .json({ error: { message: "Invalid vendor product ID" } });
     }
+    const id = parsedId.data;
     const data = updateVendorProductSchema.parse(req.body);
     const vendorProduct = await updateVendorProductService(
       id,
@@ -167,12 +169,13 @@ export async function deactivateVendorProductController(
     if (!systemActorId) {
       throw new Error("SYSTEM_ACTOR_ID is not configured");
     }
-    const { id } = req.params;
-    if (typeof id !== "string") {
+    const parsedId = z.uuid().safeParse(req.params.id);
+    if (!parsedId.success) {
       return res
         .status(400)
         .json({ error: { message: "Invalid vendor product ID" } });
     }
+    const id = parsedId.data;
     const vendorProduct = await deactivateVendorProductService(
       id,
       systemActorId,
@@ -197,12 +200,13 @@ export async function reactivateVendorProductController(
     if (!systemActorId) {
       throw new Error("SYSTEM_ACTOR_ID is not configured");
     }
-    const { id } = req.params;
-    if (typeof id !== "string") {
+    const parsedId = z.uuid().safeParse(req.params.id);
+    if (!parsedId.success) {
       return res
         .status(400)
         .json({ error: { message: "Invalid vendor product ID" } });
     }
+    const id = parsedId.data;
     const vendorProduct = await reactivateVendorProductService(
       id,
       systemActorId,

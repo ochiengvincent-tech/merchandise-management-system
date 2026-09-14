@@ -148,7 +148,6 @@ A vendor-product relationship contains supplier-specific information such as:
 
 * Supplier product code
 * Current supplier price
-* Currency
 * Lead time
 * Relationship status
 

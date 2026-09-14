@@ -1,0 +1,1 @@
+ALTER TABLE "vendor_products" DROP COLUMN "currency";

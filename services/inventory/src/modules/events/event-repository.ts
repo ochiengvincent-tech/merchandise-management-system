@@ -21,6 +21,9 @@ export const createProcessedEvent = async (
   const [event] = await database
     .insert(inventoryProcessedEvents)
     .values(data)
+    .onConflictDoNothing({
+      target: inventoryProcessedEvents.eventId
+    })
     .returning();
 
   return event;

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { inventoryOutboxEvents } from "../../db/schema/inventory-outbox-events.js";
 
@@ -32,6 +32,36 @@ export const markOutboxEventPublished = async (
     .set({
       status: "PUBLISHED",
       publishedAt: new Date()
+    })
+    .where(eq(inventoryOutboxEvents.id, id))
+    .returning();
+
+  return event ?? null;
+};
+
+export const incrementOutboxEventAttempts = async (
+  id: string,
+  database: Database
+) => {
+  const [event] = await database
+    .update(inventoryOutboxEvents)
+    .set({
+      attempts: sql`${inventoryOutboxEvents.attempts} + 1`
+    })
+    .where(eq(inventoryOutboxEvents.id, id))
+    .returning();
+
+  return event ?? null;
+};
+
+export const markOutboxEventFailed = async (
+  id: string,
+  database: Database
+) => {
+  const [event] = await database
+    .update(inventoryOutboxEvents)
+    .set({
+      status: "FAILED"
     })
     .where(eq(inventoryOutboxEvents.id, id))
     .returning();

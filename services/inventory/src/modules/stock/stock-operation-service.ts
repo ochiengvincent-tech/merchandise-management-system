@@ -1,6 +1,8 @@
 import { db } from "../../db/index.js";
 import { inventoryAuditLogs } from "../../db/schema/inventory-audit-logs.js";
+import { AppError } from "../../errors/app-error.js";
 import { findProductById } from "../products/product-repository.js";
+import { createStockLowEvent } from "../events/stock-low-event-service.js";
 import { findLocationById } from "../locations/location-repository.js";
 import {
   allocateStock,
@@ -15,40 +17,68 @@ export const allocateStockService = async (data: {
   actorId: string;
   reference?: string;
 }) => {
-  const product = await findProductById(data.productId);
+  const [product, location] = await Promise.all([
+    findProductById(data.productId),
+    findLocationById(data.locationId)
+  ]);
+
+  const errors = [];
 
   if (!product) {
-    throw new Error("Product not found");
+    errors.push({
+      field: "productId",
+      message: "Product not found"
+    });
+  } else if (product.status === "INACTIVE") {
+    errors.push({
+      field: "productId",
+      message: "Product is inactive"
+    });
   }
-
-  if (product.status === "INACTIVE") {
-    throw new Error("Product is inactive");
-  }
-
-  const location = await findLocationById(data.locationId);
 
   if (!location) {
-    throw new Error("Location not found");
+    errors.push({
+      field: "locationId",
+      message: "Location not found"
+    });
+  } else if (location.status === "INACTIVE") {
+    errors.push({
+      field: "locationId",
+      message: "Location is inactive"
+    });
   }
 
-  if (location.status === "INACTIVE") {
-    throw new Error("Location is inactive");
-  }
+  if (errors.length > 0) {
+  throw new AppError("Validation failed", 400, errors);
+}
 
+if (!product || !location) {
+  throw new Error("Validation failed");
+}
   const stock = await findStockByProductAndLocation(
     data.productId,
     data.locationId
   );
 
   if (!stock) {
-    throw new Error("Stock record not found");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "stock",
+        message: "Stock record not found"
+      }
+    ]);
   }
 
   const quantityAvailable =
     stock.quantityOnHand - stock.quantityAllocated;
 
   if (quantityAvailable < data.quantity) {
-    throw new Error("Insufficient available stock");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "quantity",
+        message: "Insufficient available stock"
+      }
+    ]);
   }
 
   return db.transaction(async (tx) => {
@@ -75,11 +105,21 @@ export const allocateStockService = async (data: {
       }
     });
 
+    const stockLowEvent = await createStockLowEvent(
+      stock,
+      updatedStock,
+      product.reorderLevel,
+      tx
+    );
+
     return {
-      ...updatedStock,
-      quantityAvailable:
-        updatedStock.quantityOnHand -
-        updatedStock.quantityAllocated
+      stock: {
+        ...updatedStock,
+        quantityAvailable:
+          updatedStock.quantityOnHand -
+          updatedStock.quantityAllocated
+      },
+      stockLowEvent
     };
   });
 };
@@ -91,16 +131,39 @@ export const releaseStockService = async (data: {
   actorId: string;
   reference?: string;
 }) => {
-  const product = await findProductById(data.productId);
+  const [product, location] = await Promise.all([
+    findProductById(data.productId),
+    findLocationById(data.locationId)
+  ]);
+
+  const errors = [];
 
   if (!product) {
-    throw new Error("Product not found");
+    errors.push({
+      field: "productId",
+      message: "Product not found"
+    });
+  } else if (product.status === "INACTIVE") {
+    errors.push({
+      field: "productId",
+      message: "Product is inactive"
+    });
   }
 
-  const location = await findLocationById(data.locationId);
-
   if (!location) {
-    throw new Error("Location not found");
+    errors.push({
+      field: "locationId",
+      message: "Location not found"
+    });
+  } else if (location.status === "INACTIVE") {
+    errors.push({
+      field: "locationId",
+      message: "Location is inactive"
+    });
+  }
+
+  if (errors.length > 0) {
+    throw new AppError("Validation failed", 400, errors);
   }
 
   const stock = await findStockByProductAndLocation(
@@ -109,11 +172,21 @@ export const releaseStockService = async (data: {
   );
 
   if (!stock) {
-    throw new Error("Stock record not found");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "stock",
+        message: "Stock record not found"
+      }
+    ]);
   }
 
   if (stock.quantityAllocated < data.quantity) {
-    throw new Error("Cannot release more than allocated stock");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "quantity",
+        message: "Cannot release more than allocated stock"
+      }
+    ]);
   }
 
   return db.transaction(async (tx) => {

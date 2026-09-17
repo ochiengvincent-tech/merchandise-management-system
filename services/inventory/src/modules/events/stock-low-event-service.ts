@@ -1,3 +1,4 @@
+import { inventoryAuditLogs } from "../../db/schema/inventory-audit-logs.js";
 import { createOutboxEvent } from "./outbox-repository.js";
 
 export const createStockLowEvent = async (
@@ -12,13 +13,15 @@ export const createStockLowEvent = async (
     quantityAllocated: number;
   },
   reorderLevel: number,
-  database: Parameters<typeof createOutboxEvent>[1],
+  database: Parameters<typeof createOutboxEvent>[1]
 ) => {
   const previousQuantityAvailable =
-    previousStock.quantityOnHand - previousStock.quantityAllocated;
+    previousStock.quantityOnHand -
+    previousStock.quantityAllocated;
 
   const quantityAvailable =
-    currentStock.quantityOnHand - currentStock.quantityAllocated;
+    currentStock.quantityOnHand -
+    currentStock.quantityAllocated;
 
   const crossedIntoLowStock =
     previousQuantityAvailable > reorderLevel &&
@@ -30,7 +33,7 @@ export const createStockLowEvent = async (
 
   const eventId = crypto.randomUUID();
 
-  return createOutboxEvent(
+  const event = await createOutboxEvent(
     {
       eventId,
       eventType: "StockLow",
@@ -44,9 +47,24 @@ export const createStockLowEvent = async (
         quantityOnHand: currentStock.quantityOnHand,
         quantityAllocated: currentStock.quantityAllocated,
         quantityAvailable,
-        reorderLevel,
-      },
+        reorderLevel
+      }
     },
-    database,
+    database
   );
+
+  await database.insert(inventoryAuditLogs).values({
+    productId: currentStock.productId,
+    locationId: currentStock.locationId,
+    action: "STOCK_LOW",
+    details: {
+      eventId,
+      eventType: "StockLow",
+      previousQuantityAvailable,
+      quantityAvailable,
+      reorderLevel
+    }
+  });
+
+  return event;
 };

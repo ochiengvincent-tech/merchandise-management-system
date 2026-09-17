@@ -3,6 +3,7 @@ import { db } from "../../db/index.js";
 import { inventoryAdjustments } from "../../db/schema/inventory-adjustments.js";
 import { inventoryAuditLogs } from "../../db/schema/inventory-audit-logs.js";
 import { inventoryStock } from "../../db/schema/inventory-stock.js";
+import { AppError } from "../../errors/app-error.js";
 import { findProductById } from "../products/product-repository.js";
 import { findLocationById } from "../locations/location-repository.js";
 import { findStockByProductAndLocation } from "../stock/stock-repository.js";
@@ -16,43 +17,79 @@ export const createAdjustmentService = async (data: {
   reference?: string;
   createdBy: string;
 }) => {
-  const product = await findProductById(data.productId);
+  const [product, location] = await Promise.all([
+    findProductById(data.productId),
+    findLocationById(data.locationId)
+  ]);
+
+  const errors = [];
 
   if (!product) {
-    throw new Error("Product not found");
+    errors.push({
+      field: "productId",
+      message: "Product not found"
+    });
+  } else if (product.status === "INACTIVE") {
+    errors.push({
+      field: "productId",
+      message: "Product is inactive"
+    });
   }
-
-  if (product.status === "INACTIVE") {
-    throw new Error("Product is inactive");
-  }
-
-  const location = await findLocationById(data.locationId);
 
   if (!location) {
-    throw new Error("Location not found");
+    errors.push({
+      field: "locationId",
+      message: "Location not found"
+    });
+  } else if (location.status === "INACTIVE") {
+    errors.push({
+      field: "locationId",
+      message: "Location is inactive"
+    });
   }
 
-  if (location.status === "INACTIVE") {
-    throw new Error("Location is inactive");
-  }
+ if (errors.length > 0) {
+  throw new AppError("Validation failed", 400, errors);
+}
+
+if (!product || !location) {
+  throw new Error("Validation failed");
+}
 
   const stock = await findStockByProductAndLocation(
     data.productId,
-    data.locationId,
+    data.locationId
   );
 
   if (!stock) {
-    throw new Error("Stock record not found");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "stock",
+        message: "Stock record not found"
+      }
+    ]);
   }
 
-  const newQuantityOnHand = stock.quantityOnHand + data.quantityChange;
+  const newQuantityOnHand =
+    stock.quantityOnHand + data.quantityChange;
 
   if (newQuantityOnHand < 0) {
-    throw new Error("Adjustment would result in negative stock");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "quantityChange",
+        message: "Adjustment would result in negative stock"
+      }
+    ]);
   }
 
   if (stock.quantityAllocated > newQuantityOnHand) {
-    throw new Error("Adjustment would reduce stock below allocated quantity");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "quantityChange",
+        message:
+          "Adjustment would reduce stock below allocated quantity"
+      }
+    ]);
   }
 
   return db.transaction(async (tx) => {
@@ -60,7 +97,7 @@ export const createAdjustmentService = async (data: {
       .update(inventoryStock)
       .set({
         quantityOnHand: newQuantityOnHand,
-        updatedAt: new Date(),
+        updatedAt: new Date()
       })
       .where(eq(inventoryStock.id, stock.id))
       .returning();
@@ -77,7 +114,7 @@ export const createAdjustmentService = async (data: {
         quantityChange: data.quantityChange,
         reason: data.reason,
         reference: data.reference,
-        createdBy: data.createdBy,
+        createdBy: data.createdBy
       })
       .returning();
 
@@ -91,24 +128,26 @@ export const createAdjustmentService = async (data: {
         newQuantityOnHand,
         quantityChange: data.quantityChange,
         reason: data.reason,
-        reference: data.reference,
-      },
+        reference: data.reference
+      }
     });
 
     const stockLowEvent = await createStockLowEvent(
       stock,
       updatedStock,
       product.reorderLevel,
-      tx,
+      tx
     );
+
     return {
       stock: {
         ...updatedStock,
         quantityAvailable:
-          updatedStock.quantityOnHand - updatedStock.quantityAllocated,
+          updatedStock.quantityOnHand -
+          updatedStock.quantityAllocated
       },
       adjustment,
-      stockLowEvent,
+      stockLowEvent
     };
   });
 };

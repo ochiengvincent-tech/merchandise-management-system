@@ -1,3 +1,4 @@
+import { AppError } from "../../errors/app-error.js";
 import { createProductAuditLog } from "./product-audit-repository.js";
 import {
   createProduct,
@@ -5,16 +6,21 @@ import {
   findProductBySku,
   findProducts,
   updateProduct,
-  updateProductStatus,
+  updateProductStatus
 } from "./product-repository.js";
 
 export const createProductService = async (
-  data: Parameters<typeof createProduct>[0],
+  data: Parameters<typeof createProduct>[0]
 ) => {
   const existingProduct = await findProductBySku(data.sku);
 
   if (existingProduct) {
-    throw new Error("Product SKU already exists");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "sku",
+        message: "Product SKU already exists"
+      }
+    ]);
   }
 
   const product = await createProduct(data);
@@ -22,7 +28,7 @@ export const createProductService = async (
   if (product) {
     await createProductAuditLog({
       productId: product.id,
-      action: "PRODUCT_CREATED",
+      action: "PRODUCT_CREATED"
     });
   }
 
@@ -33,11 +39,17 @@ export const getProductService = async (id: string) => {
   const product = await findProductById(id);
 
   if (!product) {
-    throw new Error("Product not found");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "id",
+        message: "Product not found"
+      }
+    ]);
   }
 
   return product;
 };
+
 export const listProductsService = async (filters: {
   search?: string;
   status?: string;
@@ -48,12 +60,17 @@ export const listProductsService = async (filters: {
 
 export const updateProductService = async (
   id: string,
-  data: Parameters<typeof updateProduct>[1],
+  data: Parameters<typeof updateProduct>[1]
 ) => {
   const existingProduct = await findProductById(id);
 
   if (!existingProduct) {
-    throw new Error("Product not found");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "id",
+        message: "Product not found"
+      }
+    ]);
   }
 
   const product = await updateProduct(id, data);
@@ -64,8 +81,8 @@ export const updateProductService = async (
       action: "PRODUCT_UPDATED",
       details: {
         before: existingProduct,
-        after: product,
-      },
+        after: product
+      }
     });
   }
 
@@ -76,11 +93,21 @@ export const deactivateProductService = async (id: string) => {
   const existingProduct = await findProductById(id);
 
   if (!existingProduct) {
-    throw new Error("Product not found");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "id",
+        message: "Product not found"
+      }
+    ]);
   }
 
   if (existingProduct.status === "INACTIVE") {
-    throw new Error("Product is already inactive");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "status",
+        message: "Product is already inactive"
+      }
+    ]);
   }
 
   const product = await updateProductStatus(id, "INACTIVE");
@@ -91,8 +118,8 @@ export const deactivateProductService = async (id: string) => {
       action: "PRODUCT_DEACTIVATED",
       details: {
         before: existingProduct,
-        after: product,
-      },
+        after: product
+      }
     });
   }
 
@@ -103,11 +130,21 @@ export const reactivateProductService = async (id: string) => {
   const existingProduct = await findProductById(id);
 
   if (!existingProduct) {
-    throw new Error("Product not found");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "id",
+        message: "Product not found"
+      }
+    ]);
   }
 
   if (existingProduct.status === "ACTIVE") {
-    throw new Error("Product is already active");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "status",
+        message: "Product is already active"
+      }
+    ]);
   }
 
   const product = await updateProductStatus(id, "ACTIVE");
@@ -118,8 +155,8 @@ export const reactivateProductService = async (id: string) => {
       action: "PRODUCT_REACTIVATED",
       details: {
         before: existingProduct,
-        after: product,
-      },
+        after: product
+      }
     });
   }
 

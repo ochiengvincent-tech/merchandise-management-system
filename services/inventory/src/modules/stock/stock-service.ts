@@ -1,3 +1,4 @@
+import { AppError } from "../../errors/app-error.js";
 import { findLocationById } from "../locations/location-repository.js";
 import { findProductById } from "../products/product-repository.js";
 import {
@@ -5,74 +6,113 @@ import {
   findStockByLocation,
   findStockByProduct,
   findStockByProductAndLocation,
-  updateStock,
+  updateStock
 } from "./stock-repository.js";
 
 export const getStockByProductAndLocationService = async (
   productId: string,
-  locationId: string,
+  locationId: string
 ) => {
-  const stock = await findStockByProductAndLocation(productId, locationId);
+  const stock = await findStockByProductAndLocation(
+    productId,
+    locationId
+  );
 
   if (!stock) {
-    throw new Error("Stock record not found");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "stock",
+        message: "Stock record not found"
+      }
+    ]);
   }
 
   return {
     ...stock,
-    quantityAvailable: stock.quantityOnHand - stock.quantityAllocated,
+    quantityAvailable:
+      stock.quantityOnHand - stock.quantityAllocated
   };
 };
 
-export const getStockByProductService = async (productId: string) => {
+export const getStockByProductService = async (
+  productId: string
+) => {
   const stockRecords = await findStockByProduct(productId);
 
   return stockRecords.map((stock) => ({
     ...stock,
-    quantityAvailable: stock.quantityOnHand - stock.quantityAllocated,
+    quantityAvailable:
+      stock.quantityOnHand - stock.quantityAllocated
   }));
 };
 
-export const getStockByLocationService = async (locationId: string) => {
+export const getStockByLocationService = async (
+  locationId: string
+) => {
   const stockRecords = await findStockByLocation(locationId);
 
   return stockRecords.map((stock) => ({
     ...stock,
-    quantityAvailable: stock.quantityOnHand - stock.quantityAllocated,
+    quantityAvailable:
+      stock.quantityOnHand - stock.quantityAllocated
   }));
 };
 
 export const createStockService = async (
   productId: string,
-  locationId: string,
+  locationId: string
 ) => {
-  const product = await findProductById(productId);
+  const [product, location] = await Promise.all([
+    findProductById(productId),
+    findLocationById(locationId)
+  ]);
+
+  const errors = [];
 
   if (!product) {
-    throw new Error("Product not found");
+    errors.push({
+      field: "productId",
+      message: "Product not found"
+    });
+  } else if (product.status === "INACTIVE") {
+    errors.push({
+      field: "productId",
+      message: "Product is inactive"
+    });
   }
-
-  if (product.status === "INACTIVE") {
-    throw new Error("Product is inactive");
-  }
-
-  const location = await findLocationById(locationId);
 
   if (!location) {
-    throw new Error("Location not found");
+    errors.push({
+      field: "locationId",
+      message: "Location not found"
+    });
+  } else if (location.status === "INACTIVE") {
+    errors.push({
+      field: "locationId",
+      message: "Location is inactive"
+    });
   }
 
-  if (location.status === "INACTIVE") {
-    throw new Error("Location is inactive");
+  if (errors.length > 0) {
+    throw new AppError("Validation failed", 400, errors);
+  }
+
+  if (!product || !location) {
+    throw new Error("Validation failed");
   }
 
   const existingStock = await findStockByProductAndLocation(
     productId,
-    locationId,
+    locationId
   );
 
   if (existingStock) {
-    throw new Error("Stock record already exists");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "stock",
+        message: "Stock record already exists"
+      }
+    ]);
   }
 
   return createStock({
@@ -80,7 +120,7 @@ export const createStockService = async (
     locationId,
     quantityOnHand: 0,
     quantityAllocated: 0,
-    quantityOnOrder: 0,
+    quantityOnOrder: 0
   });
 };
 
@@ -90,16 +130,22 @@ export const updateStockService = async (
     quantityOnHand?: number;
     quantityAllocated?: number;
     quantityOnOrder?: number;
-  },
+  }
 ) => {
   const stock = await updateStock(id, data);
 
   if (!stock) {
-    throw new Error("Stock record not found");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "id",
+        message: "Stock record not found"
+      }
+    ]);
   }
 
   return {
     ...stock,
-    quantityAvailable: stock.quantityOnHand - stock.quantityAllocated,
+    quantityAvailable:
+      stock.quantityOnHand - stock.quantityAllocated
   };
 };

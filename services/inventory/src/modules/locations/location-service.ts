@@ -1,3 +1,4 @@
+import { AppError } from "../../errors/app-error.js";
 import {
   createLocation,
   findLocationByCode,
@@ -16,7 +17,12 @@ export const createLocationService = async (
   );
 
   if (existingLocation) {
-    throw new Error("Location code already exists");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "locationCode",
+        message: "Location code already exists"
+      }
+    ]);
   }
 
   return createLocation(data);
@@ -26,7 +32,12 @@ export const getLocationService = async (id: string) => {
   const location = await findLocationById(id);
 
   if (!location) {
-    throw new Error("Location not found");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "id",
+        message: "Location not found"
+      }
+    ]);
   }
 
   return location;
@@ -47,7 +58,12 @@ export const updateLocationService = async (
   const existingLocation = await findLocationById(id);
 
   if (!existingLocation) {
-    throw new Error("Location not found");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "id",
+        message: "Location not found"
+      }
+    ]);
   }
 
   const location = await updateLocation(id, data);
@@ -70,11 +86,21 @@ export const deactivateLocationService = async (id: string) => {
   const existingLocation = await findLocationById(id);
 
   if (!existingLocation) {
-    throw new Error("Location not found");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "id",
+        message: "Location not found"
+      }
+    ]);
   }
 
   if (existingLocation.status === "INACTIVE") {
-    throw new Error("Location is already inactive");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "status",
+        message: "Location is already inactive"
+      }
+    ]);
   }
 
   const location = await updateLocationStatus(id, "INACTIVE");
@@ -97,11 +123,21 @@ export const reactivateLocationService = async (id: string) => {
   const existingLocation = await findLocationById(id);
 
   if (!existingLocation) {
-    throw new Error("Location not found");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "id",
+        message: "Location not found"
+      }
+    ]);
   }
 
   if (existingLocation.status === "ACTIVE") {
-    throw new Error("Location is already active");
+    throw new AppError("Validation failed", 400, [
+      {
+        field: "status",
+        message: "Location is already active"
+      }
+    ]);
   }
 
   const location = await updateLocationStatus(id, "ACTIVE");

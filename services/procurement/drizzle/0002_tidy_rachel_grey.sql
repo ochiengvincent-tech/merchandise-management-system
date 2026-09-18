@@ -1,0 +1,1 @@
+ALTER TABLE "purchase_orders" ADD COLUMN "payment_terms" varchar(50) DEFAULT 'NET_30' NOT NULL;

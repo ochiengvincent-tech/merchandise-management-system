@@ -1,0 +1,1 @@
+ALTER TABLE "vendors" ADD COLUMN "payment_terms" varchar(50);

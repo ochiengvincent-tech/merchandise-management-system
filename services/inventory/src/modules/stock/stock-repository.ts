@@ -6,7 +6,7 @@ type Database = Pick<typeof db, "select" | "insert" | "update">;
 
 export const findStockByProductAndLocation = async (
   productId: string,
-  locationId: string
+  locationId: string,
 ) => {
   const [stock] = await db
     .select()
@@ -14,8 +14,29 @@ export const findStockByProductAndLocation = async (
     .where(
       and(
         eq(inventoryStock.productId, productId),
-        eq(inventoryStock.locationId, locationId)
-      )
+        eq(inventoryStock.locationId, locationId),
+      ),
+    )
+    .limit(1);
+
+  return stock ?? null;
+};
+
+export const findStockByProductAndLocationWithDatabase = async <
+  T extends Pick<typeof db, "select">,
+>(
+  productId: string,
+  locationId: string,
+  database: T,
+) => {
+  const [stock] = await database
+    .select()
+    .from(inventoryStock)
+    .where(
+      and(
+        eq(inventoryStock.productId, productId),
+        eq(inventoryStock.locationId, locationId),
+      ),
     )
     .limit(1);
 
@@ -36,26 +57,21 @@ export const findStockByLocation = async (locationId: string) => {
     .where(eq(inventoryStock.locationId, locationId));
 };
 
-export const createStock = async (
-  data: typeof inventoryStock.$inferInsert
-) => {
-  const [stock] = await db
-    .insert(inventoryStock)
-    .values(data)
-    .returning();
+export const createStock = async (data: typeof inventoryStock.$inferInsert) => {
+  const [stock] = await db.insert(inventoryStock).values(data).returning();
 
   return stock;
 };
 
 export const updateStock = async (
   id: string,
-  data: Partial<typeof inventoryStock.$inferInsert>
+  data: Partial<typeof inventoryStock.$inferInsert>,
 ) => {
   const [stock] = await db
     .update(inventoryStock)
     .set({
       ...data,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     })
     .where(eq(inventoryStock.id, id))
     .returning();
@@ -66,15 +82,20 @@ export const updateStock = async (
 export const allocateStock = async (
   id: string,
   quantity: number,
-  database: Database
+  database: Database,
 ) => {
   const [stock] = await database
     .update(inventoryStock)
     .set({
       quantityAllocated: sql`${inventoryStock.quantityAllocated} + ${quantity}`,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     })
-    .where(eq(inventoryStock.id, id))
+    .where(
+      and(
+        eq(inventoryStock.id, id),
+        sql`${inventoryStock.quantityOnHand} - ${inventoryStock.quantityAllocated} >= ${quantity}`,
+      ),
+    )
     .returning();
 
   return stock ?? null;
@@ -83,15 +104,20 @@ export const allocateStock = async (
 export const releaseStock = async (
   id: string,
   quantity: number,
-  database: Database
+  database: Database,
 ) => {
   const [stock] = await database
     .update(inventoryStock)
     .set({
       quantityAllocated: sql`${inventoryStock.quantityAllocated} - ${quantity}`,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     })
-    .where(eq(inventoryStock.id, id))
+    .where(
+      and(
+        eq(inventoryStock.id, id),
+        sql`${inventoryStock.quantityAllocated} >= ${quantity}`,
+      ),
+    )
     .returning();
 
   return stock ?? null;

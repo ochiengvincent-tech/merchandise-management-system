@@ -7,7 +7,7 @@ import { findLocationById } from "../locations/location-repository.js";
 import {
   allocateStock,
   findStockByProductAndLocation,
-  releaseStock
+  releaseStock,
 } from "./stock-repository.js";
 
 export const allocateStockService = async (data: {
@@ -19,7 +19,7 @@ export const allocateStockService = async (data: {
 }) => {
   const [product, location] = await Promise.all([
     findProductById(data.productId),
-    findLocationById(data.locationId)
+    findLocationById(data.locationId),
   ]);
 
   const errors = [];
@@ -27,69 +27,69 @@ export const allocateStockService = async (data: {
   if (!product) {
     errors.push({
       field: "productId",
-      message: "Product not found"
+      message: "Product not found",
     });
   } else if (product.status === "INACTIVE") {
     errors.push({
       field: "productId",
-      message: "Product is inactive"
+      message: "Product is inactive",
     });
   }
 
   if (!location) {
     errors.push({
       field: "locationId",
-      message: "Location not found"
+      message: "Location not found",
     });
   } else if (location.status === "INACTIVE") {
     errors.push({
       field: "locationId",
-      message: "Location is inactive"
+      message: "Location is inactive",
     });
   }
 
   if (errors.length > 0) {
-  throw new AppError("Validation failed", 400, errors);
-}
+    throw new AppError("Validation failed", 400, errors);
+  }
 
-if (!product || !location) {
-  throw new Error("Validation failed");
-}
+  if (!product || !location) {
+    throw new Error("Validation failed");
+  }
   const stock = await findStockByProductAndLocation(
     data.productId,
-    data.locationId
+    data.locationId,
   );
 
   if (!stock) {
     throw new AppError("Validation failed", 400, [
       {
         field: "stock",
-        message: "Stock record not found"
-      }
+        message: "Stock record not found",
+      },
     ]);
   }
 
-  const quantityAvailable =
-    stock.quantityOnHand - stock.quantityAllocated;
+  const quantityAvailable = stock.quantityOnHand - stock.quantityAllocated;
 
   if (quantityAvailable < data.quantity) {
     throw new AppError("Validation failed", 400, [
       {
         field: "quantity",
-        message: "Insufficient available stock"
-      }
+        message: "Insufficient available stock",
+      },
     ]);
   }
 
   return db.transaction(async (tx) => {
-    const updatedStock = await allocateStock(
-      stock.id,
-      data.quantity,
-      tx
-    );
+    const updatedStock = await allocateStock(stock.id, data.quantity, tx);
 
     if (!updatedStock) {
-      throw new Error("Failed to allocate stock");
+      throw new AppError("Insufficient available stock", 409, [
+        {
+          field: "quantity",
+          message: "Insufficient available stock",
+        },
+      ]);
     }
 
     await tx.insert(inventoryAuditLogs).values({
@@ -101,25 +101,24 @@ if (!product || !location) {
         previousQuantityAllocated: stock.quantityAllocated,
         newQuantityAllocated: updatedStock.quantityAllocated,
         quantity: data.quantity,
-        reference: data.reference
-      }
+        reference: data.reference,
+      },
     });
 
     const stockLowEvent = await createStockLowEvent(
       stock,
       updatedStock,
       product.reorderLevel,
-      tx
+      tx,
     );
 
     return {
       stock: {
         ...updatedStock,
         quantityAvailable:
-          updatedStock.quantityOnHand -
-          updatedStock.quantityAllocated
+          updatedStock.quantityOnHand - updatedStock.quantityAllocated,
       },
-      stockLowEvent
+      stockLowEvent,
     };
   });
 };
@@ -133,7 +132,7 @@ export const releaseStockService = async (data: {
 }) => {
   const [product, location] = await Promise.all([
     findProductById(data.productId),
-    findLocationById(data.locationId)
+    findLocationById(data.locationId),
   ]);
 
   const errors = [];
@@ -141,24 +140,24 @@ export const releaseStockService = async (data: {
   if (!product) {
     errors.push({
       field: "productId",
-      message: "Product not found"
+      message: "Product not found",
     });
   } else if (product.status === "INACTIVE") {
     errors.push({
       field: "productId",
-      message: "Product is inactive"
+      message: "Product is inactive",
     });
   }
 
   if (!location) {
     errors.push({
       field: "locationId",
-      message: "Location not found"
+      message: "Location not found",
     });
   } else if (location.status === "INACTIVE") {
     errors.push({
       field: "locationId",
-      message: "Location is inactive"
+      message: "Location is inactive",
     });
   }
 
@@ -168,15 +167,15 @@ export const releaseStockService = async (data: {
 
   const stock = await findStockByProductAndLocation(
     data.productId,
-    data.locationId
+    data.locationId,
   );
 
   if (!stock) {
     throw new AppError("Validation failed", 400, [
       {
         field: "stock",
-        message: "Stock record not found"
-      }
+        message: "Stock record not found",
+      },
     ]);
   }
 
@@ -184,20 +183,21 @@ export const releaseStockService = async (data: {
     throw new AppError("Validation failed", 400, [
       {
         field: "quantity",
-        message: "Cannot release more than allocated stock"
-      }
+        message: "Cannot release more than allocated stock",
+      },
     ]);
   }
 
   return db.transaction(async (tx) => {
-    const updatedStock = await releaseStock(
-      stock.id,
-      data.quantity,
-      tx
-    );
+    const updatedStock = await releaseStock(stock.id, data.quantity, tx);
 
     if (!updatedStock) {
-      throw new Error("Failed to release stock");
+      throw new AppError("Cannot release more than allocated stock", 409, [
+        {
+          field: "quantity",
+          message: "Cannot release more than allocated stock",
+        },
+      ]);
     }
 
     await tx.insert(inventoryAuditLogs).values({
@@ -209,15 +209,14 @@ export const releaseStockService = async (data: {
         previousQuantityAllocated: stock.quantityAllocated,
         newQuantityAllocated: updatedStock.quantityAllocated,
         quantity: data.quantity,
-        reference: data.reference
-      }
+        reference: data.reference,
+      },
     });
 
     return {
       ...updatedStock,
       quantityAvailable:
-        updatedStock.quantityOnHand -
-        updatedStock.quantityAllocated
+        updatedStock.quantityOnHand - updatedStock.quantityAllocated,
     };
   });
 };

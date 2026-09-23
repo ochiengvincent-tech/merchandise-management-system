@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - dev
+      - "feature/**"
+  pull_request:
+    branches:
+      - dev
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck Vendor Management
+        run: pnpm --filter @mms/vendor-management typecheck
+
+      - name: Typecheck Inventory
+        run: pnpm --filter @mms/inventory typecheck
+
+      - name: Typecheck Procurement
+        run: pnpm --filter @mms/procurement typecheck
+
+      - name: Build Vendor Management
+        run: pnpm --filter @mms/vendor-management build
+
+      - name: Build Inventory
+        run: pnpm --filter @mms/inventory build
+
+      - name: Build Procurement
+        run: pnpm --filter @mms/procurement build
+
+      - name: Test Vendor Management
+        run: pnpm --filter @mms/vendor-management test
+
+      - name: Test Inventory
+        run: pnpm --filter @mms/inventory test
+
+      - name: Test Procurement
+        run: pnpm --filter @mms/procurement test

@@ -4,6 +4,7 @@ import vendorRoutes from "./modules/vendors/vendor.routes.js";
 import vendorProductRoutes from "./modules/vendor-products/vendor-product.routes.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { notFoundHandler } from "./middleware/not-found.js";
+import { featureFlags } from "@mms/feature-flags";
 
 const app: Application = express();
 
@@ -34,9 +35,11 @@ app.get("/ready", async (_req, res) => {
     });
   }
 });
-
+if(featureFlags.vendorManagement){
 app.use("/api/v1/vendors", vendorRoutes);
 app.use("/api/v1/vendors", vendorProductRoutes);
+}
+
 
 app.use(notFoundHandler);
 app.use(errorHandler);

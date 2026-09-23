@@ -13,6 +13,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@mms/feature-flags": "workspace:*",
     "amqplib": "^2.0.1",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",

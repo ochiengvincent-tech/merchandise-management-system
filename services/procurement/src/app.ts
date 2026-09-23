@@ -1,4 +1,5 @@
 import express, { type Application } from "express";
+import { featureFlags } from "@mms/feature-flags";
 import { pool } from "./db/index.js";
 import approvalRoutes from "./modules/approvals/approval-routes.js";
 import amendmentRoutes from "./modules/amendments/amendment-routes.js";
@@ -22,15 +23,20 @@ app.get("/health", (_req, res) => {
 app.get("/ready", async (_req, res) => {
   try {
     await pool.query("SELECT 1");
-    const channel = await getRabbitMQChannel();
-    await channel.checkExchange(EVENTS_EXCHANGE);
+
+    if (featureFlags.procurement) {
+      const channel = await getRabbitMQChannel();
+      await channel.checkExchange(EVENTS_EXCHANGE);
+    }
 
     return res.status(200).json({
       status: "ready",
       service: "procurement",
       dependencies: {
         database: "ok",
-        rabbitmq: "ok",
+        ...(featureFlags.procurement && {
+          rabbitmq: "ok",
+        }),
       },
     });
   } catch {
@@ -41,9 +47,11 @@ app.get("/ready", async (_req, res) => {
   }
 });
 
-app.use("/api/v1/purchase-orders", purchaseOrderRoutes);
-app.use("/api/v1/purchase-orders", approvalRoutes);
-app.use("/api/v1/amendments", amendmentRoutes);
+if (featureFlags.procurement) {
+  app.use("/api/v1/purchase-orders", purchaseOrderRoutes);
+  app.use("/api/v1/purchase-orders", approvalRoutes);
+  app.use("/api/v1/amendments", amendmentRoutes);
+}
 
 app.use(notFoundHandler);
 app.use(errorHandler);

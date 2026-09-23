@@ -1,3 +1,4 @@
+import { featureFlags } from "@mms/feature-flags";
 import app from "./app.js";
 import { env } from "./config/env.js";
 
@@ -9,6 +10,9 @@ import { setupRabbitMQTopology } from "./modules/events/rabbitmq-topology.js";
 import { publishPendingOutboxEvents } from "./modules/events/outbox-publisher.js";
 
 const OUTBOX_POLL_INTERVAL_MS = 1000;
+const RABBITMQ_RECONNECT_DELAY_MS = 5_000;
+
+let stopping = false;
 
 const publishOutbox = async () => {
   try {
@@ -17,10 +21,6 @@ const publishOutbox = async () => {
     console.error("Outbox publisher error:", error);
   }
 };
-
-const RABBITMQ_RECONNECT_DELAY_MS = 5_000;
-
-let stopping = false;
 
 const connectRabbitMqTopology = async (): Promise<void> => {
   try {
@@ -36,17 +36,25 @@ const connectRabbitMqTopology = async (): Promise<void> => {
   }
 };
 
-const interval = setInterval(publishOutbox, OUTBOX_POLL_INTERVAL_MS);
+const interval = featureFlags.procurement
+  ? setInterval(publishOutbox, OUTBOX_POLL_INTERVAL_MS)
+  : undefined;
 
 app.listen(env.PORT, () => {
   console.log(`Procurement service running on port ${env.PORT}`);
 });
 
-void connectRabbitMqTopology();
+if (featureFlags.procurement) {
+  void connectRabbitMqTopology();
+}
 
 const shutdown = async () => {
   stopping = true;
-  clearInterval(interval);
+
+  if (interval) {
+    clearInterval(interval);
+  }
+
   await closeRabbitMQ();
   process.exit(0);
 };

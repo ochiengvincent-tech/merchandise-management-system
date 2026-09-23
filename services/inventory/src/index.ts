@@ -1,3 +1,4 @@
+import { featureFlags } from "@mms/feature-flags";
 import { app } from "./app.js";
 import { env } from "./config/env.js";
 import { closeRabbitMq } from "./modules/events/rabbitmq.js";
@@ -35,7 +36,9 @@ app.listen(env.PORT, () => {
   console.log(`Inventory service running on port ${env.PORT}`);
 });
 
-void startConsumerWithRetry();
+if (featureFlags.inventory) {
+  void startConsumerWithRetry();
+}
 
 const shutdown = async () => {
   stopping = true;

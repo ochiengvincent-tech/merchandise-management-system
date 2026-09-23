@@ -10,6 +10,7 @@ import { locationRouter } from "./modules/locations/location-routes.js";
 import { stockRouter } from "./modules/stock/stock-routes.js";
 import { adjustmentRouter } from "./modules/adjustments/adjustment-routes.js";
 import { eventRouter } from "./modules/events/event-routes.js";
+import { featureFlags } from "@mms/feature-flags";
 
 const app: Application = express();
 
@@ -44,11 +45,13 @@ app.get("/ready", async (_req, res) => {
   }
 });
 
-app.use("/api/v1/products", productRouter);
-app.use("/api/v1/locations", locationRouter);
-app.use("/api/v1/stock", stockRouter);
-app.use("/api/v1/adjustments", adjustmentRouter);
-app.use("/api/v1/events", eventRouter);
+if (featureFlags.inventory) {
+  app.use("/api/v1/products", productRouter);
+  app.use("/api/v1/locations", locationRouter);
+  app.use("/api/v1/stock", stockRouter);
+  app.use("/api/v1/adjustments", adjustmentRouter);
+  app.use("/api/v1/events", eventRouter);
+}
 
 app.use(notFoundHandler);
 app.use(errorHandler);

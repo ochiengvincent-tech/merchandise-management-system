@@ -85,6 +85,9 @@ jobs:
           exit 1
 
       - name: Test Inventory
+        env:
+          RABBITMQ_URL: amqp://mms:mms@localhost:5672
+          RABBITMQ_QUEUE_PREFIX: test.
         run: pnpm --filter @mms/inventory test
 
       - name: Test Procurement

@@ -52,11 +52,10 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: mms
       RABBITMQ_DEFAULT_PASS: mms
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+    tmpfs:
+      - /var/lib/rabbitmq
 
 volumes:
   vendor_db_data:
   procurement_db_data:
   inventory_db_data:
-  rabbitmq_data:

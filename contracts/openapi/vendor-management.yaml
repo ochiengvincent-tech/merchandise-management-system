@@ -1,0 +1,802 @@
+openapi: 3.0.3
+
+info:
+  title: MMS Vendor Management API
+  description: |
+    REST API for the Vendor Management Service in the Merchandising Funnel
+    Automation system.
+
+    Vendor Management is the authoritative service for supplier identity,
+    contact information, payment terms, supplier-product relationships,
+    supplier pricing, lead times, and vendor lifecycle management.
+  version: 1.0.0
+  license:
+    name: Proprietary
+    url: https://vincent.com/license
+
+security: []
+
+servers:
+  - url: http://localhost:3001
+    description: Local development server
+
+tags:
+  - name: Health
+    description: Service health and readiness
+  - name: Vendors
+    description: Vendor management operations
+  - name: Vendor Products
+    description: Supplier-product relationship operations
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Check service health
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /ready:
+    get:
+      tags:
+        - Health
+      summary: Check service readiness
+      operationId: getReadiness
+      responses:
+        "200":
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
+        "503":
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotReadyResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/vendors:
+    post:
+      tags:
+        - Vendors
+      summary: Create a vendor
+      operationId: createVendor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVendorRequest"
+      responses:
+        "201":
+          description: Vendor created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          description: Vendor code already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      tags:
+        - Vendors
+      summary: List vendors
+      operationId: listVendors
+      parameters:
+        - name: page
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+
+        - name: limit
+          in: query
+          description: Number of vendors per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+
+        - name: status
+          in: query
+          description: Filter vendors by lifecycle status
+          required: false
+          schema:
+            $ref: "#/components/schemas/VendorStatus"
+
+        - name: search
+          in: query
+          description: Search by vendor code or vendor name
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+
+      responses:
+        "200":
+          description: Vendors returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorListResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/vendors/{id}:
+    get:
+      tags:
+        - Vendors
+      summary: Get a vendor by ID
+      operationId: getVendorById
+      parameters:
+        - $ref: "#/components/parameters/VendorId"
+      responses:
+        "200":
+          description: Vendor returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorResponse"
+        "400":
+          description: Invalid vendor ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Vendor not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    patch:
+      tags:
+        - Vendors
+      summary: Update a vendor
+      operationId: updateVendor
+      parameters:
+        - $ref: "#/components/parameters/VendorId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateVendorRequest"
+      responses:
+        "200":
+          description: Vendor updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          description: Vendor not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/vendors/{id}/deactivate:
+    patch:
+      tags:
+        - Vendors
+      summary: Deactivate a vendor
+      operationId: deactivateVendor
+      parameters:
+        - $ref: "#/components/parameters/VendorId"
+      responses:
+        "200":
+          description: Vendor deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorResponse"
+        "400":
+          description: Invalid vendor ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Vendor not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Vendor is already inactive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/vendors/{id}/reactivate:
+    patch:
+      tags:
+        - Vendors
+      summary: Reactivate a vendor
+      operationId: reactivateVendor
+      parameters:
+        - $ref: "#/components/parameters/VendorId"
+      responses:
+        "200":
+          description: Vendor reactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorResponse"
+        "400":
+          description: Invalid vendor ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Vendor not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Vendor is already active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/vendors/{vendorId}/products:
+    post:
+      tags:
+        - Vendor Products
+      summary: Add a product supplied by a vendor
+      operationId: createVendorProduct
+      parameters:
+        - $ref: "#/components/parameters/VendorProductsVendorId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVendorProductRequest"
+      responses:
+        "201":
+          description: Vendor-product relationship created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorProductResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          description: Vendor not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Vendor or product relationship conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      tags:
+        - Vendor Products
+      summary: List products supplied by a vendor
+      operationId: listVendorProducts
+      parameters:
+        - $ref: "#/components/parameters/VendorProductsVendorId"
+      responses:
+        "200":
+          description: Vendor products returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorProductListResponse"
+        "400":
+          description: Invalid vendor ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Vendor not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/vendor-products/{id}:
+    get:
+      tags:
+        - Vendor Products
+      summary: Get a vendor-product relationship by ID
+      operationId: getVendorProductById
+      parameters:
+        - $ref: "#/components/parameters/VendorProductId"
+      responses:
+        "200":
+          description: Vendor-product relationship returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorProductResponse"
+        "400":
+          description: Invalid vendor product ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Vendor product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    patch:
+      tags:
+        - Vendor Products
+      summary: Update a vendor-product relationship
+      operationId: updateVendorProduct
+      parameters:
+        - $ref: "#/components/parameters/VendorProductId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateVendorProductRequest"
+      responses:
+        "200":
+          description: Vendor-product relationship updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorProductResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          description: Vendor product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/vendors/products/{id}/deactivate:
+    patch:
+      tags:
+        - Vendor Products
+      summary: Deactivate a vendor-product relationship
+      operationId: deactivateVendorProduct
+      parameters:
+        - $ref: "#/components/parameters/VendorProductId"
+      responses:
+        "200":
+          description: Vendor-product relationship deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorProductResponse"
+        "400":
+          description: Invalid vendor product ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Vendor product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Vendor product is already inactive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/vendors/products/{id}/reactivate:
+    patch:
+      tags:
+        - Vendor Products
+      summary: Reactivate a vendor-product relationship
+      operationId: reactivateVendorProduct
+      parameters:
+        - $ref: "#/components/parameters/VendorProductId"
+      responses:
+        "200":
+          description: Vendor-product relationship reactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorProductResponse"
+        "400":
+          description: Invalid vendor product ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Vendor product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Vendor product is already active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  parameters:
+    VendorProductsVendorId:
+      name: vendorId
+      in: path
+      required: true
+      description: Vendor UUID
+      schema:
+        type: string
+        format: uuid
+
+    VendorId:
+      name: id
+      in: path
+      required: true
+      description: Vendor UUID
+      schema:
+        type: string
+        format: uuid
+
+    VendorProductId:
+      name: id
+      in: path
+      required: true
+      description: Vendor-product relationship UUID
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationErrorResponse"
+
+  schemas:
+    VendorStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - INACTIVE
+
+    Vendor:
+      type: object
+      required:
+        - id
+        - vendorCode
+        - name
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        vendorCode:
+          type: string
+          maxLength: 50
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          nullable: true
+        phone:
+          type: string
+          maxLength: 30
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        paymentTerms:
+          type: string
+          maxLength: 50
+          nullable: true
+        status:
+          $ref: "#/components/schemas/VendorStatus"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateVendorRequest:
+      type: object
+      required:
+        - vendorCode
+        - name
+      properties:
+        vendorCode:
+          type: string
+          minLength: 1
+          maxLength: 50
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          maxLength: 30
+        address:
+          type: string
+        paymentTerms:
+          type: string
+          maxLength: 50
+
+    UpdateVendorRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          maxLength: 30
+        address:
+          type: string
+        paymentTerms:
+          type: string
+          maxLength: 50
+
+    VendorProduct:
+      type: object
+      required:
+        - id
+        - vendorId
+        - productId
+        - currentPrice
+        - leadTimeDays
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        vendorId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        supplierProductCode:
+          type: string
+          maxLength: 100
+          nullable: true
+        currentPrice:
+          type: string
+          description: Supplier price represented as a decimal string
+          example: "1250.00"
+        leadTimeDays:
+          type: integer
+          minimum: 0
+        status:
+          $ref: "#/components/schemas/VendorStatus"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateVendorProductRequest:
+      type: object
+      required:
+        - productId
+        - currentPrice
+        - leadTimeDays
+      properties:
+        productId:
+          type: string
+          format: uuid
+        supplierProductCode:
+          type: string
+          maxLength: 100
+        currentPrice:
+          type: number
+          minimum: 0
+          example: 1250
+        leadTimeDays:
+          type: integer
+          minimum: 0
+          example: 7
+
+    UpdateVendorProductRequest:
+      type: object
+      minProperties: 1
+      properties:
+        supplierProductCode:
+          type: string
+          maxLength: 100
+        currentPrice:
+          type: number
+          minimum: 0
+          example: 1300
+        leadTimeDays:
+          type: integer
+          minimum: 0
+          example: 10
+
+    VendorResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/Vendor"
+
+    VendorListResponse:
+      type: object
+      required:
+        - data
+        - total
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Vendor"
+        total:
+          type: integer
+          minimum: 0
+
+    VendorProductResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/VendorProduct"
+
+    VendorProductListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/VendorProduct"
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - service
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+          example: vendor-management
+
+    ReadyResponse:
+      type: object
+      required:
+        - status
+        - service
+        - dependencies
+      properties:
+        status:
+          type: string
+          example: ready
+        service:
+          type: string
+          example: vendor-management
+        dependencies:
+          type: object
+          required:
+            - database
+          properties:
+            database:
+              type: string
+              example: ok
+
+    NotReadyResponse:
+      type: object
+      required:
+        - status
+        - service
+      properties:
+        status:
+          type: string
+          example: not_ready
+        service:
+          type: string
+          example: vendor-management
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - message
+          properties:
+            message:
+              type: string
+            details:
+              type: array
+              items: {}
+
+    ValidationErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - message
+            - details
+          properties:
+            message:
+              type: string
+              example: Validation failed
+            details:
+              type: array
+              items: {}

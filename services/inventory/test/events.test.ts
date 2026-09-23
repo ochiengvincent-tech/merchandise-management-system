@@ -15,7 +15,7 @@ describe("Inventory events", () => {
     await createStock(product.id, location.id);
     await setStockQuantity(product.id, location.id, 6);
 
-    const response = await api.post("/stock/allocate").send({
+    const response = await api.post("/api/v1/stock/allocate").send({
       productId: product.id,
       locationId: location.id,
       quantity: 1,
@@ -51,7 +51,9 @@ describe("Inventory events", () => {
       ],
     };
 
-    const first = await api.post("/events/purchase-order-approved").send(event);
+    const first = await api
+      .post("/api/v1/events/purchase-order-approved")
+      .send(event);
     expect(first.status).toBe(200);
     expect(first.body).toMatchObject({
       processed: true,
@@ -60,7 +62,7 @@ describe("Inventory events", () => {
     });
 
     const second = await api
-      .post("/events/purchase-order-approved")
+      .post("/api/v1/events/purchase-order-approved")
       .send(event);
     expect(second.status).toBe(200);
     expect(second.body).toEqual({
@@ -68,7 +70,7 @@ describe("Inventory events", () => {
       reason: "Event already processed",
     });
 
-    const stock = await api.get("/stock/by-product-and-location").query({
+    const stock = await api.get("/api/v1/stock/by-product-and-location").query({
       productId: product.id,
       locationId: location.id,
     });
@@ -89,8 +91,8 @@ describe("Inventory events", () => {
     };
 
     const responses = await Promise.all([
-      api.post("/events/purchase-order-approved").send(event),
-      api.post("/events/purchase-order-approved").send(event),
+      api.post("/api/v1/events/purchase-order-approved").send(event),
+      api.post("/api/v1/events/purchase-order-approved").send(event),
     ]);
 
     expect(responses.map((response) => response.status).sort()).toEqual([
@@ -100,7 +102,7 @@ describe("Inventory events", () => {
       [false, true],
     );
 
-    const stock = await api.get("/stock/by-product-and-location").query({
+    const stock = await api.get("/api/v1/stock/by-product-and-location").query({
       productId: product.id,
       locationId: location.id,
     });
@@ -126,11 +128,11 @@ describe("Inventory events", () => {
     };
 
     const response = await api
-      .post("/events/purchase-order-approved")
+      .post("/api/v1/events/purchase-order-approved")
       .send(event);
 
     expect(response.status).toBe(400);
-    const stock = await api.get("/stock/by-product-and-location").query({
+    const stock = await api.get("/api/v1/stock/by-product-and-location").query({
       productId: product.id,
       locationId: location.id,
     });
@@ -149,7 +151,9 @@ describe("Inventory events", () => {
         { productId: product.id, locationId: location.id, quantityOrdered: 8 },
       ],
     };
-    await api.post("/events/purchase-order-approved").send(approvedEvent);
+    await api
+      .post("/api/v1/events/purchase-order-approved")
+      .send(approvedEvent);
 
     const cancelledEvent = {
       eventId: randomUUID(),
@@ -164,11 +168,11 @@ describe("Inventory events", () => {
       ],
     };
     const response = await api
-      .post("/events/purchase-order-cancelled")
+      .post("/api/v1/events/purchase-order-cancelled")
       .send(cancelledEvent);
 
     expect(response.status).toBe(200);
-    const stock = await api.get("/stock/by-product-and-location").query({
+    const stock = await api.get("/api/v1/stock/by-product-and-location").query({
       productId: product.id,
       locationId: location.id,
     });
@@ -193,7 +197,7 @@ describe("Inventory events", () => {
     };
 
     const response = await api
-      .post("/events/purchase-order-cancelled")
+      .post("/api/v1/events/purchase-order-cancelled")
       .send(event);
 
     expect(response.status).toBe(400);
@@ -203,10 +207,20 @@ describe("Inventory events", () => {
       message: `Cancellation quantity exceeds on-order quantity for product ${product.id}`,
     });
 
-    const stock = await api.get("/stock/by-product-and-location").query({
+    const stock = await api.get("/api/v1/stock/by-product-and-location").query({
       productId: product.id,
       locationId: location.id,
     });
     expect(stock.body.quantityOnOrder).toBe(0);
+  });
+  it("returns 405 for unsupported methods on known routes", async () => {
+    const response = await api.get("/api/v1/events/purchase-order-approved");
+
+    expect(response.status).toBe(405);
+    expect(response.body).toEqual({
+      error: {
+        message: "Method not allowed",
+      },
+    });
   });
 });

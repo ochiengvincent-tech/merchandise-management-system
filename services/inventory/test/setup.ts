@@ -5,8 +5,9 @@ import { assertTestDatabaseUrl } from "./database-safety.js";
 
 process.env.DATABASE_URL =
   process.env.TEST_DATABASE_URL ??
-  "postgresql://mms_vendor:Gift%402025@localhost:5432/inventory_test_db";
+  "postgresql://mms_inventory:mms_inventory@localhost:5436/inventory_test_db";
 process.env.RABBITMQ_URL ??= "amqp://localhost:5672";
+process.env.RABBITMQ_QUEUE_PREFIX ??= "test.";
 assertTestDatabaseUrl(process.env.DATABASE_URL);
 
 const tableNames = [

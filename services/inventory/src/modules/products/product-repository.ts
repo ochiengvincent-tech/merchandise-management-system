@@ -2,13 +2,8 @@ import { and, eq, ilike, or } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { products } from "../../db/schema/products.js";
 
-export const createProduct = async (
-  data: typeof products.$inferInsert
-) => {
-  const [product] = await db
-    .insert(products)
-    .values(data)
-    .returning();
+export const createProduct = async (data: typeof products.$inferInsert) => {
+  const [product] = await db.insert(products).values(data).returning();
 
   return product;
 };
@@ -32,6 +27,20 @@ export const findProductBySku = async (sku: string) => {
 
   return product ?? null;
 };
+export const findProductByIdWithDatabase = async <
+  T extends Pick<typeof db, "select">,
+>(
+  id: string,
+  database: T,
+) => {
+  const [product] = await database
+    .select()
+    .from(products)
+    .where(eq(products.id, id))
+    .limit(1);
+
+  return product ?? null;
+};
 
 export const findProducts = async (filters: {
   search?: string;
@@ -44,8 +53,8 @@ export const findProducts = async (filters: {
     conditions.push(
       or(
         ilike(products.sku, `%${filters.search}%`),
-        ilike(products.name, `%${filters.search}%`)
-      )
+        ilike(products.name, `%${filters.search}%`),
+      ),
     );
   }
 
@@ -65,13 +74,13 @@ export const findProducts = async (filters: {
 
 export const updateProduct = async (
   id: string,
-  data: Partial<typeof products.$inferInsert>
+  data: Partial<typeof products.$inferInsert>,
 ) => {
   const [product] = await db
     .update(products)
     .set({
       ...data,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     })
     .where(eq(products.id, id))
     .returning();
@@ -81,13 +90,13 @@ export const updateProduct = async (
 
 export const updateProductStatus = async (
   id: string,
-  status: "ACTIVE" | "INACTIVE"
+  status: "ACTIVE" | "INACTIVE",
 ) => {
   const [product] = await db
     .update(products)
     .set({
       status,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     })
     .where(eq(products.id, id))
     .returning();

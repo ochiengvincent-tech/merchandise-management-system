@@ -14,7 +14,7 @@ describe("Adjustments API", () => {
     const location = await createLocation();
     await createStock(product.id, location.id);
 
-    const response = await api.post("/adjustments").send({
+    const response = await api.post("/api/v1/adjustments").send({
       productId: product.id,
       locationId: location.id,
       quantityChange: 7,
@@ -41,7 +41,7 @@ describe("Adjustments API", () => {
     await createStock(product.id, location.id);
     await setStockQuantity(product.id, location.id, 2);
 
-    const response = await api.post("/adjustments").send({
+    const response = await api.post("/api/v1/adjustments").send({
       productId: product.id,
       locationId: location.id,
       quantityChange: -3,
@@ -54,6 +54,16 @@ describe("Adjustments API", () => {
     expect(response.body.error.details).toContainEqual({
       field: "quantityChange",
       message: "Adjustment would result in negative stock",
+    });
+  });
+  it("returns 405 for unsupported methods on known routes", async () => {
+    const response = await api.get("/api/v1/adjustments");
+
+    expect(response.status).toBe(405);
+    expect(response.body).toEqual({
+      error: {
+        message: "Method not allowed",
+      },
     });
   });
 });

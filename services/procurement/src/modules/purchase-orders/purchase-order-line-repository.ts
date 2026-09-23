@@ -4,10 +4,7 @@ import { purchaseOrderLines } from "../../db/schema/purchase-order-lines.js";
 
 export async function createPurchaseOrderLineWithDatabase<
   T extends Pick<typeof db, "insert">,
->(
-  data: typeof purchaseOrderLines.$inferInsert,
-  database: T,
-) {
+>(data: typeof purchaseOrderLines.$inferInsert, database: T) {
   const [purchaseOrderLine] = await database
     .insert(purchaseOrderLines)
     .values(data)
@@ -18,20 +15,21 @@ export async function createPurchaseOrderLineWithDatabase<
 
 export async function createPurchaseOrderLinesWithDatabase<
   T extends Pick<typeof db, "insert">,
->(
-  data: (typeof purchaseOrderLines.$inferInsert)[],
-  database: T,
-) {
-  return database
-    .insert(purchaseOrderLines)
-    .values(data)
-    .returning();
+>(data: (typeof purchaseOrderLines.$inferInsert)[], database: T) {
+  return database.insert(purchaseOrderLines).values(data).returning();
 }
 
-export async function findPurchaseOrderLines(
-  purchaseOrderId: string,
-) {
+export async function findPurchaseOrderLines(purchaseOrderId: string) {
   return db
+    .select()
+    .from(purchaseOrderLines)
+    .where(eq(purchaseOrderLines.purchaseOrderId, purchaseOrderId));
+}
+
+export async function findPurchaseOrderLinesWithDatabase<
+  T extends Pick<typeof db, "select">,
+>(purchaseOrderId: string, database: T) {
+  return database
     .select()
     .from(purchaseOrderLines)
     .where(eq(purchaseOrderLines.purchaseOrderId, purchaseOrderId));

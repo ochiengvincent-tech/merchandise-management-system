@@ -5,23 +5,21 @@ import {
   findLocationById,
   findLocations,
   updateLocation,
-  updateLocationStatus
+  updateLocationStatus,
 } from "./location-repository.js";
 import { createLocationAuditLog } from "./location-audit-repository.js";
 
 export const createLocationService = async (
-  data: Parameters<typeof createLocation>[0]
+  data: Parameters<typeof createLocation>[0],
 ) => {
-  const existingLocation = await findLocationByCode(
-    data.locationCode
-  );
+  const existingLocation = await findLocationByCode(data.locationCode);
 
   if (existingLocation) {
     throw new AppError("Validation failed", 400, [
       {
         field: "locationCode",
-        message: "Location code already exists"
-      }
+        message: "Location code already exists",
+      },
     ]);
   }
 
@@ -32,12 +30,7 @@ export const getLocationService = async (id: string) => {
   const location = await findLocationById(id);
 
   if (!location) {
-    throw new AppError("Validation failed", 400, [
-      {
-        field: "id",
-        message: "Location not found"
-      }
-    ]);
+    throw new AppError("Location not found", 404);
   }
 
   return location;
@@ -53,7 +46,7 @@ export const listLocationsService = async (filters: {
 
 export const updateLocationService = async (
   id: string,
-  data: Parameters<typeof updateLocation>[1]
+  data: Parameters<typeof updateLocation>[1],
 ) => {
   const existingLocation = await findLocationById(id);
 
@@ -61,8 +54,8 @@ export const updateLocationService = async (
     throw new AppError("Validation failed", 400, [
       {
         field: "id",
-        message: "Location not found"
-      }
+        message: "Location not found",
+      },
     ]);
   }
 
@@ -74,8 +67,8 @@ export const updateLocationService = async (
       action: "LOCATION_UPDATED",
       details: {
         before: existingLocation,
-        after: location
-      }
+        after: location,
+      },
     });
   }
 
@@ -89,8 +82,8 @@ export const deactivateLocationService = async (id: string) => {
     throw new AppError("Validation failed", 400, [
       {
         field: "id",
-        message: "Location not found"
-      }
+        message: "Location not found",
+      },
     ]);
   }
 
@@ -98,8 +91,8 @@ export const deactivateLocationService = async (id: string) => {
     throw new AppError("Validation failed", 400, [
       {
         field: "status",
-        message: "Location is already inactive"
-      }
+        message: "Location is already inactive",
+      },
     ]);
   }
 
@@ -111,8 +104,8 @@ export const deactivateLocationService = async (id: string) => {
       action: "LOCATION_DEACTIVATED",
       details: {
         before: existingLocation,
-        after: location
-      }
+        after: location,
+      },
     });
   }
 
@@ -126,8 +119,8 @@ export const reactivateLocationService = async (id: string) => {
     throw new AppError("Validation failed", 400, [
       {
         field: "id",
-        message: "Location not found"
-      }
+        message: "Location not found",
+      },
     ]);
   }
 
@@ -135,8 +128,8 @@ export const reactivateLocationService = async (id: string) => {
     throw new AppError("Validation failed", 400, [
       {
         field: "status",
-        message: "Location is already active"
-      }
+        message: "Location is already active",
+      },
     ]);
   }
 
@@ -148,8 +141,8 @@ export const reactivateLocationService = async (id: string) => {
       action: "LOCATION_REACTIVATED",
       details: {
         before: existingLocation,
-        after: location
-      }
+        after: location,
+      },
     });
   }
 

@@ -1,4 +1,48 @@
 services:
+  vendor-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: vendor_db
+      POSTGRES_USER: mms_vendor
+      POSTGRES_PASSWORD: mms_vendor
+    ports:
+      - "5433:5432"
+    volumes:
+      - vendor_db_data:/var/lib/postgresql/data
+
+  procurement-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: procurement_db
+      POSTGRES_USER: mms_procurement
+      POSTGRES_PASSWORD: mms_procurement
+    ports:
+      - "5434:5432"
+    volumes:
+      - procurement_db_data:/var/lib/postgresql/data
+
+  inventory-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: inventory_db
+      POSTGRES_USER: mms_inventory
+      POSTGRES_PASSWORD: mms_inventory
+    ports:
+      - "5435:5432"
+    volumes:
+      - inventory_db_data:/var/lib/postgresql/data
+
+  inventory-test-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: inventory_test_db
+      POSTGRES_USER: mms_inventory
+      POSTGRES_PASSWORD: mms_inventory
+    ports:
+      - "5436:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+
   rabbitmq:
     image: rabbitmq:4-management
     container_name: mms-rabbitmq
@@ -12,4 +56,7 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
 
 volumes:
+  vendor_db_data:
+  procurement_db_data:
+  inventory_db_data:
   rabbitmq_data:

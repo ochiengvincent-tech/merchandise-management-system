@@ -1,4 +1,4 @@
-import { createHmac } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 function sortObject(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -9,9 +9,7 @@ function sortObject(value: unknown): unknown {
     return Object.keys(value as Record<string, unknown>)
       .sort()
       .reduce<Record<string, unknown>>((result, key) => {
-        result[key] = sortObject(
-          (value as Record<string, unknown>)[key],
-        );
+        result[key] = sortObject((value as Record<string, unknown>)[key]);
         return result;
       }, {});
   }
@@ -50,7 +48,18 @@ export function createAuditSignature(data: {
     }),
   );
 
-  return createHmac("sha256", secret)
-    .update(payload)
-    .digest("hex");
+  return createHmac("sha256", secret).update(payload).digest("hex");
+}
+
+export function verifyAuditSignature(
+  data: Parameters<typeof createAuditSignature>[0],
+  signature: string,
+) {
+  const expectedSignature = createAuditSignature(data);
+  const expected = Buffer.from(expectedSignature, "hex");
+  const received = Buffer.from(signature, "hex");
+
+  return (
+    received.length === expected.length && timingSafeEqual(expected, received)
+  );
 }

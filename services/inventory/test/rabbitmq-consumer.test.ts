@@ -262,6 +262,7 @@ describe("RabbitMQ consumer", () => {
 
     expect(quantityOnOrder).toBe(8);
   });
+
   it("moves a failed event to the dead-letter queue with failure metadata", async () => {
     await channel.purgeQueue(DEAD_LETTER_QUEUE);
 
@@ -283,6 +284,77 @@ describe("RabbitMQ consumer", () => {
       occurredAt: new Date().toISOString(),
     };
 
+    const deadLetterResult = new Promise<{
+      messageId: string | undefined;
+      lastError: unknown;
+      eventId: string;
+      eventType: string;
+    }>((resolve, reject) => {
+      let consumerTag: string | undefined;
+
+      const timeout = setTimeout(() => {
+        if (!consumerTag) {
+          reject(
+            new Error("Timed out waiting for dead-letter consumer to start"),
+          );
+          return;
+        }
+
+        void channel.cancel(consumerTag).catch(() => undefined);
+
+        reject(
+          new Error(
+            "Timed out waiting for failed event to reach the dead-letter queue",
+          ),
+        );
+      }, 25_000);
+
+      void channel
+        .consume(
+          DEAD_LETTER_QUEUE,
+          async (message) => {
+            if (!message) {
+              return;
+            }
+
+            const candidate = JSON.parse(message.content.toString()) as {
+              eventId: string;
+              eventType: string;
+            };
+
+            if (candidate.eventId !== event.eventId) {
+              channel.ack(message);
+              return;
+            }
+
+            clearTimeout(timeout);
+
+            const result = {
+              messageId: message.properties.messageId,
+              lastError: message.properties.headers?.["x-last-error"],
+              eventId: candidate.eventId,
+              eventType: candidate.eventType,
+            };
+
+            channel.ack(message);
+
+            if (consumerTag) {
+              await channel.cancel(consumerTag);
+            }
+
+            resolve(result);
+          },
+          { noAck: false },
+        )
+        .then(({ consumerTag: tag }) => {
+          consumerTag = tag;
+        })
+        .catch((error) => {
+          clearTimeout(timeout);
+          reject(error);
+        });
+    });
+
     channel.publish(
       EXCHANGE_NAME,
       "PurchaseOrderApproved",
@@ -296,40 +368,15 @@ describe("RabbitMQ consumer", () => {
 
     await channel.waitForConfirms();
 
-    let messageId: string | undefined;
-    let lastError: unknown;
-    let deadLetterEvent:
-      | {
-          eventId: string;
-          eventType: string;
-        }
-      | undefined;
+    const result = await deadLetterResult;
 
-    for (let attempt = 0; attempt < 30; attempt++) {
-      const message = await channel.get(DEAD_LETTER_QUEUE, { noAck: true });
+    expect(result.messageId).toBe(event.eventId);
 
-      if (message) {
-        const candidate = JSON.parse(message.content.toString()) as {
-          eventId: string;
-          eventType: string;
-        };
+    expect(result.lastError).toBe(
+      "Inventory event processing failed after retries",
+    );
 
-        if (candidate.eventId === event.eventId) {
-          messageId = message.properties.messageId;
-          lastError = message.properties.headers?.["x-last-error"];
-          deadLetterEvent = candidate;
-          break;
-        }
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-
-    expect(messageId).toBe(event.eventId);
-
-    expect(lastError).toBe("Inventory event processing failed after retries");
-
-    expect(deadLetterEvent?.eventId).toBe(event.eventId);
-    expect(deadLetterEvent?.eventType).toBe("PurchaseOrderApproved");
+    expect(result.eventId).toBe(event.eventId);
+    expect(result.eventType).toBe("PurchaseOrderApproved");
   });
 });

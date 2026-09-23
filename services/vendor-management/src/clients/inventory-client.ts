@@ -26,18 +26,25 @@ async function request<T>(path: string): Promise<T> {
   }
 
   if (!response.ok) {
-    if (response.status === 404) {
-      throw new AppError("Product not found", 404);
-    }
+    let message = `Inventory service returned ${response.status}`;
 
-    throw new AppError("Inventory service is unavailable", 503);
+    try {
+      const body = (await response.json()) as {
+        error?: {
+          message?: string;
+        };
+      };
+
+      message = body.error?.message ?? message;
+    } catch {}
+
+    throw new AppError(message, response.status);
   }
 
   return (await response.json()) as T;
 }
 
-export function getProductById(id: string) {
-  return request<Product>(`/products/${id}`);
-}
+export const getProductById = (id: string) =>
+  request<Product>(`/products/${id}`);
 
 export type { Product };

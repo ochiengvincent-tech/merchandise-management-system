@@ -1,20 +1,19 @@
-import { db } from "../../db/index.js";
+import { db, pool } from "../../db/index.js";
 import {
   findPendingOutboxEvents,
   incrementOutboxEventAttempts,
   markOutboxEventFailed,
-  markOutboxEventPublished
+  markOutboxEventPublished,
 } from "./outbox-repository.js";
-import {
-  EXCHANGE_NAME,
-  getRabbitMqChannel
-} from "./rabbitmq.js";
+import { EXCHANGE_NAME, getRabbitMqChannel } from "./rabbitmq.js";
+import type { EventEnvelope } from "./event-envelope.js";
 
 const MAX_ATTEMPTS = 3;
 const PUBLISH_TIMEOUT_MS = 5000;
+const OUTBOX_LOCK_KEY = "mms.inventory.outbox.publisher";
 
 const waitForConfirm = async (
-  channel: Awaited<ReturnType<typeof getRabbitMqChannel>>
+  channel: Awaited<ReturnType<typeof getRabbitMqChannel>>,
 ) => {
   await Promise.race([
     channel.waitForConfirms(),
@@ -22,59 +21,80 @@ const waitForConfirm = async (
       setTimeout(() => {
         reject(new Error("RabbitMQ publish confirmation timed out"));
       }, PUBLISH_TIMEOUT_MS);
-    })
+    }),
   ]);
 };
 
 export const publishPendingOutboxEvents = async () => {
-  const events = await findPendingOutboxEvents();
+  const client = await pool.connect();
 
-  if (events.length === 0) {
-    return;
-  }
+  try {
+    const lockResult = await client.query<{ locked: boolean }>(
+      "SELECT pg_try_advisory_lock(hashtext($1)) AS locked",
+      [OUTBOX_LOCK_KEY],
+    );
 
-  const channel = await getRabbitMqChannel();
-
-  for (const event of events) {
-    if (event.attempts >= MAX_ATTEMPTS) {
-      await markOutboxEventFailed(event.id, db);
-      continue;
+    if (!lockResult.rows[0]?.locked) {
+      return;
     }
 
-    try {
-      channel.publish(
-        EXCHANGE_NAME,
-        event.eventType,
-        Buffer.from(JSON.stringify(event.payload)),
-        {
-          persistent: true,
-          contentType: "application/json",
-          messageId: event.eventId
-        }
-      );
+    const events = await findPendingOutboxEvents();
 
-      await waitForConfirm(channel);
+    if (events.length === 0) {
+      return;
+    }
 
-      await markOutboxEventPublished(event.id, db);
-    } catch (error) {
-      const updatedEvent = await incrementOutboxEventAttempts(
-        event.id,
-        db
-      );
+    const channel = await getRabbitMqChannel();
 
-      if (
-        updatedEvent &&
-        updatedEvent.attempts >= MAX_ATTEMPTS
-      ) {
+    for (const event of events) {
+      if (event.attempts >= MAX_ATTEMPTS) {
         await markOutboxEventFailed(event.id, db);
+        continue;
       }
 
-      console.error(
-        `Failed to publish outbox event ${event.eventId}:`,
-        error
-      );
+      try {
+        channel.publish(
+          EXCHANGE_NAME,
+          event.eventType,
+          Buffer.from(
+            JSON.stringify({
+              eventId: event.eventId,
+              eventType: event.eventType,
+              aggregateType: event.aggregateType,
+              aggregateId: event.aggregateId,
+              payload: event.payload,
+              occurredAt: event.occurredAt,
+            } satisfies EventEnvelope),
+          ),
+          {
+            persistent: true,
+            contentType: "application/json",
+            messageId: event.eventId,
+          },
+        );
 
-      break;
+        await waitForConfirm(channel);
+
+        await markOutboxEventPublished(event.id, db);
+      } catch (error) {
+        const updatedEvent = await incrementOutboxEventAttempts(event.id, db);
+
+        if (updatedEvent && updatedEvent.attempts >= MAX_ATTEMPTS) {
+          await markOutboxEventFailed(event.id, db);
+        }
+
+        console.error(
+          `Failed to publish outbox event ${event.eventId}:`,
+          error,
+        );
+
+        break;
+      }
     }
+  } finally {
+    await client
+      .query("SELECT pg_advisory_unlock(hashtext($1))", [OUTBOX_LOCK_KEY])
+      .catch(() => undefined);
+    client.release();
   }
 };

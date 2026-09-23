@@ -6,9 +6,11 @@ import {
   updateVendorProductStatusWithDatabase,
   updateVendorProductWithPriceWithDatabase,
 } from "./vendor-product.repository.js";
+import { AppError } from "../../errors/app-error.js";
 import { findVendorById } from "../vendors/vendor.repository.js";
 import { createAuditLogService } from "../audit/audit.service.js";
 import { db } from "../../db/index.js";
+import { getProductById } from "../../clients/inventory-client.js";
 
 export async function createVendorProductService(
   vendorId: string,
@@ -21,20 +23,32 @@ export async function createVendorProductService(
   actorId: string,
 ) {
   const vendor = await findVendorById(vendorId);
+
   if (!vendor) {
     return null;
   }
+
   if (vendor.status === "INACTIVE") {
-    throw new Error("Cannot add product to an inactive vendor");
+    throw new AppError("Cannot add product to an inactive vendor", 409);
   }
+
+  const product = await getProductById(data.productId);
+
+  if (product.status !== "ACTIVE") {
+    throw new AppError(`Product ${data.productId} is inactive`, 409);
+  }
+
   const existingVendorProduct = await findVendorProductByVendorAndProduct(
     vendorId,
     data.productId,
   );
+
   if (existingVendorProduct) {
-    throw new Error("Vendor already supplies this product");
+    throw new AppError("Vendor already supplies this product", 409);
   }
+
   const effectiveFrom = new Date();
+
   return db.transaction(async (tx) => {
     const result = await createVendorProductWithPriceWithDatabase(
       {
@@ -48,6 +62,7 @@ export async function createVendorProductService(
       effectiveFrom,
       tx,
     );
+
     await createAuditLogService(
       {
         vendorId,
@@ -59,9 +74,11 @@ export async function createVendorProductService(
       },
       tx,
     );
+
     return result;
   });
 }
+
 export async function getVendorProductByIdService(id: string) {
   return findVendorProductById(id);
 }
@@ -86,14 +103,18 @@ export async function updateVendorProductService(
   actorId: string,
 ) {
   const existingVendorProduct = await findVendorProductById(id);
+
   if (!existingVendorProduct) {
     return null;
   }
+
   return db.transaction(async (tx) => {
     const result = await updateVendorProductWithPriceWithDatabase(id, data, tx);
+
     if (!result.vendorProduct) {
       throw new Error("Failed to update vendor product");
     }
+
     if (result.priceChanged) {
       await createAuditLogService(
         {
@@ -122,6 +143,7 @@ export async function updateVendorProductService(
         tx,
       );
     }
+
     return result.vendorProduct;
   });
 }
@@ -137,7 +159,7 @@ export async function deactivateVendorProductService(
   }
 
   if (existingVendorProduct.status === "INACTIVE") {
-    throw new Error("Vendor product is already inactive");
+    throw new AppError("Vendor product is already inactive", 409);
   }
 
   return db.transaction(async (tx) => {
@@ -172,21 +194,26 @@ export async function reactivateVendorProductService(
   actorId: string,
 ) {
   const existingVendorProduct = await findVendorProductById(id);
+
   if (!existingVendorProduct) {
     return null;
   }
+
   if (existingVendorProduct.status === "ACTIVE") {
-    throw new Error("Vendor product is already active");
+    throw new AppError("Vendor product is already active", 409);
   }
+
   return db.transaction(async (tx) => {
     const vendorProduct = await updateVendorProductStatusWithDatabase(
       id,
       "ACTIVE",
       tx,
     );
+
     if (!vendorProduct) {
       throw new Error("Failed to reactivate vendor product");
     }
+
     await createAuditLogService(
       {
         vendorId: vendorProduct.vendorId,
@@ -198,6 +225,7 @@ export async function reactivateVendorProductService(
       },
       tx,
     );
+
     return vendorProduct;
   });
 }

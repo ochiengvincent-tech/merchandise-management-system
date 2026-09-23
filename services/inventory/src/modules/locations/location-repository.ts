@@ -3,7 +3,7 @@ import { db } from "../../db/index.js";
 import { inventoryLocations } from "../../db/schema/inventory-locations.js";
 
 export const createLocation = async (
-  data: typeof inventoryLocations.$inferInsert
+  data: typeof inventoryLocations.$inferInsert,
 ) => {
   const [location] = await db
     .insert(inventoryLocations)
@@ -15,6 +15,21 @@ export const createLocation = async (
 
 export const findLocationById = async (id: string) => {
   const [location] = await db
+    .select()
+    .from(inventoryLocations)
+    .where(eq(inventoryLocations.id, id))
+    .limit(1);
+
+  return location ?? null;
+};
+
+export const findLocationByIdWithDatabase = async <
+  T extends Pick<typeof db, "select">,
+>(
+  id: string,
+  database: T,
+) => {
+  const [location] = await database
     .select()
     .from(inventoryLocations)
     .where(eq(inventoryLocations.id, id))
@@ -43,20 +58,14 @@ export const findLocations = async (filters: {
   if (filters.search) {
     conditions.push(
       or(
-        ilike(
-          inventoryLocations.locationCode,
-          `%${filters.search}%`
-        ),
-        ilike(inventoryLocations.name, `%${filters.search}%`)
-      )
+        ilike(inventoryLocations.locationCode, `%${filters.search}%`),
+        ilike(inventoryLocations.name, `%${filters.search}%`),
+      ),
     );
-}
-
+  }
 
   if (filters.locationType) {
-    conditions.push(
-      eq(inventoryLocations.locationType, filters.locationType)
-    );
+    conditions.push(eq(inventoryLocations.locationType, filters.locationType));
   }
 
   if (filters.status) {
@@ -66,20 +75,18 @@ export const findLocations = async (filters: {
   return db
     .select()
     .from(inventoryLocations)
-    .where(
-      conditions.length > 0 ? and(...conditions) : undefined
-    );
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
 };
 
 export const updateLocation = async (
   id: string,
-  data: Partial<typeof inventoryLocations.$inferInsert>
+  data: Partial<typeof inventoryLocations.$inferInsert>,
 ) => {
   const [location] = await db
     .update(inventoryLocations)
     .set({
       ...data,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     })
     .where(eq(inventoryLocations.id, id))
     .returning();
@@ -88,13 +95,13 @@ export const updateLocation = async (
 };
 export const updateLocationStatus = async (
   id: string,
-  status: "ACTIVE" | "INACTIVE"
+  status: "ACTIVE" | "INACTIVE",
 ) => {
   const [location] = await db
     .update(inventoryLocations)
     .set({
       status,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     })
     .where(eq(inventoryLocations.id, id))
     .returning();

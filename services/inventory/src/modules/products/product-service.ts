@@ -39,12 +39,7 @@ export const getProductService = async (id: string) => {
   const product = await findProductById(id);
 
   if (!product) {
-    throw new AppError("Validation failed", 400, [
-      {
-        field: "id",
-        message: "Product not found"
-      }
-    ]);
+    throw new AppError("Product not found", 404);
   }
 
   return product;

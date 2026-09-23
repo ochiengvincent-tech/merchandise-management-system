@@ -1,0 +1,20 @@
+CREATE TABLE "purchase_orders" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"po_number" varchar(50) NOT NULL,
+	"vendor_id" uuid NOT NULL,
+	"destination_location_id" uuid NOT NULL,
+	"status" varchar(30) DEFAULT 'DRAFT' NOT NULL,
+	"currency" char(3) DEFAULT 'KES' NOT NULL,
+	"subtotal" numeric(14, 2) DEFAULT '0' NOT NULL,
+	"total_amount" numeric(14, 2) DEFAULT '0' NOT NULL,
+	"notes" text,
+	"created_by" uuid NOT NULL,
+	"approved_at" timestamp with time zone,
+	"approved_by" uuid,
+	"sent_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "purchase_orders_po_number_unique" UNIQUE("po_number"),
+	CONSTRAINT "purchase_orders_subtotal_non_negative" CHECK ("purchase_orders"."subtotal" >= 0),
+	CONSTRAINT "purchase_orders_total_amount_non_negative" CHECK ("purchase_orders"."total_amount" >= 0)
+);

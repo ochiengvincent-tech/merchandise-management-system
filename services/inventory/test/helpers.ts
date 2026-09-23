@@ -9,7 +9,7 @@ export const actorId = randomUUID();
 export const createProduct = async (
   overrides: Record<string, unknown> = {},
 ) => {
-  const response = await api.post("/products").send({
+  const response = await api.post("/api/v1/products").send({
     sku: `SKU-${randomUUID()}`,
     name: "Test Product",
     category: "TEST",
@@ -25,7 +25,7 @@ export const createProduct = async (
 export const createLocation = async (
   overrides: Record<string, unknown> = {},
 ) => {
-  const response = await api.post("/locations").send({
+  const response = await api.post("/api/v1/locations").send({
     locationCode: `LOC-${randomUUID()}`,
     name: "Test Warehouse",
     locationType: "WAREHOUSE",
@@ -37,7 +37,7 @@ export const createLocation = async (
 };
 
 export const createStock = async (productId: string, locationId: string) => {
-  const response = await api.post("/stock").send({ productId, locationId });
+  const response = await api.post("/api/v1/stock").send({ productId, locationId });
   expect(response.status).toBe(201);
   return response.body;
 };
@@ -47,7 +47,7 @@ export const setStockQuantity = async (
   locationId: string,
   quantityChange: number,
 ) => {
-  const response = await api.post("/adjustments").send({
+  const response = await api.post("/api/v1/adjustments").send({
     productId,
     locationId,
     quantityChange,

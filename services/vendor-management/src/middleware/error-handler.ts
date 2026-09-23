@@ -1,38 +1,38 @@
 import type { ErrorRequestHandler } from "express";
 import { ZodError } from "zod";
+import { AppError } from "../errors/app-error.js";
 
-export const errorHandler: ErrorRequestHandler = (
-  error,
-  _req,
-  res,
-  _next
-) => {
+export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
+  console.error(error);
+
   if (error instanceof ZodError) {
     return res.status(400).json({
       error: {
         message: "Validation failed",
-        details: error.issues
-      }
+        details: error.issues,
+      },
+    });
+  }
+
+  if (error instanceof AppError) {
+    return res.status(error.statusCode).json({
+      error: {
+        message: error.message,
+      },
     });
   }
 
   if (error instanceof Error) {
-    const isConflict = /already exists|already supplies|already inactive|already active|Cannot add product to an inactive vendor/.test(
-      error.message,
-    );
-    const isExpectedClientError = /Invalid .* ID/.test(error.message);
-    const status = isConflict ? 409 : isExpectedClientError ? 400 : 500;
-
-    return res.status(status).json({
+    return res.status(500).json({
       error: {
-        message: status === 500 ? "Internal server error" : error.message
-      }
+        message: "Internal server error",
+      },
     });
   }
 
   return res.status(500).json({
     error: {
-      message: "Internal server error"
-    }
+      message: "Internal server error",
+    },
   });
 };

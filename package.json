@@ -4,11 +4,24 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "db:migrate": "pnpm --recursive db:migrate",
+    "test": "pnpm --filter @mms/inventory test && pnpm --filter @mms/procurement test",
+    "test:e2e": "RUN_E2E=true pnpm --filter @mms/procurement test"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.3.4",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@12.3.4",
+  "type": "module",
   "dependencies": {
     "amqplib": "^2.0.1"
   },

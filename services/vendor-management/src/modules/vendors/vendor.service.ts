@@ -1,4 +1,5 @@
 import { db } from "../../db/index.js";
+import { AppError } from "../../errors/app-error.js";
 import { createAuditLogService } from "../audit/audit.service.js";
 import {
   findVendorByCode,
@@ -22,7 +23,7 @@ export async function createVendorService(
   const existingVendor = await findVendorByCode(data.vendorCode);
 
   if (existingVendor) {
-    throw new Error("Vendor code already exists");
+    throw new AppError("Vendor code already exists", 409);
   }
 
   return db.transaction(async (tx) => {
@@ -110,7 +111,7 @@ export async function deactivateVendorService(id: string, actorId: string) {
     return null;
   }
   if (existingVendor.status === "INACTIVE") {
-    throw new Error("Vendor is already inactive");
+    throw new AppError("Vendor is already inactive", 409);
   }
   return db.transaction(async (tx) => {
     const vendor = await updateVendorStatusWithDatabase(id, "INACTIVE", tx);
@@ -137,7 +138,7 @@ export async function reactivateVendorService(id: string, actorId: string) {
     return null;
   }
   if (existingVendor.status === "ACTIVE") {
-    throw new Error("Vendor is already active");
+    throw new AppError("Vendor is already active", 409);
   }
   return db.transaction(async (tx) => {
     const vendor = await updateVendorStatusWithDatabase(id, "ACTIVE", tx);

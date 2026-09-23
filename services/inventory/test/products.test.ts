@@ -5,7 +5,7 @@ describe("Products API", () => {
   it("creates and retrieves a product", async () => {
     const product = await createProduct({ barcode: "BARCODE-1" });
 
-    const response = await api.get(`/products/${product.id}`);
+    const response = await api.get(`/api/v1/products/${product.id}`);
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({
@@ -21,13 +21,13 @@ describe("Products API", () => {
     const product = await createProduct({ category: "FILTER-ME" });
 
     const listResponse = await api
-      .get("/products")
+      .get("/api/v1/products")
       .query({ category: "FILTER-ME" });
     expect(listResponse.status).toBe(200);
     expect(listResponse.body).toHaveLength(1);
 
     const updateResponse = await api
-      .patch(`/products/${product.id}`)
+      .patch(`/api/v1/products/${product.id}`)
       .send({ name: "Updated Product", reorderLevel: 5 });
     expect(updateResponse.status).toBe(200);
     expect(updateResponse.body).toMatchObject({
@@ -35,25 +35,26 @@ describe("Products API", () => {
       reorderLevel: 5,
     });
 
-    expect((await api.patch(`/products/${product.id}/deactivate`)).status).toBe(
-      200,
-    );
-    expect((await api.get(`/products/${product.id}`)).body.status).toBe(
+    expect(
+      (await api.patch(`/api/v1/products/${product.id}/deactivate`)).status,
+    ).toBe(200);
+    expect((await api.get(`/api/v1/products/${product.id}`)).body.status).toBe(
       "INACTIVE",
     );
     expect(
-      (await api.patch(`/products/${product.id}/reactivate`)).body.status,
+      (await api.patch(`/api/v1/products/${product.id}/reactivate`)).body
+        .status,
     ).toBe("ACTIVE");
   });
 
   it("rejects invalid product input and duplicate SKUs", async () => {
     const product = await createProduct();
     const invalidResponse = await api
-      .post("/products")
+      .post("/api/v1/products")
       .send({ name: "Missing fields" });
     expect(invalidResponse.status).toBe(400);
 
-    const duplicateResponse = await api.post("/products").send({
+    const duplicateResponse = await api.post("/api/v1/products").send({
       sku: product.sku,
       name: "Duplicate",
       category: "TEST",
@@ -64,17 +65,17 @@ describe("Products API", () => {
 
   it("does not allow inventory operations for an inactive product", async () => {
     const product = await createProduct();
-    const locationResponse = await api.post("/locations").send({
+    const locationResponse = await api.post("/api/v1/locations").send({
       locationCode: `LOC-${product.id}`,
       name: "Test Warehouse",
       locationType: "WAREHOUSE",
     });
     const location = locationResponse.body;
 
-    await api.patch(`/products/${product.id}/deactivate`);
+    await api.patch(`/api/v1/products/${product.id}/deactivate`);
 
     const stockResponse = await api
-      .post("/stock")
+      .post("/api/v1/stock")
       .send({ productId: product.id, locationId: location.id });
 
     expect(stockResponse.status).toBe(400);
@@ -85,5 +86,27 @@ describe("Products API", () => {
       field: "productId",
       message: "Product is inactive",
     });
+  });
+  it("returns 405 for unsupported methods on known routes", async () => {
+    const product = await createProduct();
+
+    const collectionResponse = await api.delete("/api/v1/products");
+
+    expect(collectionResponse.status).toBe(405);
+    expect(collectionResponse.body).toEqual({
+      error: {
+        message: "Method not allowed",
+      },
+    });
+
+    const itemResponse = await api.post(`/api/v1/products/${product.id}`);
+
+    expect(itemResponse.status).toBe(405);
+
+    const unknownResponse = await api.get(
+      "/api/v1/products/00000000-0000-4000-8000-000000000000",
+    );
+
+    expect(unknownResponse.status).toBe(404);
   });
 });

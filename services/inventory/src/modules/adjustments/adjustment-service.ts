@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { inventoryAdjustments } from "../../db/schema/inventory-adjustments.js";
 import { inventoryAuditLogs } from "../../db/schema/inventory-audit-logs.js";
@@ -19,7 +19,7 @@ export const createAdjustmentService = async (data: {
 }) => {
   const [product, location] = await Promise.all([
     findProductById(data.productId),
-    findLocationById(data.locationId)
+    findLocationById(data.locationId),
   ]);
 
   const errors = [];
@@ -27,58 +27,57 @@ export const createAdjustmentService = async (data: {
   if (!product) {
     errors.push({
       field: "productId",
-      message: "Product not found"
+      message: "Product not found",
     });
   } else if (product.status === "INACTIVE") {
     errors.push({
       field: "productId",
-      message: "Product is inactive"
+      message: "Product is inactive",
     });
   }
 
   if (!location) {
     errors.push({
       field: "locationId",
-      message: "Location not found"
+      message: "Location not found",
     });
   } else if (location.status === "INACTIVE") {
     errors.push({
       field: "locationId",
-      message: "Location is inactive"
+      message: "Location is inactive",
     });
   }
 
- if (errors.length > 0) {
-  throw new AppError("Validation failed", 400, errors);
-}
+  if (errors.length > 0) {
+    throw new AppError("Validation failed", 400, errors);
+  }
 
-if (!product || !location) {
-  throw new Error("Validation failed");
-}
+  if (!product || !location) {
+    throw new Error("Validation failed");
+  }
 
   const stock = await findStockByProductAndLocation(
     data.productId,
-    data.locationId
+    data.locationId,
   );
 
   if (!stock) {
     throw new AppError("Validation failed", 400, [
       {
         field: "stock",
-        message: "Stock record not found"
-      }
+        message: "Stock record not found",
+      },
     ]);
   }
 
-  const newQuantityOnHand =
-    stock.quantityOnHand + data.quantityChange;
+  const newQuantityOnHand = stock.quantityOnHand + data.quantityChange;
 
   if (newQuantityOnHand < 0) {
     throw new AppError("Validation failed", 400, [
       {
         field: "quantityChange",
-        message: "Adjustment would result in negative stock"
-      }
+        message: "Adjustment would result in negative stock",
+      },
     ]);
   }
 
@@ -86,9 +85,8 @@ if (!product || !location) {
     throw new AppError("Validation failed", 400, [
       {
         field: "quantityChange",
-        message:
-          "Adjustment would reduce stock below allocated quantity"
-      }
+        message: "Adjustment would reduce stock below allocated quantity",
+      },
     ]);
   }
 
@@ -97,9 +95,15 @@ if (!product || !location) {
       .update(inventoryStock)
       .set({
         quantityOnHand: newQuantityOnHand,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       })
-      .where(eq(inventoryStock.id, stock.id))
+      .where(
+        and(
+          eq(inventoryStock.id, stock.id),
+          sql`${inventoryStock.quantityOnHand} + ${data.quantityChange} >= 0`,
+          sql`${inventoryStock.quantityOnHand} + ${data.quantityChange} >= ${inventoryStock.quantityAllocated}`,
+        ),
+      )
       .returning();
 
     if (!updatedStock) {
@@ -114,7 +118,7 @@ if (!product || !location) {
         quantityChange: data.quantityChange,
         reason: data.reason,
         reference: data.reference,
-        createdBy: data.createdBy
+        createdBy: data.createdBy,
       })
       .returning();
 
@@ -128,26 +132,25 @@ if (!product || !location) {
         newQuantityOnHand,
         quantityChange: data.quantityChange,
         reason: data.reason,
-        reference: data.reference
-      }
+        reference: data.reference,
+      },
     });
 
     const stockLowEvent = await createStockLowEvent(
       stock,
       updatedStock,
       product.reorderLevel,
-      tx
+      tx,
     );
 
     return {
       stock: {
         ...updatedStock,
         quantityAvailable:
-          updatedStock.quantityOnHand -
-          updatedStock.quantityAllocated
+          updatedStock.quantityOnHand - updatedStock.quantityAllocated,
       },
       adjustment,
-      stockLowEvent
+      stockLowEvent,
     };
   });
 };

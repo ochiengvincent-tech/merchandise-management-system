@@ -14,10 +14,12 @@ describe("Stock API", () => {
     const location = await createLocation();
     const stock = await createStock(product.id, location.id);
 
-    const response = await api.get("/stock/by-product-and-location").query({
-      productId: product.id,
-      locationId: location.id,
-    });
+    const response = await api
+      .get("/api/v1/stock/by-product-and-location")
+      .query({
+        productId: product.id,
+        locationId: location.id,
+      });
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({
@@ -36,7 +38,7 @@ describe("Stock API", () => {
     await createStock(product.id, location.id);
     await setStockQuantity(product.id, location.id, 10);
 
-    const allocateResponse = await api.post("/stock/allocate").send({
+    const allocateResponse = await api.post("/api/v1/stock/allocate").send({
       productId: product.id,
       locationId: location.id,
       quantity: 4,
@@ -49,7 +51,7 @@ describe("Stock API", () => {
       quantityAvailable: 6,
     });
 
-    const releaseResponse = await api.post("/stock/release").send({
+    const releaseResponse = await api.post("/api/v1/stock/release").send({
       productId: product.id,
       locationId: location.id,
       quantity: 2,
@@ -69,7 +71,7 @@ describe("Stock API", () => {
     await createStock(product.id, location.id);
     await setStockQuantity(product.id, location.id, 2);
 
-    const allocation = await api.post("/stock/allocate").send({
+    const allocation = await api.post("/api/v1/stock/allocate").send({
       productId: product.id,
       locationId: location.id,
       quantity: 3,
@@ -77,7 +79,7 @@ describe("Stock API", () => {
     });
     expect(allocation.status).toBe(400);
 
-    const release = await api.post("/stock/release").send({
+    const release = await api.post("/api/v1/stock/release").send({
       productId: product.id,
       locationId: location.id,
       quantity: 1,
@@ -92,7 +94,7 @@ describe("Stock API", () => {
     await createStock(product.id, location.id);
 
     const response = await api
-      .post("/stock")
+      .post("/api/v1/stock")
       .send({ productId: product.id, locationId: location.id });
 
     expect(response.status).toBe(400);
@@ -108,16 +110,26 @@ describe("Stock API", () => {
   it("rejects stock creation for an inactive location", async () => {
     const product = await createProduct();
     const location = await createLocation();
-    await api.patch(`/locations/${location.id}/deactivate`);
+    await api.patch(`/api/v1/locations/${location.id}/deactivate`);
 
     const response = await api
-      .post("/stock")
+      .post("/api/v1/stock")
       .send({ productId: product.id, locationId: location.id });
 
     expect(response.status).toBe(400);
     expect(response.body.error.details).toContainEqual({
       field: "locationId",
       message: "Location is inactive",
+    });
+  });
+  it("returns 405 for unsupported methods on known routes", async () => {
+    const response = await api.delete("/api/v1/stock/by-product");
+
+    expect(response.status).toBe(405);
+    expect(response.body).toEqual({
+      error: {
+        message: "Method not allowed",
+      },
     });
   });
 });

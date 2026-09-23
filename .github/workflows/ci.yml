@@ -57,6 +57,33 @@ jobs:
       - name: Test Vendor Management
         run: pnpm --filter @mms/vendor-management test
 
+      - name: Start Inventory test infrastructure
+        run: docker compose up -d inventory-test-db rabbitmq
+
+      - name: Wait for Inventory test database
+        run: |
+          for i in {1..30}; do
+            if docker compose exec -T inventory-test-db pg_isready -U mms_inventory -d inventory_test_db; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Inventory test database did not become ready"
+          docker compose logs inventory-test-db
+          exit 1
+
+      - name: Wait for RabbitMQ
+        run: |
+          for i in {1..30}; do
+            if docker compose exec -T rabbitmq rabbitmq-diagnostics -q ping; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "RabbitMQ did not become ready"
+          docker compose logs rabbitmq
+          exit 1
+
       - name: Test Inventory
         run: pnpm --filter @mms/inventory test
 

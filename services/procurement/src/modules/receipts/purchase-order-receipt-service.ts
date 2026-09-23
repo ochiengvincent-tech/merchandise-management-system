@@ -7,9 +7,9 @@ import { createOutboxEvent } from "../events/outbox-service.js";
 import {
   findPurchaseOrderById,
   updatePurchaseOrderWithDatabase,
-} from "./purchase-order-repository.js";
+} from "../purchase-orders/purchase-order-repository.js";
 
-import { findPurchaseOrderLines } from "./purchase-order-line-repository.js";
+import { findPurchaseOrderLines } from "../purchase-orders/purchase-order-line-repository.js";
 
 import { updatePurchaseOrderLineReceivedQuantityWithDatabase } from "./purchase-order-receipt-repository.js";
 

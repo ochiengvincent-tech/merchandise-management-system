@@ -1,8 +1,4 @@
-import type {
-  Request,
-  Response,
-  NextFunction,
-} from "express";
+import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 
 import { cancelPurchaseOrder } from "./purchase-order-cancellation-service.js";

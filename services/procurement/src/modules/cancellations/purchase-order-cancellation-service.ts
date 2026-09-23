@@ -4,8 +4,8 @@ import { AppError } from "../../errors/app-error.js";
 import { createProcurementAuditLogService } from "../audit/procurement-audit-service.js";
 import { createOutboxEvent } from "../events/outbox-service.js";
 
-import { findPurchaseOrderById } from "./purchase-order-repository.js";
-import { findPurchaseOrderLinesWithDatabase } from "./purchase-order-line-repository.js";
+import { findPurchaseOrderById } from "../purchase-orders/purchase-order-repository.js";
+import { findPurchaseOrderLinesWithDatabase } from "../purchase-orders/purchase-order-line-repository.js";
 import { cancelPurchaseOrderWithDatabase } from "./purchase-order-cancellation-repository.js";
 
 export async function cancelPurchaseOrder(id: string, actorId: string) {

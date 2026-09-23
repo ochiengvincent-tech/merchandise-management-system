@@ -6,14 +6,14 @@ import { createPurchaseOrderController } from "./purchase-order-controller.js";
 
 import { getPurchaseOrderController } from "./purchase-order-get-controller.js";
 
-import { sendPurchaseOrderController } from "./purchase-order-send-controller.js";
+import { sendPurchaseOrderController } from "../sending/purchase-order-send-controller.js";
 
-import { submitPurchaseOrderForApprovalController } from "./purchase-order-submission-controller.js";
+import { submitPurchaseOrderForApprovalController } from "../submissions/purchase-order-submission-controller.js";
 
-import { updatePurchaseOrderController } from "./purchase-order-update-controller.js";
+import { updatePurchaseOrderController } from "../updates/purchase-order-update-controller.js";
 
-import { cancelPurchaseOrderController } from "./purchase-order-cancellation-controller.js";
-import { receivePurchaseOrderController } from "./purchase-order-receipt-controller.js";
+import { cancelPurchaseOrderController } from "../cancellations/purchase-order-cancellation-controller.js";
+import { receivePurchaseOrderController } from "../receipts/purchase-order-receipt-controller.js";
 
 const router: Router = Router();
 

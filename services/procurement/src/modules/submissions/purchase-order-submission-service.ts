@@ -3,7 +3,7 @@ import { AppError } from "../../errors/app-error.js";
 import {
   findPurchaseOrderById,
   updatePurchaseOrderWithDatabase,
-} from "./purchase-order-repository.js";
+} from "../purchase-orders/purchase-order-repository.js";
 import { createApprovalAuditLogWithDatabase } from "../approvals/approval-audit-repository.js";
 
 export async function submitPurchaseOrderForApproval(

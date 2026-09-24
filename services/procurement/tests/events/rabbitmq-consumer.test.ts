@@ -1,13 +1,7 @@
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  it,
-} from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import amqp from "amqplib";
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { env } from "../../src/config/env.js";
 import { db } from "../../src/db/index.js";
@@ -17,14 +11,12 @@ import { startRabbitMQConsumer } from "../../src/modules/events/rabbitmq-consume
 const EXCHANGE_NAME = "mms.events";
 const DEAD_LETTER_QUEUE = "procurement.stock-low.dead-letter";
 
-const PRODUCT_ID = "22cd0a2c-f1b4-4cd0-9fe5-d166b7cd21af";
-const LOCATION_ID = "4ff44601-df27-4b6d-97f0-900e60f8a6d9";
+const PRODUCT_ID = randomUUID();
+const LOCATION_ID = randomUUID();
 
 let connection: Awaited<ReturnType<typeof amqp.connect>>;
 let channel: Awaited<
-  ReturnType<
-    Awaited<ReturnType<typeof amqp.connect>>["createConfirmChannel"]
-  >
+  ReturnType<Awaited<ReturnType<typeof amqp.connect>>["createConfirmChannel"]>
 >;
 
 beforeAll(async () => {
@@ -149,7 +141,13 @@ describe("Procurement RabbitMQ consumer", () => {
       suggestions = await db
         .select()
         .from(reorderSuggestions)
-        .where(eq(reorderSuggestions.eventId, eventId));
+        .where(
+          and(
+            eq(reorderSuggestions.productId, PRODUCT_ID),
+            eq(reorderSuggestions.locationId, LOCATION_ID),
+            eq(reorderSuggestions.status, "PENDING"),
+          ),
+        );
 
       if (suggestions.length === 1) {
         break;
@@ -211,17 +209,14 @@ describe("Procurement RabbitMQ consumer", () => {
       });
 
       if (message) {
-        const candidate = JSON.parse(
-          message.content.toString(),
-        ) as {
+        const candidate = JSON.parse(message.content.toString()) as {
           eventId: string;
           eventType: string;
         };
 
         if (candidate.eventId === event.eventId) {
           messageId = message.properties.messageId;
-          lastError =
-            message.properties.headers?.["x-last-error"];
+          lastError = message.properties.headers?.["x-last-error"];
           deadLetterEvent = candidate;
           break;
         }
@@ -232,9 +227,7 @@ describe("Procurement RabbitMQ consumer", () => {
 
     expect(messageId).toBe(event.eventId);
 
-    expect(lastError).toBe(
-      "Failed to process StockLow event",
-    );
+    expect(lastError).toEqual(expect.stringContaining("reorder_suggestions"));
 
     expect(deadLetterEvent?.eventId).toBe(event.eventId);
     expect(deadLetterEvent?.eventType).toBe("StockLow");

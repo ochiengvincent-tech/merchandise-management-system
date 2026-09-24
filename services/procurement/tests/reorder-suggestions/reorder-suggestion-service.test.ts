@@ -1,15 +1,16 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 
 import { db } from "../../src/db/index.js";
 import { reorderSuggestions } from "../../src/db/schema/index.js";
 import { createReorderSuggestion } from "../../src/modules/reorder-suggestions/reorder-suggestion-service.js";
 
-const PRODUCT_ID = "22cd0a2c-f1b4-4cd0-9fe5-d166b7cd21af";
-const LOCATION_ID = "4ff44601-df27-4b6d-97f0-900e60f8a6d9";
+const PRODUCT_ID = randomUUID();
+const LOCATION_ID = randomUUID();
 
 const createEvent = (overrides = {}) => ({
-  eventId: crypto.randomUUID(),
+  eventId: randomUUID(),
   eventType: "StockLow" as const,
   productId: PRODUCT_ID,
   locationId: LOCATION_ID,

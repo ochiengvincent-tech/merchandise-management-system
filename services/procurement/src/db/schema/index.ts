@@ -5,3 +5,4 @@ export * from "./purchase-order-amendments.js";
 export * from "./purchase-order-cancellations.js";
 export * from "./procurement-audit-logs.js";
 export * from "./outbox-events.js";
+export * from "./reorder-suggestions.js";

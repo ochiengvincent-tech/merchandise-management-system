@@ -22,6 +22,8 @@ const EVENT_TYPES = [
 ] as const;
 
 let isConsuming = false;
+let isStopping = false;
+let consumerTag: string | null = null;
 
 type PurchaseOrderEventEnvelope = {
   eventId: string;
@@ -51,11 +53,15 @@ const setupTopology = async (channel: ConfirmChannel) => {
   await channel.assertExchange(DEAD_LETTER_EXCHANGE, "topic", {
     durable: true,
   });
+
   await channel.assertExchange(RETRY_EXCHANGE, "topic", {
     durable: true,
   });
 
-  await channel.assertQueue(DEAD_LETTER_QUEUE, { durable: true });
+  await channel.assertQueue(DEAD_LETTER_QUEUE, {
+    durable: true,
+  });
+
   await channel.bindQueue(DEAD_LETTER_QUEUE, DEAD_LETTER_EXCHANGE, "#");
 
   await channel.assertQueue(QUEUE_NAME, {
@@ -67,6 +73,7 @@ const setupTopology = async (channel: ConfirmChannel) => {
 
   for (const eventType of EVENT_TYPES) {
     await channel.bindQueue(QUEUE_NAME, EXCHANGE_NAME, eventType);
+
     await channel.assertQueue(retryQueueName(eventType), {
       durable: true,
       arguments: {
@@ -74,6 +81,7 @@ const setupTopology = async (channel: ConfirmChannel) => {
         "x-dead-letter-exchange": EXCHANGE_NAME,
       },
     });
+
     await channel.bindQueue(
       retryQueueName(eventType),
       RETRY_EXCHANGE,
@@ -99,19 +107,28 @@ const sendToDeadLetterQueue = async (
       },
     },
   );
+
   await channel.waitForConfirms();
   channel.ack(message);
 };
 
 export const startRabbitMqConsumer = async () => {
-  if (isConsuming) {
+  if (isConsuming || isStopping) {
     return;
   }
 
   const channel = await getRabbitMqChannel();
+
   await setupTopology(channel);
+
   channel.once("close", () => {
+    consumerTag = null;
     isConsuming = false;
+
+    if (isStopping) {
+      return;
+    }
+
     setTimeout(() => {
       void startRabbitMqConsumer().catch((error) => {
         console.error(
@@ -122,54 +139,76 @@ export const startRabbitMqConsumer = async () => {
     }, RETRY_DELAY_MS);
   });
 
-  await channel.consume(QUEUE_NAME, async (message: ConsumeMessage | null) => {
-    if (!message) {
-      return;
-    }
-
-    try {
-      const envelope = JSON.parse(
-        message.content.toString(),
-      ) as PurchaseOrderEventEnvelope;
-
-      const event = {
-        ...envelope.payload,
-        eventId: envelope.eventId,
-        eventType: envelope.eventType,
-      };
-
-      switch (envelope.eventType) {
-        case "PurchaseOrderApproved":
-          await processPurchaseOrderApproved(event);
-          break;
-
-        case "PurchaseOrderCancelled":
-          await processPurchaseOrderCancelled(event);
-          break;
-
-        case "PurchaseOrderReceived":
-          await processPurchaseOrderReceived(event);
-          break;
-
-        default:
-          await sendToDeadLetterQueue(channel, message);
-          return;
-      }
-
-      channel.ack(message);
-    } catch (error) {
-      console.error("Failed to process RabbitMQ event:", error);
-
-      if (retryCount(message) >= MAX_RETRIES) {
-        await sendToDeadLetterQueue(channel, message);
+  const result = await channel.consume(
+    QUEUE_NAME,
+    async (message: ConsumeMessage | null) => {
+      if (!message) {
         return;
       }
 
-      channel.nack(message, false, false);
-    }
-  });
+      try {
+        const envelope = JSON.parse(
+          message.content.toString(),
+        ) as PurchaseOrderEventEnvelope;
 
+        const event = {
+          ...envelope.payload,
+          eventId: envelope.eventId,
+          eventType: envelope.eventType,
+        };
+
+        switch (envelope.eventType) {
+          case "PurchaseOrderApproved":
+            await processPurchaseOrderApproved(event);
+            break;
+
+          case "PurchaseOrderCancelled":
+            await processPurchaseOrderCancelled(event);
+            break;
+
+          case "PurchaseOrderReceived":
+            await processPurchaseOrderReceived(event);
+            break;
+
+          default:
+            await sendToDeadLetterQueue(channel, message);
+            return;
+        }
+
+        channel.ack(message);
+      } catch (error) {
+        console.error("Failed to process RabbitMQ event:", error);
+
+        if (retryCount(message) >= MAX_RETRIES) {
+          await sendToDeadLetterQueue(channel, message);
+          return;
+        }
+
+        channel.nack(message, false, false);
+      }
+    },
+  );
+
+  consumerTag = result.consumerTag;
   isConsuming = true;
 
   console.log(`Inventory RabbitMQ consumer listening on ${QUEUE_NAME}`);
+};
+
+export const stopRabbitMqConsumer = async () => {
+  isStopping = true;
+
+  if (!consumerTag) {
+    isConsuming = false;
+    return;
+  }
+
+  const channel = await getRabbitMqChannel();
+
+  try {
+    await channel.cancel(consumerTag);
+  } finally {
+    consumerTag = null;
+    isConsuming = false;
+  }
 };

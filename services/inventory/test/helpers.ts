@@ -1,5 +1,6 @@
 import request from "supertest";
 import { randomUUID } from "node:crypto";
+import { expect } from "vitest";
 import { app } from "../src/app.js";
 
 export const api = request(app);
@@ -37,7 +38,9 @@ export const createLocation = async (
 };
 
 export const createStock = async (productId: string, locationId: string) => {
-  const response = await api.post("/api/v1/stock").send({ productId, locationId });
+  const response = await api
+    .post("/api/v1/stock")
+    .send({ productId, locationId });
   expect(response.status).toBe(201);
   return response.body;
 };

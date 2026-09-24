@@ -2,13 +2,18 @@ import { z } from "zod";
 
 export const purchaseOrderApprovedEventSchema = z.object({
   eventId: z.uuid(),
+
   eventType: z.literal("PurchaseOrderApproved"),
+
   purchaseOrderId: z.uuid(),
+
   lines: z
     .array(
       z.object({
         productId: z.uuid(),
+
         locationId: z.uuid(),
+
         quantityOrdered: z.number().int().positive(),
       }),
     )
@@ -17,13 +22,18 @@ export const purchaseOrderApprovedEventSchema = z.object({
 
 export const purchaseOrderCancelledEventSchema = z.object({
   eventId: z.uuid(),
+
   eventType: z.literal("PurchaseOrderCancelled"),
-  purchaseOrderId: z.string().uuid(),
+
+  purchaseOrderId: z.uuid(),
+
   lines: z
     .array(
       z.object({
         productId: z.uuid(),
+
         locationId: z.uuid(),
+
         quantityRemaining: z.number().int().positive(),
       }),
     )
@@ -32,14 +42,21 @@ export const purchaseOrderCancelledEventSchema = z.object({
 
 export const purchaseOrderReceivedEventSchema = z.object({
   eventId: z.uuid(),
+
   eventType: z.literal("PurchaseOrderReceived"),
+
   purchaseOrderId: z.uuid(),
+
   lines: z
     .array(
       z.object({
         productId: z.uuid(),
+
         locationId: z.uuid(),
+
         quantityReceived: z.number().int().positive(),
+
+        unitPrice: z.number().nonnegative(),
       }),
     )
     .min(1),

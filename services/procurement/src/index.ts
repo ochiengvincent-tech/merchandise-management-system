@@ -7,6 +7,7 @@ import {
   closeRabbitMQ,
 } from "./modules/events/rabbitmq.js";
 import { setupRabbitMQTopology } from "./modules/events/rabbitmq-topology.js";
+import { startRabbitMQConsumer } from "./modules/events/rabbitmq-consumer.js";
 import { publishPendingOutboxEvents } from "./modules/events/outbox-publisher.js";
 
 const OUTBOX_POLL_INTERVAL_MS = 1000;
@@ -26,7 +27,8 @@ const connectRabbitMqTopology = async (): Promise<void> => {
   try {
     const channel = await getRabbitMQChannel();
     await setupRabbitMQTopology(channel);
-    console.log("Procurement RabbitMQ publisher connected");
+    await startRabbitMQConsumer();
+    console.log("Procurement RabbitMQ publisher and consumer connected");
   } catch (error) {
     console.error("Procurement RabbitMQ unavailable; retrying:", error);
 

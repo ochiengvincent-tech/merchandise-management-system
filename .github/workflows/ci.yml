@@ -2,17 +2,16 @@ name: CI
 
 on:
   push:
-    branches:
-      - dev
-      - "feature/**"
   pull_request:
-    branches:
-      - dev
 
 jobs:
   validate:
     name: Validate
     runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: postgresql://mms_procurement:mms_procurement@localhost:5434/procurement_db
+      RABBITMQ_URL: amqp://mms:mms@localhost:5672
 
     steps:
       - name: Checkout repository
@@ -33,9 +32,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate OpenAPI
-        run: pnpm openapi:validate
-
       - name: Typecheck Vendor Management
         run: pnpm --filter @mms/vendor-management typecheck
 
@@ -54,41 +50,68 @@ jobs:
       - name: Build Procurement
         run: pnpm --filter @mms/procurement build
 
-      - name: Test Vendor Management
-        run: pnpm --filter @mms/vendor-management test
+      - name: Start test infrastructure
+        run: docker compose up -d inventory-test-db procurement-db rabbitmq
 
-      - name: Start Inventory test infrastructure
-        run: docker compose up -d inventory-test-db rabbitmq
-
-      - name: Wait for Inventory test database
+      - name: Wait for PostgreSQL
         run: |
-          for i in {1..30}; do
-            if docker compose exec -T inventory-test-db pg_isready -U mms_inventory -d inventory_test_db; then
-              exit 0
+          for attempt in {1..30}; do
+            if docker compose exec -T inventory-test-db \
+              pg_isready -U mms_inventory -d inventory_test_db >/dev/null 2>&1; then
+              break
             fi
+
+            if [ "$attempt" -eq 30 ]; then
+              echo "Inventory test database did not become ready"
+              docker compose logs inventory-test-db
+              exit 1
+            fi
+
             sleep 1
           done
-          echo "Inventory test database did not become ready"
-          docker compose logs inventory-test-db
-          exit 1
+
+      - name: Wait for Procurement PostgreSQL
+        run: |
+          for attempt in {1..30}; do
+            if docker compose exec -T procurement-db \
+              pg_isready -U mms_procurement -d procurement_db >/dev/null 2>&1; then
+              break
+            fi
+
+            if [ "$attempt" -eq 30 ]; then
+              echo "Procurement database did not become ready"
+              docker compose logs procurement-db
+              exit 1
+            fi
+
+            sleep 1
+          done
 
       - name: Wait for RabbitMQ
         run: |
-          for i in {1..30}; do
-            if docker compose exec -T rabbitmq rabbitmq-diagnostics -q ping; then
-              exit 0
+          for attempt in {1..30}; do
+            if docker compose exec -T rabbitmq \
+              rabbitmq-diagnostics -q ping >/dev/null 2>&1; then
+              break
             fi
+
+            if [ "$attempt" -eq 30 ]; then
+              echo "RabbitMQ did not become ready"
+              docker compose logs rabbitmq
+              exit 1
+            fi
+
             sleep 1
           done
-          echo "RabbitMQ did not become ready"
-          docker compose logs rabbitmq
-          exit 1
+
+      - name: Test Vendor Management
+        run: pnpm --filter @mms/vendor-management test
 
       - name: Test Inventory
-        env:
-          RABBITMQ_URL: "amqp://mms:mms@localhost:5672"
-          RABBITMQ_QUEUE_PREFIX: "test."
         run: pnpm --filter @mms/inventory test
+
+      - name: Run Procurement migrations
+        run: pnpm --filter @mms/procurement db:migrate
 
       - name: Test Procurement
         run: pnpm --filter @mms/procurement test

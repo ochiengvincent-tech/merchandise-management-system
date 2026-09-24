@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      DATABASE_URL: postgresql://mms_procurement:mms_procurement@localhost:5434/procurement_db
       RABBITMQ_URL: amqp://mms:mms@localhost:5672
 
     steps:
@@ -50,7 +51,7 @@ jobs:
         run: pnpm --filter @mms/procurement build
 
       - name: Start test infrastructure
-        run: docker compose up -d inventory-test-db rabbitmq
+        run: docker compose up -d inventory-test-db procurement-db rabbitmq
 
       - name: Wait for PostgreSQL
         run: |
@@ -63,6 +64,23 @@ jobs:
             if [ "$attempt" -eq 30 ]; then
               echo "Inventory test database did not become ready"
               docker compose logs inventory-test-db
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+      - name: Wait for Procurement PostgreSQL
+        run: |
+          for attempt in {1..30}; do
+            if docker compose exec -T procurement-db \
+              pg_isready -U mms_procurement -d procurement_db >/dev/null 2>&1; then
+              break
+            fi
+
+            if [ "$attempt" -eq 30 ]; then
+              echo "Procurement database did not become ready"
+              docker compose logs procurement-db
               exit 1
             fi
 
@@ -91,6 +109,9 @@ jobs:
 
       - name: Test Inventory
         run: pnpm --filter @mms/inventory test
+
+      - name: Run Procurement migrations
+        run: pnpm --filter @mms/procurement db:migrate
 
       - name: Test Procurement
         run: pnpm --filter @mms/procurement test

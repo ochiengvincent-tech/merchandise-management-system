@@ -1,0 +1,1026 @@
+openapi: 3.0.3
+
+info:
+  title: MMS Procurement API
+  description: |
+    Procurement service API for the Merchandising Funnel Automation system.
+
+    The Procurement service owns purchase orders, purchase order lines,
+    approvals, amendments, cancellations, receipts, procurement audit
+    records, and procurement outbox events.
+
+    Vendor and product information is validated through the Vendor Management
+    and Inventory services. Cross-service identifiers are UUIDs and are not
+    backed by foreign keys across service databases.
+  version: 1.0.0
+  license:
+    name: Proprietary
+    url: https://mms.example.com/license
+
+security: []
+
+servers:
+  - url: http://localhost:3003
+    description: Local development server
+
+tags:
+  - name: Health
+    description: Service health and readiness
+  - name: Purchase Orders
+    description: Purchase order lifecycle operations
+  - name: Approvals
+    description: Purchase order approval operations
+  - name: Amendments
+    description: Purchase order amendment operations
+  - name: Receipts
+    description: Purchase order receiving operations
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Check service health
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "400":
+          description: Invalid health check request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /ready:
+    get:
+      tags:
+        - Health
+      summary: Check service readiness
+      operationId: getReadiness
+      responses:
+        "200":
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotReadyResponse"
+        "400":
+          description: Invalid readiness request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/purchase-orders:
+    post:
+      tags:
+        - Purchase Orders
+      summary: Create a purchase order
+      operationId: createPurchaseOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePurchaseOrderRequest"
+      responses:
+        "201":
+          description: Purchase order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrderResponse"
+        "400":
+          description: Invalid purchase order data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Referenced vendor, product, or destination location was not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Purchase order violates a business rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Dependent service is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/purchase-orders/{id}:
+    get:
+      tags:
+        - Purchase Orders
+      summary: Get a purchase order
+      operationId: getPurchaseOrder
+      parameters:
+        - $ref: "#/components/parameters/PurchaseOrderId"
+      responses:
+        "200":
+          description: Purchase order returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrderResponse"
+        "400":
+          description: Invalid purchase order ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Purchase order not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    patch:
+      tags:
+        - Purchase Orders
+      summary: Update a purchase order
+      description: |
+        Updates editable purchase order fields. Business rules determine
+        whether the purchase order is currently editable.
+      operationId: updatePurchaseOrder
+      parameters:
+        - $ref: "#/components/parameters/PurchaseOrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePurchaseOrderRequest"
+      responses:
+        "200":
+          description: Purchase order updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrderOnlyResponse"
+        "400":
+          description: Invalid purchase order ID or update data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Purchase order not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Purchase order cannot be updated in its current state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/purchase-orders/{id}/submit:
+    patch:
+      tags:
+        - Purchase Orders
+      summary: Submit a purchase order for approval
+      operationId: submitPurchaseOrder
+      parameters:
+        - $ref: "#/components/parameters/PurchaseOrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActorRequest"
+      responses:
+        "200":
+          description: Purchase order submitted for approval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrderOnlyResponse"
+        "400":
+          description: Invalid purchase order ID or actor ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Purchase order not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Purchase order cannot be submitted in its current state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/purchase-orders/{id}/approve:
+    patch:
+      tags:
+        - Approvals
+      summary: Approve a purchase order
+      operationId: approvePurchaseOrder
+      parameters:
+        - $ref: "#/components/parameters/PurchaseOrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproverRequest"
+      responses:
+        "200":
+          description: Purchase order approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrderOnlyResponse"
+        "400":
+          description: Invalid purchase order ID or approver ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Purchase order not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Purchase order cannot be approved or approver violates separation of duties
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/purchase-orders/{id}/reject:
+    patch:
+      tags:
+        - Approvals
+      summary: Reject a purchase order
+      operationId: rejectPurchaseOrder
+      parameters:
+        - $ref: "#/components/parameters/PurchaseOrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectPurchaseOrderRequest"
+      responses:
+        "200":
+          description: Purchase order rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrderOnlyResponse"
+        "400":
+          description: Invalid purchase order ID or approver ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Purchase order not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Purchase order cannot be rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/purchase-orders/{id}/send:
+    patch:
+      tags:
+        - Purchase Orders
+      summary: Send an approved purchase order
+      operationId: sendPurchaseOrder
+      parameters:
+        - $ref: "#/components/parameters/PurchaseOrderId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        "200":
+          description: Purchase order sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrderOnlyResponse"
+        "400":
+          description: Invalid purchase order ID or actor ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Purchase order not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Purchase order cannot be sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/purchase-orders/{id}/cancel:
+    patch:
+      tags:
+        - Purchase Orders
+      summary: Cancel a purchase order
+      operationId: cancelPurchaseOrder
+      parameters:
+        - $ref: "#/components/parameters/PurchaseOrderId"
+      responses:
+        "200":
+          description: Purchase order cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrderOnlyResponse"
+        "400":
+          description: Invalid purchase order ID or actor ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Purchase order not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Purchase order cannot be cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/purchase-orders/{id}/receipts:
+    post:
+      tags:
+        - Receipts
+      summary: Receive goods against a purchase order
+      description: |
+        Records a receipt against one or more purchase order lines.
+
+        A receipt cannot cause received quantity to exceed the ordered
+        quantity. The operation updates the purchase order and receipt
+        quantities transactionally and creates a PurchaseOrderReceived
+        outbox event.
+      operationId: receivePurchaseOrder
+      parameters:
+        - $ref: "#/components/parameters/PurchaseOrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReceivePurchaseOrderRequest"
+      responses:
+        "200":
+          description: Goods received against the purchase order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceiptResponse"
+        "400":
+          description: Invalid receipt data or actor ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Purchase order or purchase order line not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Receipt violates purchase order quantity or lifecycle rules
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/purchase-orders/{id}/amendments:
+    post:
+      tags:
+        - Amendments
+      summary: Request a purchase order amendment
+      operationId: requestPurchaseOrderAmendment
+      parameters:
+        - $ref: "#/components/parameters/PurchaseOrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestAmendmentRequest"
+      responses:
+        "201":
+          description: Amendment request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AmendmentResponse"
+        "400":
+          description: Invalid amendment data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Purchase order not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Amendment cannot be requested
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/amendments/{id}/approve:
+    patch:
+      tags:
+        - Amendments
+      summary: Approve a purchase order amendment
+      operationId: approvePurchaseOrderAmendment
+      parameters:
+        - $ref: "#/components/parameters/AmendmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproverRequest"
+      responses:
+        "200":
+          description: Amendment approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AmendmentResponse"
+        "400":
+          description: Invalid amendment ID or approver ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Purchase order amendment not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Amendment cannot be approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/amendments/{id}/reject:
+    patch:
+      tags:
+        - Amendments
+      summary: Reject a purchase order amendment
+      operationId: rejectPurchaseOrderAmendment
+      parameters:
+        - $ref: "#/components/parameters/AmendmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectAmendmentRequest"
+      responses:
+        "200":
+          description: Amendment rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AmendmentResponse"
+        "400":
+          description: Invalid amendment ID or approver ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Purchase order amendment not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Amendment cannot be rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  parameters:
+    PurchaseOrderId:
+      name: id
+      in: path
+      required: true
+      description: Purchase order UUID
+      schema:
+        type: string
+        format: uuid
+
+    AmendmentId:
+      name: id
+      in: path
+      required: true
+      description: Purchase order amendment UUID
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - service
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+          example: procurement
+
+    ReadinessResponse:
+      type: object
+      required:
+        - status
+        - service
+        - dependencies
+      properties:
+        status:
+          type: string
+          example: ready
+        service:
+          type: string
+          example: procurement
+        dependencies:
+          type: object
+          properties:
+            database:
+              type: string
+              example: ok
+            rabbitmq:
+              type: string
+              example: ok
+
+    NotReadyResponse:
+      type: object
+      required:
+        - status
+        - service
+      properties:
+        status:
+          type: string
+          example: not_ready
+        service:
+          type: string
+          example: procurement
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - message
+          properties:
+            message:
+              type: string
+              example: Invalid purchase order data
+
+    ActorRequest:
+      type: object
+      required:
+        - actorId
+      properties:
+        actorId:
+          type: string
+          format: uuid
+
+    ApproverRequest:
+      type: object
+      required:
+        - approverId
+      properties:
+        approverId:
+          type: string
+          format: uuid
+
+    RejectPurchaseOrderRequest:
+      type: object
+      required:
+        - approverId
+      properties:
+        approverId:
+          type: string
+          format: uuid
+        comments:
+          type: string
+          nullable: true
+
+    CreatePurchaseOrderRequest:
+      type: object
+      required:
+        - poNumber
+        - vendorId
+        - destinationLocationId
+        - lines
+        - createdBy
+      properties:
+        poNumber:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: PO-2026-001
+        vendorId:
+          type: string
+          format: uuid
+        destinationLocationId:
+          type: string
+          format: uuid
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          pattern: "^[A-Z]{3}$"
+          default: KES
+          example: KES
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/CreatePurchaseOrderLine"
+        notes:
+          type: string
+          nullable: true
+        createdBy:
+          type: string
+          format: uuid
+
+    CreatePurchaseOrderLine:
+      type: object
+      required:
+        - productId
+        - quantityOrdered
+      properties:
+        productId:
+          type: string
+          format: uuid
+        quantityOrdered:
+          type: integer
+          minimum: 1
+          example: 100
+
+    UpdatePurchaseOrderRequest:
+      type: object
+      required:
+        - actorId
+      properties:
+        actorId:
+          type: string
+          format: uuid
+        notes:
+          type: string
+          nullable: true
+        destinationLocationId:
+          type: string
+          format: uuid
+          nullable: true
+      minProperties: 2
+
+    ReceivePurchaseOrderRequest:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ReceiptItem"
+
+    ReceiptItem:
+      type: object
+      required:
+        - purchaseOrderLineId
+        - quantityReceived
+      properties:
+        purchaseOrderLineId:
+          type: string
+          format: uuid
+        quantityReceived:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+          example: 50
+
+    RequestAmendmentRequest:
+      type: object
+      required:
+        - requestedBy
+        - reason
+      properties:
+        requestedBy:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          minLength: 1
+        notes:
+          type: string
+          nullable: true
+        destinationLocationId:
+          type: string
+          format: uuid
+          nullable: true
+
+    RejectAmendmentRequest:
+      type: object
+      required:
+        - approverId
+      properties:
+        approverId:
+          type: string
+          format: uuid
+        comments:
+          type: string
+          nullable: true
+
+    PurchaseOrder:
+      type: object
+      required:
+        - id
+        - poNumber
+        - vendorId
+        - destinationLocationId
+        - status
+        - currency
+        - paymentTerms
+        - subtotal
+        - totalAmount
+        - createdBy
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        poNumber:
+          type: string
+          example: PO-2026-001
+        vendorId:
+          type: string
+          format: uuid
+        destinationLocationId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - PENDING_APPROVAL
+            - APPROVED
+            - SENT
+            - PARTIALLY_RECEIVED
+            - COMPLETED
+            - CANCELLED
+        currency:
+          type: string
+          example: KES
+        paymentTerms:
+          type: string
+          example: NET_30
+        subtotal:
+          type: string
+          pattern: "^\\d+(\\.\\d{2})?$"
+          example: "150000.00"
+        totalAmount:
+          type: string
+          pattern: "^\\d+(\\.\\d{2})?$"
+          example: "150000.00"
+        notes:
+          type: string
+          nullable: true
+        createdBy:
+          type: string
+          format: uuid
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        approvedBy:
+          type: string
+          format: uuid
+          nullable: true
+        sentAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PurchaseOrderLine:
+      type: object
+      required:
+        - id
+        - purchaseOrderId
+        - productId
+        - quantityOrdered
+        - quantityReceived
+        - unitPrice
+        - lineTotal
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        purchaseOrderId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        quantityOrdered:
+          type: integer
+          minimum: 1
+        quantityReceived:
+          type: integer
+          minimum: 0
+        unitPrice:
+          type: string
+          pattern: "^\\d+(\\.\\d{2})?$"
+          example: "1500.00"
+        lineTotal:
+          type: string
+          pattern: "^\\d+(\\.\\d{2})?$"
+          example: "150000.00"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PurchaseOrderWithLines:
+      allOf:
+        - $ref: "#/components/schemas/PurchaseOrder"
+        - type: object
+          required:
+            - lines
+          properties:
+            lines:
+              type: array
+              items:
+                $ref: "#/components/schemas/PurchaseOrderLine"
+
+    PurchaseOrderResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/PurchaseOrderWithLines"
+
+    PurchaseOrderOnlyResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/PurchaseOrder"
+
+    ReceiptResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - purchaseOrder
+            - lines
+          properties:
+            purchaseOrder:
+              $ref: "#/components/schemas/PurchaseOrder"
+            lines:
+              type: array
+              items:
+                $ref: "#/components/schemas/PurchaseOrderLine"
+
+    PurchaseOrderAmendment:
+      type: object
+      required:
+        - id
+        - purchaseOrderId
+        - amendmentNumber
+        - reason
+        - previousData
+        - newData
+        - requestedBy
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        purchaseOrderId:
+          type: string
+          format: uuid
+        amendmentNumber:
+          type: integer
+          minimum: 1
+        reason:
+          type: string
+        previousData:
+          type: object
+          additionalProperties: true
+        newData:
+          type: object
+          additionalProperties: true
+        requestedBy:
+          type: string
+          format: uuid
+        approvedBy:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum:
+            - PENDING
+            - APPROVED
+            - REJECTED
+        createdAt:
+          type: string
+          format: date-time
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    AmendmentResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/PurchaseOrderAmendment"

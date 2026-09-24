@@ -180,6 +180,7 @@ export async function receivePurchaseOrder(
               productId: line.productId,
               locationId: purchaseOrder.destinationLocationId,
               quantityReceived: receivedItem.quantityReceived,
+              unitPrice: line.unitPrice,
             };
           }),
         },

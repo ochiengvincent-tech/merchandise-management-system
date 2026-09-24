@@ -29,6 +29,20 @@ DRAFT -> PENDING_APPROVAL -> APPROVED -> SENT
                                       -> PARTIALLY_RECEIVED -> COMPLETED
 ```
 
+```mermaid
+flowchart LR
+  Buyer[Buyer or Procurement Dashboard] -->|REST| API[Procurement API]
+  API --> PO[Purchase-order domain]
+  PO -->|REST validation| Vendor[Vendor Management]
+  PO -->|REST validation| Inventory[Inventory]
+  PO --> DB[(Private procurement_db)]
+  PO --> Outbox[Transactional outbox]
+  Outbox -->|Publish after commit| MQ[(RabbitMQ)]
+  MQ -->|PurchaseOrderApproved\nPurchaseOrderCancelled| Inventory
+  MQ -->|StockLow| Reorder[Reorder suggestions]
+  Reorder --> DB
+```
+
 Controlled cancellation is supported for eligible states. Cancellation is a
 state transition and does not delete the purchase order. The remaining
 unreceived quantity is recorded and published for Inventory to remove from

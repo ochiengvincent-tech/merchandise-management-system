@@ -28,6 +28,18 @@ The service follows:
 
 `Route → Controller → Service → Repository → PostgreSQL`
 
+```mermaid
+flowchart LR
+	Client[Inventory API client] -->|REST| Routes[Inventory routes]
+	Routes --> Controller[Controllers]
+	Controller --> Service[Inventory services]
+	Service --> DB[(Private inventory_db)]
+	Service --> Outbox[Transactional outbox]
+	Outbox -->|StockLow| MQ[(RabbitMQ)]
+	MQ -->|PurchaseOrderApproved\nPurchaseOrderCancelled| Consumer[Idempotent event consumer]
+	Consumer --> Service
+```
+
 Asynchronous events use:
 
 `Business operation → Outbox → RabbitMQ`

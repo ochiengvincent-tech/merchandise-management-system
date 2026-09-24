@@ -4,7 +4,11 @@ import { randomUUID } from "node:crypto";
 
 import { env } from "../src/config/env.js";
 import { api, createLocation, createProduct, createStock } from "./helpers.js";
-import { startRabbitMqConsumer } from "../src/modules/events/rabbitmq-consumer.js";
+import {
+  startRabbitMqConsumer,
+  stopRabbitMqConsumer,
+} from "../src/modules/events/rabbitmq-consumer.js";
+import { closeRabbitMq } from "../src/modules/events/rabbitmq.js";
 
 const EXCHANGE_NAME = "mms.events";
 const DEAD_LETTER_QUEUE = "test.inventory.purchase-orders.dead-letter";
@@ -22,6 +26,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await stopRabbitMqConsumer();
+  await closeRabbitMq();
   await channel.close();
   await connection.close();
 });
@@ -88,6 +94,7 @@ describe("RabbitMQ consumer", () => {
 
     expect(quantityOnOrder).toBe(8);
   });
+
   it("processes PurchaseOrderReceived events from RabbitMQ", async () => {
     const product = await createProduct();
     const location = await createLocation();
@@ -157,6 +164,7 @@ describe("RabbitMQ consumer", () => {
             productId: product.id,
             locationId: location.id,
             quantityReceived: 4,
+            unitPrice: 60,
           },
         ],
       },
@@ -198,6 +206,7 @@ describe("RabbitMQ consumer", () => {
     expect(stock.quantityOnOrder).toBe(6);
     expect(stock.quantityOnHand).toBe(4);
   });
+
   it("processes the same RabbitMQ event only once", async () => {
     const product = await createProduct();
     const location = await createLocation();
@@ -262,6 +271,7 @@ describe("RabbitMQ consumer", () => {
 
     expect(quantityOnOrder).toBe(8);
   });
+
   it("moves a failed event to the dead-letter queue with failure metadata", async () => {
     await channel.purgeQueue(DEAD_LETTER_QUEUE);
 
@@ -326,9 +336,7 @@ describe("RabbitMQ consumer", () => {
     }
 
     expect(messageId).toBe(event.eventId);
-
     expect(lastError).toBe("Inventory event processing failed after retries");
-
     expect(deadLetterEvent?.eventId).toBe(event.eventId);
     expect(deadLetterEvent?.eventType).toBe("PurchaseOrderApproved");
   });

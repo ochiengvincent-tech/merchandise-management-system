@@ -1,0 +1,2 @@
+ALTER TABLE "inventory_stock" ADD COLUMN "unit_cost" numeric(12, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
+ALTER TABLE "inventory_stock" ADD CONSTRAINT "inventory_stock_unit_cost_check" CHECK ("inventory_stock"."unit_cost" >= 0);

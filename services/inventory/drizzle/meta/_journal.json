@@ -15,6 +15,13 @@
       "when": 1789351337003,
       "tag": "0001_closed_tigra",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790253369324,
+      "tag": "0002_bored_scalphunter",
+      "breakpoints": true
     }
   ]
 }

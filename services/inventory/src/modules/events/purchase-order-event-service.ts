@@ -325,11 +325,26 @@ export const processPurchaseOrderReceived = async (data: unknown) => {
 
       const newQuantityOnHand = stock.quantityOnHand + line.quantityReceived;
 
+      const oldUnitCost = Number(stock.unitCost);
+      const receivedUnitPrice = line.unitPrice;
+
+      const newUnitCost =
+        newQuantityOnHand === 0
+          ? receivedUnitPrice
+          : Number(
+              (
+                (stock.quantityOnHand * oldUnitCost +
+                  line.quantityReceived * receivedUnitPrice) /
+                newQuantityOnHand
+              ).toFixed(2),
+            );
+
       const [updatedStock] = await tx
         .update(inventoryStock)
         .set({
           quantityOnOrder: newQuantityOnOrder,
           quantityOnHand: newQuantityOnHand,
+          unitCost: newUnitCost.toFixed(2),
           updatedAt: new Date(),
         })
         .where(eq(inventoryStock.id, stock.id))
@@ -348,10 +363,13 @@ export const processPurchaseOrderReceived = async (data: unknown) => {
           eventType: event.eventType,
           purchaseOrderId: event.purchaseOrderId,
           quantityReceived: line.quantityReceived,
+          receivedUnitPrice,
           previousQuantityOnOrder: stock.quantityOnOrder,
           newQuantityOnOrder,
           previousQuantityOnHand: stock.quantityOnHand,
           newQuantityOnHand,
+          previousUnitCost: stock.unitCost,
+          newUnitCost: newUnitCost.toFixed(2),
         },
       });
     }

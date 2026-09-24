@@ -164,6 +164,7 @@ describe("RabbitMQ consumer", () => {
             productId: product.id,
             locationId: location.id,
             quantityReceived: 4,
+            unitPrice: 60,
           },
         ],
       },

@@ -35,6 +35,16 @@ Product information is owned by the Inventory Service.
 
 Vendor Management is an independently owned service with its own PostgreSQL database.
 
+```mermaid
+flowchart LR
+  Client[Procurement or Portal] -->|REST| Routes[Vendor API routes]
+  Routes --> Controller[Controllers and Zod validation]
+  Controller --> Service[Vendor and product services]
+  Service --> Repository[Repositories]
+  Repository --> DB[(Private vendor_db)]
+  Service -->|Product existence check| Inventory[Inventory API]
+```
+
 ```text
 Client
   │

@@ -379,12 +379,11 @@ describe("RabbitMQ consumer", () => {
 
     const result = await deadLetterResult;
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-
-    expect(messageId).toBe(event.eventId);
-    expect(lastError).toBe("Inventory event processing failed after retries");
-    expect(deadLetterEvent?.eventId).toBe(event.eventId);
-    expect(deadLetterEvent?.eventType).toBe("PurchaseOrderApproved");
+    expect(result.messageId).toBe(event.eventId);
+    expect(result.lastError).toBe(
+      "Inventory event processing failed after retries",
+    );
+    expect(result.eventId).toBe(event.eventId);
+    expect(result.eventType).toBe("PurchaseOrderApproved");
   });
 });

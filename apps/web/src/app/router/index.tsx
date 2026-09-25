@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "../layouts/app-layout";
+import { FeatureGate } from "../feature-gate";
 import { DashboardPage } from "../../pages/dashboard-page";
 import { ProductsPage } from "../../pages/products-page";
 import { NewProductPage } from "../../pages/new-product-page";
@@ -14,6 +15,7 @@ import NewLocationPage from "../../pages/new-location-page";
 import VendorsPage from "../../pages/vendors-page";
 import NewVendorPage from "../../pages/new-vendor-page";
 import EditVendorPage from "../../pages/edit-vendor-page";
+
 export function AppRouter() {
   return (
     <Routes>
@@ -28,20 +30,18 @@ export function AppRouter() {
         <Route path="products/:id/edit" element={<EditProductPage />} />
 
         <Route path="/inventory" element={<InventoryPage />} />
+        <Route
+          path="/inventory/adjustments"
+          element={<PlaceholderPage title="Adjustments" />}
+        />
 
         <Route path="/locations/new" element={<NewLocationPage />} />
         <Route path="/locations/:id/edit" element={<EditLocationPage />} />
         <Route path="/locations/:id" element={<LocationDetailPage />} />
         <Route path="/locations" element={<LocationsPage />} />
 
-        <Route
-          path="/inventory/adjustments"
-          element={<PlaceholderPage title="Adjustments" />}
-        />
-
         <Route path="/vendors/new" element={<NewVendorPage />} />
         <Route path="/vendors/:id/edit" element={<EditVendorPage />} />
-
         <Route path="/vendors" element={<VendorsPage />} />
         <Route
           path="/supplier-products"
@@ -52,23 +52,32 @@ export function AppRouter() {
           path="/purchase-orders"
           element={<PlaceholderPage title="Purchase Orders" />}
         />
-
         <Route
           path="/approvals"
           element={<PlaceholderPage title="Approvals" />}
         />
-
-        <Route
-          path="/receiving"
-          element={<PlaceholderPage title="Receiving" />}
-        />
-
         <Route
           path="/amendments"
           element={<PlaceholderPage title="Amendments" />}
         />
 
-        <Route path="/audit" element={<PlaceholderPage title="Audit" />} />
+        <Route
+          path="/receiving"
+          element={
+            <FeatureGate flag="receiving" title="Receiving">
+              <PlaceholderPage title="Receiving" />
+            </FeatureGate>
+          }
+        />
+
+        <Route
+          path="/audit"
+          element={
+            <FeatureGate flag="salesAudit" title="Audit">
+              <PlaceholderPage title="Audit" />
+            </FeatureGate>
+          }
+        />
       </Route>
     </Routes>
   );

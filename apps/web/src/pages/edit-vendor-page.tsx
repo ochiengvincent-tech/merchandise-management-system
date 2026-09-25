@@ -3,10 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input } from "../components/ui/input";
-import {
-  useUpdateVendor,
-  useVendor,
-} from "../features/vendors/hooks";
+import { ApiError } from "../lib/api/client";
+import { useUpdateVendor, useVendor } from "../features/vendors/hooks";
 
 type VendorFormProps = {
   id: string;
@@ -35,6 +33,16 @@ function VendorForm({
   const [phone, setPhone] = useState(initialPhone);
   const [address, setAddress] = useState(initialAddress);
   const [paymentTerms, setPaymentTerms] = useState(initialPaymentTerms);
+
+  const fieldErrors =
+    updateMutation.error instanceof ApiError
+      ? Object.fromEntries(
+          updateMutation.error.fieldErrors.map(({ field, message }) => [
+            field,
+            message,
+          ]),
+        )
+      : {};
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -65,11 +73,7 @@ function VendorForm({
               Vendor Code
             </label>
 
-            <Input
-              id="vendor-code"
-              value={vendorCode}
-              disabled
-            />
+            <Input id="vendor-code" value={vendorCode} disabled />
 
             <p className="mt-1.5 text-xs text-slate-500">
               Vendor codes cannot be changed.
@@ -89,7 +93,12 @@ function VendorForm({
               value={name}
               onChange={(event) => setName(event.target.value)}
               required
+              aria-invalid={Boolean(fieldErrors.name)}
             />
+
+            {fieldErrors.name && (
+              <p className="mt-1.5 text-sm text-red-600">{fieldErrors.name}</p>
+            )}
           </div>
 
           <div>
@@ -105,7 +114,12 @@ function VendorForm({
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
+              aria-invalid={Boolean(fieldErrors.email)}
             />
+
+            {fieldErrors.email && (
+              <p className="mt-1.5 text-sm text-red-600">{fieldErrors.email}</p>
+            )}
           </div>
 
           <div>
@@ -120,7 +134,12 @@ function VendorForm({
               id="vendor-phone"
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
+              aria-invalid={Boolean(fieldErrors.phone)}
             />
+
+            {fieldErrors.phone && (
+              <p className="mt-1.5 text-sm text-red-600">{fieldErrors.phone}</p>
+            )}
           </div>
         </div>
 
@@ -137,8 +156,13 @@ function VendorForm({
             value={address}
             onChange={(event) => setAddress(event.target.value)}
             rows={3}
+            aria-invalid={Boolean(fieldErrors.address)}
             className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
           />
+
+          {fieldErrors.address && (
+            <p className="mt-1.5 text-sm text-red-600">{fieldErrors.address}</p>
+          )}
         </div>
 
         <div>
@@ -153,10 +177,17 @@ function VendorForm({
             id="vendor-payment-terms"
             value={paymentTerms}
             onChange={(event) => setPaymentTerms(event.target.value)}
+            aria-invalid={Boolean(fieldErrors.paymentTerms)}
           />
+
+          {fieldErrors.paymentTerms && (
+            <p className="mt-1.5 text-sm text-red-600">
+              {fieldErrors.paymentTerms}
+            </p>
+          )}
         </div>
 
-        {updateMutation.isError && (
+        {updateMutation.isError && Object.keys(fieldErrors).length === 0 && (
           <p className="text-sm text-red-600">
             {updateMutation.error instanceof Error
               ? updateMutation.error.message
@@ -202,10 +233,7 @@ function EditVendorPage() {
           Vendor not found
         </h1>
 
-        <Button
-          variant="secondary"
-          onClick={() => navigate("/vendors")}
-        >
+        <Button variant="secondary" onClick={() => navigate("/vendors")}>
           Back to vendors
         </Button>
       </div>
@@ -225,9 +253,7 @@ function EditVendorPage() {
           ← Vendor
         </button>
 
-        <h1 className="text-2xl font-semibold text-slate-950">
-          Edit Vendor
-        </h1>
+        <h1 className="text-2xl font-semibold text-slate-950">Edit Vendor</h1>
 
         <p className="mt-1 text-sm text-slate-500">
           Update the vendor's contact and payment information.

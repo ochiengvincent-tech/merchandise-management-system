@@ -26,20 +26,37 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
-    const body = await response.json().catch(() => null);
+  const body = await response.json().catch(() => null);
 
-    const details = Array.isArray(body?.error?.details)
-      ? body.error.details
-      : [];
+  console.log("API ERROR RESPONSE:", body);
 
-    throw new ApiError(
-      body?.error?.message ||
-        body?.message ||
-        `Request failed with status ${response.status}`,
-      details,
-    );
-  }
+  const details = Array.isArray(body?.error?.details)
+    ? body.error.details
+        .filter(
+          (detail: unknown): detail is { path?: unknown; message?: unknown } =>
+            typeof detail === "object" && detail !== null,
+        )
+        .map((detail: { path?: unknown; message?: unknown }) => ({
+          field: Array.isArray(detail.path)
+            ? detail.path
+                .filter((part): part is string => typeof part === "string")
+                .join(".")
+            : "",
+          message:
+            typeof detail.message === "string"
+              ? detail.message
+              : "Invalid value",
+        }))
+        .filter((detail: { field: string; message: string }) => detail.field)
+    : [];
 
+  throw new ApiError(
+    body?.error?.message ||
+      body?.message ||
+      `Request failed with status ${response.status}`,
+    details,
+  );
+}
   if (response.status === 204) {
     return undefined as T;
   }

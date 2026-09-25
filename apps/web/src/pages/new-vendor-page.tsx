@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input } from "../components/ui/input";
+import { ApiError } from "../lib/api/client";
 import { useCreateVendor } from "../features/vendors/hooks";
 
 function NewVendorPage() {
@@ -15,6 +16,16 @@ function NewVendorPage() {
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [paymentTerms, setPaymentTerms] = useState("");
+
+  const fieldErrors =
+    createMutation.error instanceof ApiError
+      ? Object.fromEntries(
+          createMutation.error.fieldErrors.map(({ field, message }) => [
+            field,
+            message,
+          ]),
+        )
+      : {};
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -42,9 +53,7 @@ function NewVendorPage() {
           ← Vendors
         </button>
 
-        <h1 className="text-2xl font-semibold text-slate-950">
-          New Vendor
-        </h1>
+        <h1 className="text-2xl font-semibold text-slate-950">New Vendor</h1>
 
         <p className="mt-1 text-sm text-slate-500">
           Add a supplier for procurement.
@@ -68,7 +77,14 @@ function NewVendorPage() {
                 onChange={(event) => setVendorCode(event.target.value)}
                 placeholder="e.g. VND-004"
                 required
+                aria-invalid={Boolean(fieldErrors.vendorCode)}
               />
+
+              {fieldErrors.vendorCode && (
+                <p className="mt-1.5 text-sm text-red-600">
+                  {fieldErrors.vendorCode}
+                </p>
+              )}
             </div>
 
             <div>
@@ -85,7 +101,14 @@ function NewVendorPage() {
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Vendor name"
                 required
+                aria-invalid={Boolean(fieldErrors.name)}
               />
+
+              {fieldErrors.name && (
+                <p className="mt-1.5 text-sm text-red-600">
+                  {fieldErrors.name}
+                </p>
+              )}
             </div>
 
             <div>
@@ -102,7 +125,14 @@ function NewVendorPage() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="orders@example.com"
+                aria-invalid={Boolean(fieldErrors.email)}
               />
+
+              {fieldErrors.email && (
+                <p className="mt-1.5 text-sm text-red-600">
+                  {fieldErrors.email}
+                </p>
+              )}
             </div>
 
             <div>
@@ -118,7 +148,14 @@ function NewVendorPage() {
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
                 placeholder="0700000000"
+                aria-invalid={Boolean(fieldErrors.phone)}
               />
+
+              {fieldErrors.phone && (
+                <p className="mt-1.5 text-sm text-red-600">
+                  {fieldErrors.phone}
+                </p>
+              )}
             </div>
           </div>
 
@@ -136,8 +173,15 @@ function NewVendorPage() {
               onChange={(event) => setAddress(event.target.value)}
               placeholder="Vendor address"
               rows={3}
+              aria-invalid={Boolean(fieldErrors.address)}
               className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
             />
+
+            {fieldErrors.address && (
+              <p className="mt-1.5 text-sm text-red-600">
+                {fieldErrors.address}
+              </p>
+            )}
           </div>
 
           <div>
@@ -153,10 +197,17 @@ function NewVendorPage() {
               value={paymentTerms}
               onChange={(event) => setPaymentTerms(event.target.value)}
               placeholder="e.g. Net 30"
+              aria-invalid={Boolean(fieldErrors.paymentTerms)}
             />
+
+            {fieldErrors.paymentTerms && (
+              <p className="mt-1.5 text-sm text-red-600">
+                {fieldErrors.paymentTerms}
+              </p>
+            )}
           </div>
 
-          {createMutation.isError && (
+          {createMutation.isError && Object.keys(fieldErrors).length === 0 && (
             <p className="text-sm text-red-600">
               {createMutation.error instanceof Error
                 ? createMutation.error.message

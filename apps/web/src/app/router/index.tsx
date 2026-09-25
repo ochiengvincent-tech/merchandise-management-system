@@ -12,7 +12,6 @@ import LocationDetailPage from "../../pages/location-detail-page";
 import EditLocationPage from "../../pages/edit-location-page";
 import NewLocationPage from "../../pages/new-location-page";
 import VendorsPage from "../../pages/vendors-page";
-import VendorDetailPage from "../../pages/vendor-detail-page";
 import NewVendorPage from "../../pages/new-vendor-page";
 import EditVendorPage from "../../pages/edit-vendor-page";
 export function AppRouter() {
@@ -42,7 +41,7 @@ export function AppRouter() {
 
         <Route path="/vendors/new" element={<NewVendorPage />} />
         <Route path="/vendors/:id/edit" element={<EditVendorPage />} />
-        <Route path="/vendors/:id" element={<VendorDetailPage />} />
+
         <Route path="/vendors" element={<VendorsPage />} />
         <Route
           path="/supplier-products"

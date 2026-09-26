@@ -79,6 +79,7 @@ export function AppRouter() {
           }
         />
       </Route>
+      <Route path="*" element={<PlaceholderPage title="Page not found" />} />
     </Routes>
   );
 }

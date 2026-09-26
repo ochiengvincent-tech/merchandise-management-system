@@ -1,6 +1,9 @@
 import { NavLink } from "react-router-dom";
+import { featureFlags, type FeatureFlagKey } from "../../lib/feature-flags";
 
-const navigation = [
+type NavItem = { label: string; path: string; flag?: FeatureFlagKey };
+
+const navigation: { label: string; items: NavItem[] }[] = [
   {
     label: "Overview",
     items: [{ label: "Dashboard", path: "/dashboard" }],
@@ -8,31 +11,43 @@ const navigation = [
   {
     label: "Merchandising",
     items: [
-      { label: "Products", path: "/products" },
-      { label: "Inventory", path: "/inventory" },
-      { label: "Locations", path: "/locations" },
-      { label: "Adjustments", path: "/inventory/adjustments" },
+      { label: "Products", path: "/products", flag: "inventory" },
+      { label: "Inventory", path: "/inventory", flag: "inventory" },
+      { label: "Locations", path: "/locations", flag: "inventory" },
+      {
+        label: "Adjustments",
+        path: "/inventory/adjustments",
+        flag: "inventory",
+      },
     ],
   },
   {
     label: "Suppliers",
     items: [
-      { label: "Vendors", path: "/vendors" },
-      { label: "Supplier Products", path: "/supplier-products" },
+      { label: "Vendors", path: "/vendors", flag: "vendorManagement" },
+      {
+        label: "Supplier Products",
+        path: "/supplier-products",
+        flag: "vendorManagement",
+      },
     ],
   },
   {
     label: "Procurement",
     items: [
-      { label: "Purchase Orders", path: "/purchase-orders" },
-      { label: "Approvals", path: "/approvals" },
-      { label: "Receiving", path: "/receiving" },
-      { label: "Amendments", path: "/amendments" },
+      {
+        label: "Purchase Orders",
+        path: "/purchase-orders",
+        flag: "procurement",
+      },
+      { label: "Approvals", path: "/approvals", flag: "procurement" },
+      { label: "Amendments", path: "/amendments", flag: "procurement" },
+      { label: "Receiving", path: "/receiving", flag: "receiving" },
     ],
   },
   {
     label: "System",
-    items: [{ label: "Audit", path: "/audit" }],
+    items: [{ label: "Audit", path: "/audit", flag: "salesAudit" }],
   },
 ];
 
@@ -43,6 +58,15 @@ type SidebarProps = {
 };
 
 export function Sidebar({ mobile = false, onNavigate, onClose }: SidebarProps) {
+  const sections = navigation
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
+        (item) => !item.flag || featureFlags[item.flag],
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
+
   return (
     <aside
       className={
@@ -86,7 +110,7 @@ export function Sidebar({ mobile = false, onNavigate, onClose }: SidebarProps) {
 
       <nav className="flex-1 overflow-y-auto px-3 py-5">
         <div className="space-y-6">
-          {navigation.map((section) => (
+          {sections.map((section) => (
             <div key={section.label}>
               <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                 {section.label}

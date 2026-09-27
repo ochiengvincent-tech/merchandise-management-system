@@ -1204,6 +1204,17 @@ components:
           type: string
           example: inventory
 
+    ErrorDetail:
+      type: object
+      required:
+        - message
+      properties:
+        field:
+          type: string
+          description: Dot-separated path to the invalid field; omitted for object-level errors.
+        message:
+          type: string
+
     ErrorResponse:
       type: object
       required:
@@ -1218,7 +1229,8 @@ components:
               type: string
             details:
               type: array
-              items: {}
+              items:
+                $ref: "#/components/schemas/ErrorDetail"
 
     ValidationErrorResponse:
       type: object
@@ -1236,4 +1248,5 @@ components:
               example: Validation failed
             details:
               type: array
-              items: {}
+              items:
+                $ref: "#/components/schemas/ErrorDetail"

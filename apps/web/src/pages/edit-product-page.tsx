@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input } from "../components/ui/input";
+import { getFieldErrorMap } from "../lib/api/client";
 import { useProduct, useUpdateProduct } from "../features/products/hooks";
 import type { Product } from "../features/products/types";
 
@@ -77,6 +78,8 @@ function EditProductForm({ product }: EditProductFormProps) {
 
   const [errorMessage, setErrorMessage] = useState("");
 
+  const fieldErrors = getFieldErrorMap(updateProduct.error);
+
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({
       ...current,
@@ -84,7 +87,7 @@ function EditProductForm({ product }: EditProductFormProps) {
     }));
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage("");
 
@@ -120,10 +123,8 @@ function EditProductForm({ product }: EditProductFormProps) {
       });
 
       navigate(`/products/${product.id}`);
-    } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Unable to update product.",
-      );
+    } catch {
+      // The mutation state renders field and form level errors.
     }
   };
 
@@ -147,7 +148,10 @@ function EditProductForm({ product }: EditProductFormProps) {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-6"
+      >
         <Card className="p-6">
           <div className="space-y-5">
             <div>
@@ -186,7 +190,14 @@ function EditProductForm({ product }: EditProductFormProps) {
                   onChange={(event) => updateField("name", event.target.value)}
                   maxLength={255}
                   required
+                  aria-invalid={Boolean(fieldErrors.name)}
                 />
+
+                {fieldErrors.name && (
+                  <p className="mt-1.5 text-sm text-red-600">
+                    {fieldErrors.name}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -205,7 +216,14 @@ function EditProductForm({ product }: EditProductFormProps) {
                   }
                   maxLength={100}
                   required
+                  aria-invalid={Boolean(fieldErrors.category)}
                 />
+
+                {fieldErrors.category && (
+                  <p className="mt-1.5 text-sm text-red-600">
+                    {fieldErrors.category}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -224,7 +242,14 @@ function EditProductForm({ product }: EditProductFormProps) {
                   }
                   maxLength={30}
                   required
+                  aria-invalid={Boolean(fieldErrors.unitOfMeasure)}
                 />
+
+                {fieldErrors.unitOfMeasure && (
+                  <p className="mt-1.5 text-sm text-red-600">
+                    {fieldErrors.unitOfMeasure}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -242,7 +267,14 @@ function EditProductForm({ product }: EditProductFormProps) {
                     updateField("barcode", event.target.value)
                   }
                   maxLength={100}
+                  aria-invalid={Boolean(fieldErrors.barcode)}
                 />
+
+                {fieldErrors.barcode && (
+                  <p className="mt-1.5 text-sm text-red-600">
+                    {fieldErrors.barcode}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -262,7 +294,14 @@ function EditProductForm({ product }: EditProductFormProps) {
                   onChange={(event) =>
                     updateField("reorderLevel", event.target.value)
                   }
+                  aria-invalid={Boolean(fieldErrors.reorderLevel)}
                 />
+
+                {fieldErrors.reorderLevel && (
+                  <p className="mt-1.5 text-sm text-red-600">
+                    {fieldErrors.reorderLevel}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -282,8 +321,15 @@ function EditProductForm({ product }: EditProductFormProps) {
                 }
                 maxLength={1000}
                 rows={4}
+                aria-invalid={Boolean(fieldErrors.description)}
                 className="w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
+
+              {fieldErrors.description && (
+                <p className="mt-1.5 text-sm text-red-600">
+                  {fieldErrors.description}
+                </p>
+              )}
 
               <p className="mt-1 text-xs text-slate-400">
                 {form.description.length}/1000
@@ -297,6 +343,18 @@ function EditProductForm({ product }: EditProductFormProps) {
             <p className="text-sm text-red-700">{errorMessage}</p>
           </Card>
         )}
+
+        {updateProduct.isError &&
+          Object.keys(fieldErrors).length === 0 &&
+          !errorMessage && (
+            <Card className="border-red-200 bg-red-50 p-4">
+              <p className="text-sm text-red-700">
+                {updateProduct.error instanceof Error
+                  ? updateProduct.error.message
+                  : "Unable to update product."}
+              </p>
+            </Card>
+          )}
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button

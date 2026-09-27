@@ -2,15 +2,16 @@ import { AppError } from "../../errors/app-error.js";
 import { createProductAuditLog } from "./product-audit-repository.js";
 import {
   createProduct,
+  findProductByBarcode,
   findProductById,
   findProductBySku,
   findProducts,
   updateProduct,
-  updateProductStatus
+  updateProductStatus,
 } from "./product-repository.js";
 
 export const createProductService = async (
-  data: Parameters<typeof createProduct>[0]
+  data: Parameters<typeof createProduct>[0],
 ) => {
   const existingProduct = await findProductBySku(data.sku);
 
@@ -18,9 +19,22 @@ export const createProductService = async (
     throw new AppError("Validation failed", 400, [
       {
         field: "sku",
-        message: "Product SKU already exists"
-      }
+        message: "Product SKU already exists",
+      },
     ]);
+  }
+
+  if (data.barcode) {
+    const existingBarcode = await findProductByBarcode(data.barcode);
+
+    if (existingBarcode) {
+      throw new AppError("Validation failed", 400, [
+        {
+          field: "barcode",
+          message: "Product barcode already exists",
+        },
+      ]);
+    }
   }
 
   const product = await createProduct(data);
@@ -28,7 +42,7 @@ export const createProductService = async (
   if (product) {
     await createProductAuditLog({
       productId: product.id,
-      action: "PRODUCT_CREATED"
+      action: "PRODUCT_CREATED",
     });
   }
 
@@ -55,7 +69,7 @@ export const listProductsService = async (filters: {
 
 export const updateProductService = async (
   id: string,
-  data: Parameters<typeof updateProduct>[1]
+  data: Parameters<typeof updateProduct>[1],
 ) => {
   const existingProduct = await findProductById(id);
 
@@ -63,9 +77,22 @@ export const updateProductService = async (
     throw new AppError("Validation failed", 400, [
       {
         field: "id",
-        message: "Product not found"
-      }
+        message: "Product not found",
+      },
     ]);
+  }
+
+  if (data.barcode && data.barcode !== existingProduct.barcode) {
+    const existingBarcode = await findProductByBarcode(data.barcode);
+
+    if (existingBarcode) {
+      throw new AppError("Validation failed", 400, [
+        {
+          field: "barcode",
+          message: "Product barcode already exists",
+        },
+      ]);
+    }
   }
 
   const product = await updateProduct(id, data);
@@ -76,8 +103,8 @@ export const updateProductService = async (
       action: "PRODUCT_UPDATED",
       details: {
         before: existingProduct,
-        after: product
-      }
+        after: product,
+      },
     });
   }
 
@@ -91,8 +118,8 @@ export const deactivateProductService = async (id: string) => {
     throw new AppError("Validation failed", 400, [
       {
         field: "id",
-        message: "Product not found"
-      }
+        message: "Product not found",
+      },
     ]);
   }
 
@@ -100,8 +127,8 @@ export const deactivateProductService = async (id: string) => {
     throw new AppError("Validation failed", 400, [
       {
         field: "status",
-        message: "Product is already inactive"
-      }
+        message: "Product is already inactive",
+      },
     ]);
   }
 
@@ -113,8 +140,8 @@ export const deactivateProductService = async (id: string) => {
       action: "PRODUCT_DEACTIVATED",
       details: {
         before: existingProduct,
-        after: product
-      }
+        after: product,
+      },
     });
   }
 
@@ -128,8 +155,8 @@ export const reactivateProductService = async (id: string) => {
     throw new AppError("Validation failed", 400, [
       {
         field: "id",
-        message: "Product not found"
-      }
+        message: "Product not found",
+      },
     ]);
   }
 
@@ -137,8 +164,8 @@ export const reactivateProductService = async (id: string) => {
     throw new AppError("Validation failed", 400, [
       {
         field: "status",
-        message: "Product is already active"
-      }
+        message: "Product is already active",
+      },
     ]);
   }
 
@@ -150,8 +177,8 @@ export const reactivateProductService = async (id: string) => {
       action: "PRODUCT_REACTIVATED",
       details: {
         before: existingProduct,
-        after: product
-      }
+        after: product,
+      },
     });
   }
 

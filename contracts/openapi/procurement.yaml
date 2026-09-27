@@ -641,6 +641,21 @@ components:
             message:
               type: string
               example: Invalid purchase order data
+            details:
+              type: array
+              items:
+                $ref: "#/components/schemas/ErrorDetail"
+
+    ErrorDetail:
+      type: object
+      required:
+        - message
+      properties:
+        field:
+          type: string
+          description: Dot-separated path to the invalid field; omitted for object-level errors.
+        message:
+          type: string
 
     ActorRequest:
       type: object

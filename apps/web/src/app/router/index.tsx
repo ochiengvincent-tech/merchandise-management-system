@@ -15,6 +15,11 @@ import NewLocationPage from "../../pages/new-location-page";
 import VendorsPage from "../../pages/vendors-page";
 import NewVendorPage from "../../pages/new-vendor-page";
 import EditVendorPage from "../../pages/edit-vendor-page";
+import { SupplierProductsPage } from "../../pages/supplier-products-page";
+import { NewSupplierProductPage } from "../../pages/new-supplier-product-page";
+import { SupplierProductDetailPage } from "../../pages/supplier-product-detail-page";
+import { EditSupplierProductPage } from "../../pages/edit-supplier-product-page";
+import VendorDetailPage from "../../pages/vendor-detail-page";
 
 export function AppRouter() {
   return (
@@ -41,21 +46,40 @@ export function AppRouter() {
         <Route path="/locations" element={<LocationsPage />} />
 
         <Route path="/vendors/new" element={<NewVendorPage />} />
+
         <Route path="/vendors/:id/edit" element={<EditVendorPage />} />
+
+        <Route path="/vendors/:id" element={<VendorDetailPage />} />
+
         <Route path="/vendors" element={<VendorsPage />} />
+
         <Route
-          path="/supplier-products"
-          element={<PlaceholderPage title="Supplier Products" />}
+          path="/supplier-products/new"
+          element={<NewSupplierProductPage />}
         />
+
+        <Route
+          path="/supplier-products/:id/edit"
+          element={<EditSupplierProductPage />}
+        />
+
+        <Route
+          path="/supplier-products/:id"
+          element={<SupplierProductDetailPage />}
+        />
+
+        <Route path="/supplier-products" element={<SupplierProductsPage />} />
 
         <Route
           path="/purchase-orders"
           element={<PlaceholderPage title="Purchase Orders" />}
         />
+
         <Route
           path="/approvals"
           element={<PlaceholderPage title="Approvals" />}
         />
+
         <Route
           path="/amendments"
           element={<PlaceholderPage title="Amendments" />}
@@ -79,7 +103,6 @@ export function AppRouter() {
           }
         />
       </Route>
-      <Route path="*" element={<PlaceholderPage title="Page not found" />} />
     </Routes>
   );
 }

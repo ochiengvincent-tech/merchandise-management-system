@@ -92,3 +92,11 @@ export async function reactivateVendorProduct(
 
   return vendorProductResponseSchema.parse(response).data;
 }
+
+export async function getAllVendorProducts(): Promise<VendorProduct[]> {
+  const response = await apiRequest<unknown>(
+    `${API_URLS.vendor}/vendors/products`,
+  );
+
+  return vendorProductListResponseSchema.parse(response).data;
+}

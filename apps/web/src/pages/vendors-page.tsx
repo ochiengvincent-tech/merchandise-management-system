@@ -125,15 +125,19 @@ function VendorsPage() {
                   <th className="w-40 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Vendor Code
                   </th>
+
                   <th className="min-w-64 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Name
                   </th>
+
                   <th className="min-w-56 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Email
                   </th>
+
                   <th className="w-40 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Phone
                   </th>
+
                   <th className="w-32 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Status
                   </th>
@@ -144,8 +148,17 @@ function VendorsPage() {
                 {vendorsQuery.data.data.map((vendor) => (
                   <tr
                     key={vendor.id}
+                    tabIndex={0}
+                    role="link"
+                    aria-label={`View vendor ${vendor.name}`}
                     onClick={() => navigate(`/vendors/${vendor.id}`)}
-                    className="cursor-pointer hover:bg-slate-50"
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        navigate(`/vendors/${vendor.id}`);
+                      }
+                    }}
+                    className="cursor-pointer hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-slate-400"
                   >
                     <td className="px-5 py-4 font-medium text-slate-900">
                       {vendor.vendorCode}

@@ -1,10 +1,6 @@
 import { API_URLS } from "../../lib/api/config";
 import { apiRequest } from "../../lib/api/client";
-import {
-  locationSchema,
-  locationsSchema,
-  type Location,
-} from "./types";
+import { locationSchema, locationsSchema, type Location } from "./types";
 
 export type LocationFilters = {
   search?: string;
@@ -13,7 +9,6 @@ export type LocationFilters = {
 };
 
 export type CreateLocationInput = {
-  locationCode: string;
   name: string;
   locationType: "WAREHOUSE" | "STORE";
 };

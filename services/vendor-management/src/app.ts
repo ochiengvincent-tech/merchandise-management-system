@@ -35,11 +35,11 @@ app.get("/ready", async (_req, res) => {
     });
   }
 });
-if(featureFlags.vendorManagement){
-app.use("/api/v1/vendors", vendorRoutes);
-app.use("/api/v1/vendors", vendorProductRoutes);
-}
 
+if (featureFlags.vendorManagement) {
+  app.use("/api/v1/vendors", vendorProductRoutes);
+  app.use("/api/v1/vendors", vendorRoutes);
+}
 
 app.use(notFoundHandler);
 app.use(errorHandler);

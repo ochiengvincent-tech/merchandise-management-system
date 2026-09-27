@@ -9,7 +9,12 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
     return res.status(400).json({
       error: {
         message: "Validation failed",
-        details: error.issues,
+        details: error.issues.map((issue) => ({
+          ...(issue.path.length > 0
+            ? { field: issue.path.map(String).join(".") }
+            : {}),
+          message: issue.message,
+        })),
       },
     });
   }
@@ -18,6 +23,7 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
     return res.status(error.statusCode).json({
       error: {
         message: error.message,
+        details: error.details,
       },
     });
   }

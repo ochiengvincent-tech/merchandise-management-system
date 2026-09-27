@@ -2,6 +2,7 @@ import {
   createVendorProductWithPriceWithDatabase,
   findVendorProductById,
   findVendorProductByVendorAndProduct,
+  listAllVendorProducts,
   listVendorProducts,
   updateVendorProductStatusWithDatabase,
   updateVendorProductWithPriceWithDatabase,
@@ -81,6 +82,10 @@ export async function createVendorProductService(
 
 export async function getVendorProductByIdService(id: string) {
   return findVendorProductById(id);
+}
+
+export async function getAllVendorProductsService() {
+  return listAllVendorProducts();
 }
 
 export async function getVendorProductsService(vendorId: string) {

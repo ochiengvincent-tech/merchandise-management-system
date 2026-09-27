@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input } from "../components/ui/input";
-import { ApiError } from "../lib/api/client";
+import { getFieldErrorMap } from "../lib/api/client";
 import { useUpdateVendor, useVendor } from "../features/vendors/hooks";
 
 type VendorFormProps = {
@@ -34,31 +34,27 @@ function VendorForm({
   const [address, setAddress] = useState(initialAddress);
   const [paymentTerms, setPaymentTerms] = useState(initialPaymentTerms);
 
-  const fieldErrors =
-    updateMutation.error instanceof ApiError
-      ? Object.fromEntries(
-          updateMutation.error.fieldErrors.map(({ field, message }) => [
-            field,
-            message,
-          ]),
-        )
-      : {};
+  const fieldErrors = getFieldErrorMap(updateMutation.error);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const vendor = await updateMutation.mutateAsync({
-      id,
-      data: {
-        name: name.trim(),
-        email: email.trim() || undefined,
-        phone: phone.trim() || undefined,
-        address: address.trim() || undefined,
-        paymentTerms: paymentTerms.trim() || undefined,
-      },
-    });
+    try {
+      const vendor = await updateMutation.mutateAsync({
+        id,
+        data: {
+          name: name.trim(),
+          email: email.trim() || undefined,
+          phone: phone.trim() || undefined,
+          address: address.trim() || undefined,
+          paymentTerms: paymentTerms.trim() || undefined,
+        },
+      });
 
-    navigate(`/vendors/${vendor.id}`);
+      navigate(`/vendors/${vendor.id}`);
+    } catch {
+      return;
+    }
   };
 
   return (
@@ -200,6 +196,7 @@ function VendorForm({
             type="button"
             variant="secondary"
             onClick={() => navigate(`/vendors/${id}`)}
+            disabled={updateMutation.isPending}
           >
             Cancel
           </Button>

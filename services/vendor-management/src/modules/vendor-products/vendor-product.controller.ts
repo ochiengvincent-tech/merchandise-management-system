@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import {
   createVendorProductService,
   deactivateVendorProductService,
+  getAllVendorProductsService,
   getVendorProductByIdService,
   getVendorProductsService,
   reactivateVendorProductService,
@@ -53,6 +54,22 @@ export async function createVendorProductController(
 
     return res.status(201).json({
       data: result.vendorProduct,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getAllVendorProductsController(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const vendorProducts = await getAllVendorProductsService();
+
+    return res.status(200).json({
+      data: vendorProducts,
     });
   } catch (error) {
     next(error);

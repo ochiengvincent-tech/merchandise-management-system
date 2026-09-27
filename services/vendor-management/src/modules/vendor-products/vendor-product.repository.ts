@@ -85,6 +85,13 @@ export async function listVendorProducts(vendorId: string) {
     .orderBy(desc(vendorProducts.createdAt));
 }
 
+export async function listAllVendorProducts() {
+  return db
+    .select()
+    .from(vendorProducts)
+    .orderBy(desc(vendorProducts.createdAt));
+}
+
 export async function updateVendorProductStatusWithDatabase<
   T extends Pick<typeof db, "update">,
 >(id: string, status: "ACTIVE" | "INACTIVE", database: T) {

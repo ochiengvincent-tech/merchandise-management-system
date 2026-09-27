@@ -6,6 +6,7 @@ import {
 import {
   createVendorProduct,
   deactivateVendorProduct,
+  getAllVendorProducts,
   getVendorProduct,
   getVendorProducts,
   reactivateVendorProduct,
@@ -106,5 +107,12 @@ export function useReactivateVendorProduct() {
         }),
       ]);
     },
+  });
+}
+
+export function useAllVendorProducts() {
+  return useQuery({
+    queryKey: ["vendor-products"],
+    queryFn: getAllVendorProducts,
   });
 }

@@ -20,7 +20,7 @@ export function TableContainer({
   return (
     <div
       {...props}
-      className={`overflow-x-auto rounded-lg border border-slate-200 bg-white ${className}`}
+      className={`app-card overflow-x-auto ${className}`}
     />
   );
 }
@@ -40,7 +40,7 @@ export function TableHead({ className = "", ...props }: TableHeadProps) {
   return (
     <thead
       {...props}
-      className={`border-b border-slate-200 bg-slate-50 ${className}`}
+      className={`app-table-head border-b border-slate-200 ${className}`}
     />
   );
 }
@@ -55,7 +55,7 @@ export function TableRow({ className = "", ...props }: TableRowProps) {
   return (
     <tr
       {...props}
-      className={`transition-colors hover:bg-slate-50 ${className}`}
+      className={`app-table-row transition-colors ${className}`}
     />
   );
 }
@@ -64,7 +64,7 @@ export function TableHeader({ className = "", ...props }: TableHeaderProps) {
   return (
     <th
       {...props}
-      className={`h-11 px-4 text-left text-xs font-medium uppercase tracking-wide text-slate-500 ${className}`}
+      className={`h-11 px-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 ${className}`}
     />
   );
 }

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
 
 import { Badge } from "../components/ui/badge";
+import { Icon } from "../components/ui/icon";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import {
@@ -139,8 +140,8 @@ export function DashboardPage() {
         <div className="flex flex-wrap gap-2">
           {procurementEnabled && (
             <>
-              <Button variant="secondary" onClick={() => navigate("/approvals")}>Review approvals</Button>
-              <Button onClick={() => navigate("/purchase-orders/new")}>New purchase order</Button>
+              <Button variant="secondary" onClick={() => navigate("/approvals")}><Icon name="approval" className="mr-2 h-4 w-4" />Review approvals</Button>
+              <Button onClick={() => navigate("/purchase-orders/new")}><Icon name="plus" className="mr-2 h-4 w-4" />New purchase order</Button>
             </>
           )}
         </div>
@@ -173,7 +174,7 @@ export function DashboardPage() {
                 Active products whose available stock is at or below the reorder level.
               </p>
             </div>
-            <Button variant="secondary" onClick={() => navigate("/inventory")}>Open inventory</Button>
+            <Button variant="secondary" onClick={() => navigate("/inventory")}><Icon name="arrow-right" className="mr-2 h-4 w-4" />Open inventory</Button>
           </div>
 
           {productsQuery.isError && (

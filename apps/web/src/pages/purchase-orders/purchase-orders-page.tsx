@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Badge } from "../../components/ui/badge";
+import { Icon } from "../../components/ui/icon";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -95,6 +96,7 @@ function PurchaseOrdersPage() {
         </div>
 
         <Button onClick={() => navigate("/purchase-orders/new")}>
+          <Icon name="plus" className="mr-2 h-4 w-4" />
           New Purchase Order
         </Button>
       </div>

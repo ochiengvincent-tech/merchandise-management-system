@@ -17,6 +17,7 @@ import {
   usePurchaseOrderReferences,
   usePurchaseOrders,
 } from "../../features/purchase-orders/hooks";
+import { purchaseOrderStatusVariant } from "../../features/purchase-orders/status";
 
 const PAGE_SIZE = 20;
 
@@ -172,7 +173,7 @@ export function ApprovalsPage() {
                           {formatDate(purchaseOrder.updatedAt)}
                         </TableCell>
                         <TableCell>
-                          <Badge>{purchaseOrder.status}</Badge>
+                          <Badge variant={purchaseOrderStatusVariant(purchaseOrder.status)}>{purchaseOrder.status}</Badge>
                         </TableCell>
                       </TableRow>
                     );

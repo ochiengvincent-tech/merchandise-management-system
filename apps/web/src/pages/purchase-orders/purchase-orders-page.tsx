@@ -21,6 +21,7 @@ import {
   usePurchaseOrderReferences,
   usePurchaseOrders,
 } from "../../features/purchase-orders/hooks";
+import { purchaseOrderStatusVariant } from "../../features/purchase-orders/status";
 
 function PurchaseOrdersPage() {
   const navigate = useNavigate();
@@ -240,15 +241,7 @@ function PurchaseOrdersPage() {
                         </TableCell>
 
                         <TableCell>
-                          <Badge
-                            variant={
-                              purchaseOrder.status === "CANCELLED"
-                                ? "default"
-                                : purchaseOrder.status === "COMPLETED"
-                                  ? "success"
-                                  : "default"
-                            }
-                          >
+                          <Badge variant={purchaseOrderStatusVariant(purchaseOrder.status)}>
                             {purchaseOrder.status}
                           </Badge>
                         </TableCell>

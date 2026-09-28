@@ -5,6 +5,7 @@ import vendorProductRoutes from "./modules/vendor-products/vendor-product.routes
 import { errorHandler } from "./middleware/error-handler.js";
 import { notFoundHandler } from "./middleware/not-found.js";
 import { featureFlags } from "@mms/feature-flags";
+import auditRoutes from "./modules/audit/audit-list-routes.js";
 
 const app: Application = express();
 
@@ -35,6 +36,8 @@ app.get("/ready", async (_req, res) => {
     });
   }
 });
+
+app.use("/api/v1/audit-logs", auditRoutes);
 
 if (featureFlags.vendorManagement) {
   app.use("/api/v1/vendors", vendorProductRoutes);

@@ -52,6 +52,7 @@ export function PurchaseOrderAmendments({
   const [rejectingAmendmentId, setRejectingAmendmentId] = useState("");
   const [rejectionComments, setRejectionComments] = useState("");
   const [actionError, setActionError] = useState("");
+  const [actionSuccess, setActionSuccess] = useState("");
 
   const amendments = amendmentsQuery.data ?? [];
   const locations = locationsQuery.data ?? [];
@@ -71,6 +72,7 @@ export function PurchaseOrderAmendments({
 
   const runAction = async (action: () => Promise<unknown>) => {
     setActionError("");
+    setActionSuccess("");
     try {
       await action();
     } catch (error) {
@@ -99,6 +101,7 @@ export function PurchaseOrderAmendments({
       setNotes(purchaseOrder.notes ?? "");
       setDestinationLocationId("");
       setShowRequestForm(false);
+      setActionSuccess("Amendment request submitted for review.");
     });
   };
 
@@ -117,20 +120,21 @@ export function PurchaseOrderAmendments({
   };
 
   return (
-    <Card className="p-6">
+    <Card className={canRequest ? "border-teal-200 bg-teal-50/30 p-6" : "p-6"}>
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
           <h2 className="text-base font-semibold text-slate-950">Amendments</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Approved commercial terms remain unchanged until an amendment is
-            approved.
+          <p className="mt-1 text-sm text-slate-600">
+            {canRequest
+              ? "Need to change notes or destination? Submit an amendment for review. Approved terms stay in place until it is approved."
+              : "Approved commercial terms remain unchanged until an amendment is approved."}
           </p>
         </div>
         {canRequest && !showRequestForm && (
           <Button
-            variant="secondary"
             onClick={() => {
               setActionError("");
+              setActionSuccess("");
               setShowRequestForm(true);
             }}
           >
@@ -138,6 +142,12 @@ export function PurchaseOrderAmendments({
           </Button>
         )}
       </div>
+
+      {actionSuccess && (
+        <p role="status" className="mt-4 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+          {actionSuccess}
+        </p>
+      )}
 
       {amendmentsQuery.isLoading && (
         <p className="mt-4 text-sm text-slate-500">
@@ -280,7 +290,7 @@ export function PurchaseOrderAmendments({
                       maxLength={2000}
                       className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                     />
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         type="submit"
                         variant="danger"

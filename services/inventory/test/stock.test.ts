@@ -14,6 +14,19 @@ describe("Stock API", () => {
     const location = await createLocation();
     const stock = await createStock(product.id, location.id);
 
+    const auditResponse = await api.get("/api/v1/audit-logs").query({
+      action: "STOCK_RECORD_CREATED",
+    });
+    expect(auditResponse.status).toBe(200);
+    expect(auditResponse.body.data).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        productId: product.id,
+        locationId: location.id,
+        action: "STOCK_RECORD_CREATED",
+        details: expect.objectContaining({ stockId: stock.id, quantityOnHand: 0 }),
+      }),
+    ]));
+
     const response = await api
       .get("/api/v1/stock/by-product-and-location")
       .query({

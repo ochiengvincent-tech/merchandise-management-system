@@ -1,4 +1,6 @@
 import { AppError } from "../../errors/app-error.js";
+import { inventoryAuditLogs } from "../../db/schema/inventory-audit-logs.js";
+import { db } from "../../db/index.js";
 import { findLocationById } from "../locations/location-repository.js";
 import { findProductById } from "../products/product-repository.js";
 import {
@@ -116,13 +118,29 @@ export const createStockService = async (
     ]);
   }
 
-  return createStock({
+  const stock = await createStock({
     productId,
     locationId,
     quantityOnHand: 0,
     quantityAllocated: 0,
     quantityOnOrder: 0
   });
+
+  if (stock) {
+    await db.insert(inventoryAuditLogs).values({
+      productId,
+      locationId,
+      action: "STOCK_RECORD_CREATED",
+      details: {
+        stockId: stock.id,
+        quantityOnHand: stock.quantityOnHand,
+        quantityAllocated: stock.quantityAllocated,
+        quantityOnOrder: stock.quantityOnOrder,
+      },
+    });
+  }
+
+  return stock;
 };
 
 export const updateStockService = async (

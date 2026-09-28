@@ -4,7 +4,7 @@ import { FeatureGate } from "../feature-gate";
 import { DashboardPage } from "../../pages/dashboard-page";
 import { ProductsPage } from "../../pages/products/products-page";
 import { NewProductPage } from "../../pages/products/new-product-page";
-import { PlaceholderPage } from "../../pages/placeholder-page";
+import { AuditPage } from "../../pages/audit-page";
 import { ProductDetailPage } from "../../pages/products/product-detail-page";
 import { EditProductPage } from "../../pages/products/edit-product-page";
 import InventoryPage from "../../pages/inventory/inventory-page";
@@ -28,6 +28,12 @@ import PurchaseOrderDetailPage from "../../pages/purchase-orders/purchase-order-
 import CreatePurchaseOrderPage from "../../pages/purchase-orders/create-purchase-order";
 import { ApprovalsPage } from "../../pages/purchase-orders/approvals-page";
 import { AmendmentsPage } from "../../pages/purchase-orders/amendments-page";
+import { PlaceholderPage } from "../../pages/placeholder-page";
+import type { FeatureFlagKey } from "../../lib/feature-flags";
+
+function gatedPage(flag: FeatureFlagKey, title: string, page: React.ReactNode) {
+  return <FeatureGate flag={flag} title={title}>{page}</FeatureGate>;
+}
 
 export function AppRouter() {
   return (
@@ -37,77 +43,69 @@ export function AppRouter() {
 
         <Route path="/dashboard" element={<DashboardPage />} />
 
-        <Route path="/products" element={<ProductsPage />} />
-        <Route path="/products/new" element={<NewProductPage />} />
-        <Route path="/products/:id" element={<ProductDetailPage />} />
-        <Route path="products/:id/edit" element={<EditProductPage />} />
+        <Route path="/products" element={gatedPage("inventory", "Inventory", <ProductsPage />)} />
+        <Route path="/products/new" element={gatedPage("inventory", "Inventory", <NewProductPage />)} />
+        <Route path="/products/:id" element={gatedPage("inventory", "Inventory", <ProductDetailPage />)} />
+        <Route path="products/:id/edit" element={gatedPage("inventory", "Inventory", <EditProductPage />)} />
 
-        <Route path="/inventory" element={<InventoryPage />} />
-        <Route path="/inventory/adjustments" element={<AdjustmentsPage />} />
-        <Route path="/inventory/valuation" element={<InventoryValuationPage />} />
+        <Route path="/inventory" element={gatedPage("inventory", "Inventory", <InventoryPage />)} />
+        <Route path="/inventory/adjustments" element={gatedPage("inventory", "Inventory", <AdjustmentsPage />)} />
+        <Route path="/inventory/valuation" element={gatedPage("inventory", "Inventory", <InventoryValuationPage />)} />
 
-        <Route path="/locations/new" element={<NewLocationPage />} />
-        <Route path="/locations/:id/edit" element={<EditLocationPage />} />
-        <Route path="/locations/:id" element={<LocationDetailPage />} />
-        <Route path="/locations" element={<LocationsPage />} />
+        <Route path="/receiving" element={gatedPage("receiving", "Receiving", <PlaceholderPage title="Receiving" />)} />
 
-        <Route path="/vendors/new" element={<NewVendorPage />} />
+        <Route path="/locations/new" element={gatedPage("inventory", "Inventory", <NewLocationPage />)} />
+        <Route path="/locations/:id/edit" element={gatedPage("inventory", "Inventory", <EditLocationPage />)} />
+        <Route path="/locations/:id" element={gatedPage("inventory", "Inventory", <LocationDetailPage />)} />
+        <Route path="/locations" element={gatedPage("inventory", "Inventory", <LocationsPage />)} />
 
-        <Route path="/vendors/:id/edit" element={<EditVendorPage />} />
+        <Route path="/vendors/new" element={gatedPage("vendorManagement", "Vendor Management", <NewVendorPage />)} />
 
-        <Route path="/vendors/:id" element={<VendorDetailPage />} />
+        <Route path="/vendors/:id/edit" element={gatedPage("vendorManagement", "Vendor Management", <EditVendorPage />)} />
 
-        <Route path="/vendors" element={<VendorsPage />} />
+        <Route path="/vendors/:id" element={gatedPage("vendorManagement", "Vendor Management", <VendorDetailPage />)} />
+
+        <Route path="/vendors" element={gatedPage("vendorManagement", "Vendor Management", <VendorsPage />)} />
 
         <Route
           path="/supplier-products/new"
-          element={<NewSupplierProductPage />}
+          element={gatedPage("vendorManagement", "Vendor Management", <NewSupplierProductPage />)}
         />
 
         <Route
           path="/supplier-products/:id/edit"
-          element={<EditSupplierProductPage />}
+          element={gatedPage("vendorManagement", "Vendor Management", <EditSupplierProductPage />)}
         />
 
         <Route
           path="/supplier-products/:id"
-          element={<SupplierProductDetailPage />}
+          element={gatedPage("vendorManagement", "Vendor Management", <SupplierProductDetailPage />)}
         />
 
-        <Route path="/supplier-products" element={<SupplierProductsPage />} />
+        <Route path="/supplier-products" element={gatedPage("vendorManagement", "Vendor Management", <SupplierProductsPage />)} />
 
-        <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
-        <Route path="/reorder-suggestions" element={<ReorderSuggestionsPage />} />
+        <Route path="/purchase-orders" element={gatedPage("procurement", "Procurement", <PurchaseOrdersPage />)} />
+        <Route path="/reorder-suggestions" element={gatedPage("procurement", "Procurement", <ReorderSuggestionsPage />)} />
 
         <Route
           path="/purchase-orders/new"
-          element={<CreatePurchaseOrderPage />}
+          element={gatedPage("procurement", "Procurement", <CreatePurchaseOrderPage />)}
         />
 
         <Route
           path="/purchase-orders/:id"
-          element={<PurchaseOrderDetailPage />}
+          element={gatedPage("procurement", "Procurement", <PurchaseOrderDetailPage />)}
         />
 
-        <Route path="/approvals" element={<ApprovalsPage />} />
+        <Route path="/approvals" element={gatedPage("procurement", "Procurement", <ApprovalsPage />)} />
 
-        <Route
-          path="/amendments"
-          element={
-            <FeatureGate flag="procurement" title="Amendments">
-              <AmendmentsPage />
-            </FeatureGate>
-          }
-        />
+        <Route path="/amendments" element={gatedPage("procurement", "Procurement", <AmendmentsPage />)} />
 
-        <Route
-          path="/audit"
-          element={
-            <FeatureGate flag="salesAudit" title="Audit">
-              <PlaceholderPage title="Audit" />
-            </FeatureGate>
-          }
-        />
+        <Route path="/audit" element={<AuditPage />} />
+        <Route path="/warehouse-operations" element={gatedPage("warehouseOperations", "Warehouse Operations", <PlaceholderPage title="Warehouse Operations" />)} />
+        <Route path="/retail-sales" element={gatedPage("retailSales", "Retail Sales", <PlaceholderPage title="Retail Sales" />)} />
+        <Route path="/sales-audit" element={gatedPage("salesAudit", "Sales Audit", <PlaceholderPage title="Sales Audit" />)} />
+        <Route path="/financials" element={gatedPage("financials", "Financials", <PlaceholderPage title="Financials" />)} />
       </Route>
     </Routes>
   );

@@ -1,5 +1,6 @@
 import express, { type Application } from "express";
 import { featureFlags } from "@mms/feature-flags";
+import auditRoutes from "./modules/audit/procurement-audit-routes.js";
 import { pool } from "./db/index.js";
 import approvalRoutes from "./modules/approvals/approval-routes.js";
 import amendmentRoutes from "./modules/amendments/amendment-routes.js";
@@ -25,7 +26,9 @@ app.get("/ready", async (_req, res) => {
   try {
     await pool.query("SELECT 1");
 
-    if (featureFlags.procurement) {
+    app.use("/api/v1/audit-logs", auditRoutes);
+
+if (featureFlags.procurement) {
       const channel = await getRabbitMQChannel();
       await channel.checkExchange(EVENTS_EXCHANGE);
     }
@@ -47,6 +50,8 @@ app.get("/ready", async (_req, res) => {
     });
   }
 });
+
+app.use("/api/v1/audit-logs", auditRoutes);
 
 if (featureFlags.procurement) {
   app.use("/api/v1/purchase-orders", purchaseOrderRoutes);

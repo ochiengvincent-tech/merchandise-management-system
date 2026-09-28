@@ -69,6 +69,19 @@ describe("submit purchase order for approval", () => {
       poNumber,
       status: "PENDING_APPROVAL",
     });
+
+    const auditResponse = await request(app)
+      .get("/api/v1/audit-logs")
+      .query({ action: "PO_SUBMITTED_FOR_APPROVAL", actorId: ACTOR_ID });
+    expect(auditResponse.status).toBe(200);
+    expect(auditResponse.body.data).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        purchaseOrderId,
+        action: "PO_SUBMITTED_FOR_APPROVAL",
+        actorId: ACTOR_ID,
+      }),
+    ]));
+    expect(auditResponse.body.pagination.total).toBeGreaterThanOrEqual(1);
   });
 
   const APPROVER_ID = "22222222-2222-4222-8222-222222222222";

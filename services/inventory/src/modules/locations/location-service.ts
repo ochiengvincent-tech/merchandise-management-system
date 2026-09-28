@@ -11,7 +11,15 @@ import { createLocationAuditLog } from "./location-audit-repository.js";
 export const createLocationService = async (
   data: Parameters<typeof createLocationWithGeneratedCode>[0],
 ) => {
-  return createLocationWithGeneratedCode(data);
+  const location = await createLocationWithGeneratedCode(data);
+  if (location) {
+    await createLocationAuditLog({
+      locationId: location.id,
+      action: "LOCATION_CREATED",
+      details: { after: location },
+    });
+  }
+  return location;
 };
 
 export const getLocationService = async (id: string) => {

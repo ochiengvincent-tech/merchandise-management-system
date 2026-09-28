@@ -23,12 +23,69 @@ servers:
 tags:
   - name: Health
     description: Service health and readiness
+  - name: Audit
+    description: Read-only access to persisted Vendor Management audit events
   - name: Vendors
     description: Vendor management operations
   - name: Vendor Products
     description: Supplier-product relationship operations
 
 paths:
+  /api/v1/audit-logs:
+    get:
+      tags:
+        - Audit
+      summary: List persisted service audit events
+      operationId: listAuditLogs
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: actorId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Audit events ordered from newest to oldest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLogListResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
   /health:
     get:
       tags:
@@ -505,6 +562,81 @@ components:
             $ref: "#/components/schemas/ValidationErrorResponse"
 
   schemas:
+    AuditLogListResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - action
+              - createdAt
+            properties:
+              id:
+                type: string
+                format: uuid
+              action:
+                type: string
+              actorId:
+                type: string
+                format: uuid
+                nullable: true
+              purchaseOrderId:
+                type: string
+                format: uuid
+                nullable: true
+              productId:
+                type: string
+                format: uuid
+                nullable: true
+              locationId:
+                type: string
+                format: uuid
+                nullable: true
+              vendorId:
+                type: string
+                format: uuid
+                nullable: true
+              vendorProductId:
+                type: string
+                format: uuid
+                nullable: true
+              beforeState:
+                type: object
+                nullable: true
+              afterState:
+                type: object
+                nullable: true
+              details:
+                type: object
+                nullable: true
+              signature:
+                type: string
+              createdAt:
+                type: string
+                format: date-time
+        pagination:
+          type: object
+          required:
+            - page
+            - limit
+            - total
+            - totalPages
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            totalPages:
+              type: integer
+
     VendorStatus:
       type: string
       enum:

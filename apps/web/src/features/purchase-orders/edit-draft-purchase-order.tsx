@@ -81,7 +81,7 @@ export function EditDraftPurchaseOrder({
   if (purchaseOrder.status !== "DRAFT") return null;
 
   return (
-    <Card className="p-5">
+    <Card className={purchaseOrder.revisionRequired ? "border-amber-200 bg-amber-50/30 p-5" : "border-teal-200 bg-teal-50/30 p-5"}>
       {!editing ? (
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div>
@@ -91,7 +91,7 @@ export function EditDraftPurchaseOrder({
             <p className="mt-1 text-sm text-slate-500">
               {purchaseOrder.revisionRequired
                 ? "This PO was rejected. Review the order and update it before resubmitting for approval."
-                : "Edit the order information and quantities before submitting it for approval."}
+                : "Update order details or quantities before submitting this draft for approval."}
             </p>
             {saved && (
               <p className="mt-2 text-sm text-green-700" role="status">
@@ -100,7 +100,6 @@ export function EditDraftPurchaseOrder({
             )}
           </div>
           <Button
-            variant="secondary"
             onClick={() => {
               setSaved(false);
               setEditing(true);
@@ -332,7 +331,7 @@ function DraftPurchaseOrderForm({
               : "Changes are allowed while the PO is a draft. Changing the vendor resets its lines."}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button type="button" variant="secondary" disabled={isSubmitting} onClick={onCancel}>
             Cancel
           </Button>

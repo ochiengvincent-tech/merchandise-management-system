@@ -151,3 +151,37 @@ button { cursor: pointer; }
 input, select, textarea {
   color-scheme: inherit;
 }
+
+/* Keep feedback banners and status badges readable in dark mode. */
+html[data-theme="dark"] .bg-green-50,
+html[data-theme="dark"] .bg-green-100 { background-color: #153d2a; }
+html[data-theme="dark"] .border-green-200,
+html[data-theme="dark"] .border-green-300 { border-color: #166534; }
+html[data-theme="dark"] .text-green-700,
+html[data-theme="dark"] .text-green-800,
+html[data-theme="dark"] .text-green-900 { color: #86efac; }
+
+html[data-theme="dark"] .bg-red-50,
+html[data-theme="dark"] .bg-red-100 { background-color: #451a1a; }
+html[data-theme="dark"] .border-red-200,
+html[data-theme="dark"] .border-red-300 { border-color: #7f1d1d; }
+html[data-theme="dark"] .text-red-600,
+html[data-theme="dark"] .text-red-700,
+html[data-theme="dark"] .text-red-800,
+html[data-theme="dark"] .text-red-900,
+html[data-theme="dark"] .text-red-950 { color: #fca5a5; }
+
+html[data-theme="dark"] .bg-amber-50,
+html[data-theme="dark"] .bg-amber-100 { background-color: #422b0b; }
+html[data-theme="dark"] .border-amber-200,
+html[data-theme="dark"] .border-amber-300 { border-color: #92400e; }
+html[data-theme="dark"] .text-amber-700,
+html[data-theme="dark"] .text-amber-800,
+html[data-theme="dark"] .text-amber-900 { color: #fcd34d; }
+
+html[data-theme="dark"] .bg-teal-100 { background-color: #134e4a; }
+html[data-theme="dark"] .text-teal-950 { color: #ccfbf1; }
+html[data-theme="dark"] .ring-teal-300 { --tw-ring-color: #0f766e; }
+html[data-theme="dark"] .bg-violet-100 { background-color: #3b2660; }
+html[data-theme="dark"] .text-violet-900 { color: #ddd6fe; }
+html[data-theme="dark"] .ring-violet-300 { --tw-ring-color: #6d28d9; }

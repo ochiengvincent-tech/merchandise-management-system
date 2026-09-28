@@ -21,6 +21,7 @@ import {
 import { PurchaseOrderActions } from "../../features/purchase-orders/purchase-order-actions";
 import { PurchaseOrderAmendments } from "../../features/purchase-orders/purchase-order-amendments";
 import { EditDraftPurchaseOrder } from "../../features/purchase-orders/edit-draft-purchase-order";
+import { purchaseOrderStatusVariant } from "../../features/purchase-orders/status";
 
 function PurchaseOrderDetailPage() {
   const { id = "" } = useParams();
@@ -75,19 +76,7 @@ function PurchaseOrderDetailPage() {
     });
   };
 
-  const getStatusVariant = (
-    status: string,
-  ): "default" | "success" | "danger" => {
-    if (status === "COMPLETED") {
-      return "success";
-    }
 
-    if (status === "CANCELLED") {
-      return "danger";
-    }
-
-    return "default";
-  };
 
   if (purchaseOrderQuery.isLoading) {
     return (
@@ -166,7 +155,7 @@ function PurchaseOrderDetailPage() {
                 {purchaseOrder.poNumber}
               </h1>
 
-              <Badge variant={getStatusVariant(purchaseOrder.status)}>
+              <Badge variant={purchaseOrderStatusVariant(purchaseOrder.status)}>
                 {purchaseOrder.status}
               </Badge>
             </div>
@@ -212,7 +201,7 @@ function PurchaseOrderDetailPage() {
                 Status
               </p>
               <div className="mt-1">
-                <Badge variant={getStatusVariant(purchaseOrder.status)}>
+                <Badge variant={purchaseOrderStatusVariant(purchaseOrder.status)}>
                   {purchaseOrder.status}
                 </Badge>
               </div>

@@ -5,7 +5,7 @@ import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Select } from "../../components/ui/select";
-import { Table } from "../../components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { useLocations } from "../../features/locations/hooks";
 
 function LocationsPage() {
@@ -122,40 +122,36 @@ function LocationsPage() {
         )}
 
         {locationsQuery.isSuccess && locationsQuery.data.length > 0 && (
-          <Table>
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Status</th>
-              </tr>
-            </thead>
+          <Table className="table-fixed">
+            <TableHead>
+              <TableRow>
+                <TableHeader className="w-[27%]">Code</TableHeader>
+                <TableHeader className="w-[40%]">Name</TableHeader>
+                <TableHeader className="w-[18%]">Type</TableHeader>
+                <TableHeader className="w-[15%]">Status</TableHeader>
+              </TableRow>
+            </TableHead>
 
-            <tbody>
+            <TableBody>
               {locationsQuery.data.map((location) => (
-                <tr
+                <TableRow
                   key={location.id}
                   onClick={() => navigate(`/locations/${location.id}`)}
-                  className="cursor-pointer hover:bg-slate-50"
+                  className="cursor-pointer"
                 >
-                  <td className="font-medium text-slate-900">
+                  <TableCell className="break-words font-medium text-slate-900">
                     {location.locationCode}
-                  </td>
-                  <td>{location.name}</td>
-                  <td>{location.locationType}</td>
-                  <td>
-                    <Badge
-                      variant={
-                        location.status === "ACTIVE" ? "success" : "default"
-                      }
-                    >
+                  </TableCell>
+                  <TableCell className="font-medium text-slate-900">{location.name}</TableCell>
+                  <TableCell>{location.locationType}</TableCell>
+                  <TableCell>
+                    <Badge variant={location.status === "ACTIVE" ? "success" : "default"}>
                       {location.status}
                     </Badge>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
+            </TableBody>
           </Table>
         )}
       </Card>

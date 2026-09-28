@@ -190,6 +190,10 @@ records, outbox publication, and failure responses.
 
 The current Procurement suite contains 49 passing tests.
 
+## Audit records
+
+Read persisted Procurement audit events through `GET /api/v1/audit-logs`. Results are newest-first and support `page`, `limit` (up to 100), `action`, `actorId`, `from`, and `to` filters. Important purchase-order lifecycle events, including submission, approval/rejection, amendments, sending, cancellation, and receipt updates, use the existing procurement audit table.
+
 ## Current implementation boundary
 
 This service implements the Phase 1 procurement workflow. Physical receiving

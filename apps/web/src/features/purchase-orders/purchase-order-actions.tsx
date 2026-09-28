@@ -88,6 +88,13 @@ export function PurchaseOrderActions({
     });
   };
 
+  const handleSend = async () => {
+    await runAction(async () => {
+      await sendMutation.mutateAsync(purchaseOrder.id);
+      setActionSuccess("Purchase order sent to vendor.");
+    });
+  };
+
   const handleCancel = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     await runAction(() =>
@@ -168,9 +175,7 @@ export function PurchaseOrderActions({
         {purchaseOrder.status === "APPROVED" && (
           <Button
             disabled={isPending}
-            onClick={() =>
-              void runAction(() => sendMutation.mutateAsync(purchaseOrder.id))
-            }
+            onClick={() => void handleSend()}
           >
             {sendMutation.isPending ? "Sending..." : "Send to vendor"}
           </Button>

@@ -7,6 +7,16 @@ describe("Locations API", () => {
 
     expect(location.locationCode).toMatch(/^WH-\d{3}$/);
 
+    const auditResponse = await api.get("/api/v1/audit-logs").query({ action: "LOCATION_CREATED" });
+    expect(auditResponse.status).toBe(200);
+    expect(auditResponse.body.data).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        locationId: location.id,
+        action: "LOCATION_CREATED",
+        details: expect.objectContaining({ after: expect.objectContaining({ id: location.id }) }),
+      }),
+    ]));
+
     const response = await api.get(`/api/v1/locations/${location.id}`);
 
     expect(response.status).toBe(200);
@@ -66,6 +76,36 @@ describe("Locations API", () => {
       (await api.patch(`/api/v1/locations/${location.id}/reactivate`)).body
         .status,
     ).toBe("ACTIVE");
+  });
+
+
+  it("lists audit events with pagination and filters", async () => {
+    const first = await createLocation({ name: "Audit Warehouse One" });
+    const second = await createLocation({ name: "Audit Warehouse Two" });
+
+    const response = await api.get("/api/v1/audit-logs").query({
+      page: 1,
+      limit: 1,
+      action: "LOCATION_CREATED",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.pagination).toMatchObject({ page: 1, limit: 1, total: 2, totalPages: 2 });
+    expect(response.body.data).toHaveLength(1);
+    expect([first.id, second.id]).toContain(response.body.data[0].locationId);
+  });
+
+  it("rejects invalid audit filters", async () => {
+    const response = await api.get("/api/v1/audit-logs").query({ limit: 101 });
+    expect(response.status).toBe(400);
+    expect(response.body.error.message).toBe("Invalid audit query");
+
+    const dateRangeResponse = await api.get("/api/v1/audit-logs").query({
+      from: "2026-09-30T00:00:00.000Z",
+      to: "2026-09-01T23:59:59.999Z",
+    });
+    expect(dateRangeResponse.status).toBe(400);
+    expect(dateRangeResponse.body.error.message).toBe("Invalid audit query");
   });
 
   it("rejects an invalid location type", async () => {

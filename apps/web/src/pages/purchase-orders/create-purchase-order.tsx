@@ -449,7 +449,7 @@ function CreatePurchaseOrderPage() {
               </div>
             </Card>
 
-            <Card className="overflow-hidden p-0">
+            <Card className="relative z-10 overflow-visible p-0">
               <div className="flex flex-col justify-between gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center">
                 <div>
                   <h2 className="text-base font-semibold text-slate-950">

@@ -6,6 +6,11 @@ const routeLabels: Array<[RegExp, string]> = [
   [/^\/dashboard$/, "Dashboard"],
   [/^\/products(?:\/new|\/[^/]+(?:\/edit)?)?$/, "Products"],
   [/^\/inventory\/valuation$/, "Valuation"],
+  [/^\/receiving$/, "Receiving"],
+  [/^\/warehouse-operations$/, "Warehouse Operations"],
+  [/^\/retail-sales$/, "Retail Sales"],
+  [/^\/sales-audit$/, "Sales Audit"],
+  [/^\/financials$/, "Financials"],
   [/^\/inventory\/adjustments$/, "Adjustments"],
   [/^\/inventory$/, "Inventory"],
   [/^\/locations(?:\/new|\/[^/]+(?:\/edit)?)?$/, "Locations"],
@@ -51,10 +56,12 @@ export function AppLayout() {
   const location = useLocation();
   const theme = useThemePreference();
   const pageLabel = routeLabels.find(([pattern]) => pattern.test(location.pathname))?.[1] ?? "Workspace";
-  const group = ["Products", "Inventory", "Locations", "Adjustments", "Valuation"].includes(pageLabel)
+  const group = ["Products", "Inventory", "Locations", "Adjustments", "Valuation", "Receiving", "Warehouse Operations"].includes(pageLabel)
     ? "Merchandising"
     : ["Vendors", "Supplier Products"].includes(pageLabel)
       ? "Suppliers"
+      : ["Retail Sales", "Sales Audit"].includes(pageLabel) ? "Sales"
+      : pageLabel === "Financials" ? "System"
       : ["Purchase Orders", "Purchase Order Details", "New Purchase Order", "Approvals", "Reorder Suggestions", "Amendments"].includes(pageLabel)
         ? "Procurement"
         : pageLabel === "Audit" ? "System" : "Overview";

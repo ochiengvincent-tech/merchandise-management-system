@@ -17,6 +17,7 @@ const receiptItemSchema = z.object({
 });
 
 const bodySchema = z.object({
+  receivingReceiptId: z.string().uuid().optional(),
   items: z.array(receiptItemSchema).min(1),
 });
 
@@ -65,6 +66,7 @@ export async function receivePurchaseOrderController(
       params.data.id,
       body.data.items,
       actorIdResult.data,
+      body.data.receivingReceiptId,
     );
 
     return res.status(200).json({

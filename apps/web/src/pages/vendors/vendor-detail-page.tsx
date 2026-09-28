@@ -4,12 +4,21 @@ import { useSmartBack } from "../../hooks/use-smart-back";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../../components/ui/table";
 import { AddVendorProductForm } from "../../features/vendor-products/add-vendor-product-form";
 import { VendorProductActions } from "../../features/vendor-products/vendor-product-actions";
 import {
   useDeactivateVendor,
   useReactivateVendor,
   useVendor,
+  useVendorReliability,
 } from "../../features/vendors/hooks";
 import { useVendorProducts } from "../../features/vendor-products/hooks";
 import { useProducts } from "../../features/products/hooks";
@@ -22,6 +31,7 @@ function VendorDetailPage() {
   const [showAddProductForm, setShowAddProductForm] = useState(false);
 
   const vendorQuery = useVendor(id);
+  const reliabilityQuery = useVendorReliability(id);
   const vendorProductsQuery = useVendorProducts(id);
   const productsQuery = useProducts();
 
@@ -186,6 +196,100 @@ function VendorDetailPage() {
             </div>
           </div>
         </div>
+      </Card>
+
+      <Card className="p-5">
+        <div>
+          <h2 className="text-base font-semibold text-slate-950">Supplier reliability</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Delivery performance over the last 12 months, based on lead times captured when each purchase order was sent.
+          </p>
+        </div>
+
+        {reliabilityQuery.isLoading && (
+          <p className="mt-5 text-sm text-slate-500">Loading delivery history...</p>
+        )}
+        {reliabilityQuery.isError && (
+          <p className="mt-5 text-sm text-red-700" role="alert">Could not load supplier reliability.</p>
+        )}
+        {reliabilityQuery.isSuccess && (
+          <>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="rounded-lg bg-slate-50 p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Overall score</p>
+                <p className="mt-2 text-xl font-semibold text-slate-950">
+                  {reliabilityQuery.data.summary.score === null
+                    ? "Not enough history"
+                    : `${reliabilityQuery.data.summary.score} / 100`}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {reliabilityQuery.data.summary.eligiblePurchaseOrders} eligible POs · 3 required
+                </p>
+              </div>
+              {[
+                ["On time", reliabilityQuery.data.summary.onTimeRate],
+                ["Quantity fulfilled", reliabilityQuery.data.summary.fulfillmentRate],
+                ["Undamaged", reliabilityQuery.data.summary.qualityRate],
+              ].map(([label, rate]) => (
+                <div key={label} className="rounded-lg bg-slate-50 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+                  <p className="mt-2 text-xl font-semibold text-slate-950">{rate}%</p>
+                </div>
+              ))}
+              <div className="rounded-lg bg-slate-50 p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Scoring period</p>
+                <p className="mt-2 text-sm font-medium text-slate-900">
+                  {new Date(reliabilityQuery.data.summary.periodStart).toLocaleDateString()} – {new Date(reliabilityQuery.data.summary.periodEnd).toLocaleDateString()}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">Formula {reliabilityQuery.data.summary.formulaVersion}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Calculated {new Date(reliabilityQuery.data.summary.calculatedAt).toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-4 text-xs text-slate-500">
+              Score weights: on-time delivery 50%, quantity fulfillment 30%, and undamaged goods 20%. Only completed or overdue POs with lead-time snapshots are included.
+            </p>
+
+            {reliabilityQuery.data.history.length === 0 ? (
+              <div className="mt-5 rounded-lg border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
+                No eligible supplier deliveries have been recorded yet.
+              </div>
+            ) : (
+              <div className="mt-5 overflow-x-auto rounded-lg border border-slate-200">
+                <Table className="min-w-[760px]">
+                  <TableHead>
+                    <TableRow>
+                      <TableHeader>Purchase order</TableHeader>
+                      <TableHeader>Sent</TableHeader>
+                      <TableHeader>Expected by</TableHeader>
+                      <TableHeader>Status</TableHeader>
+                      <TableHeader className="text-right">On time</TableHeader>
+                      <TableHeader className="text-right">Fulfillment</TableHeader>
+                      <TableHeader className="text-right">Damaged</TableHeader>
+                      <TableHeader className="text-right">Score</TableHeader>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {reliabilityQuery.data.history.map((order) => (
+                      <TableRow key={order.purchaseOrderId}>
+                        <TableCell className="font-medium text-slate-900">{order.poNumber}</TableCell>
+                        <TableCell className="whitespace-nowrap">{new Date(order.sentAt).toLocaleDateString()}</TableCell>
+                        <TableCell className="whitespace-nowrap">{order.dueAt ? new Date(order.dueAt).toLocaleDateString() : "Unavailable"}</TableCell>
+                        <TableCell><Badge variant={order.status === "COMPLETED" ? "success" : "warning"}>{order.status}</Badge></TableCell>
+                        <TableCell className="text-right tabular-nums">{order.onTimeRate}%</TableCell>
+                        <TableCell className="text-right tabular-nums">{order.acceptedUnits} / {order.orderedUnits} ({order.fulfillmentRate}%)</TableCell>
+                        <TableCell className="text-right tabular-nums">{order.damagedUnits}</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">{order.score}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </>
+        )}
       </Card>
 
       <Card className="p-5">

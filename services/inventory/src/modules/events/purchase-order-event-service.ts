@@ -11,6 +11,7 @@ import {
   purchaseOrderApprovedEventSchema,
   purchaseOrderCancelledEventSchema,
   purchaseOrderReceivedEventSchema,
+  goodsReceivedEventSchema,
 } from "./purchase-order-event-schema.js";
 
 export const processPurchaseOrderApproved = async (data: unknown) => {
@@ -243,7 +244,36 @@ export const processPurchaseOrderCancelled = async (data: unknown) => {
 };
 
 export const processPurchaseOrderReceived = async (data: unknown) => {
-  const event = purchaseOrderReceivedEventSchema.parse(data);
+  const event: {
+    eventId: string;
+    eventType: "PurchaseOrderReceived" | "GoodsReceived";
+    purchaseOrderId: string;
+    lines: Array<{
+      productId: string;
+      locationId: string;
+      quantityReceived: number;
+      unitPrice: number;
+    }>;
+  } =
+    typeof data === "object" && data !== null &&
+    "eventType" in data && data.eventType === "GoodsReceived"
+      ? (() => {
+          const received = goodsReceivedEventSchema.parse(data);
+          return {
+            eventId: received.eventId,
+            eventType: received.eventType,
+            purchaseOrderId: received.purchaseOrderId,
+            lines: received.lines
+              .filter((line) => line.quantityAccepted > 0)
+              .map((line) => ({
+                productId: line.productId,
+                locationId: received.destinationLocationId,
+                quantityReceived: line.quantityAccepted,
+                unitPrice: line.unitPrice,
+              })),
+          };
+        })()
+      : purchaseOrderReceivedEventSchema.parse(data);
 
   return db.transaction(async (tx) => {
     const processedEvent = await markEventAsProcessed(

@@ -48,6 +48,7 @@ const navigation: { label: string; items: NavItem[] }[] = [
       { label: "Approvals", icon: "approval", path: "/approvals", flag: "procurement" },
       { label: "Reorder suggestions", icon: "reorder", path: "/reorder-suggestions", flag: "procurement" },
       { label: "Amendments", icon: "amendment", path: "/amendments", flag: "procurement" },
+      { label: "Receiving", icon: "warehouse", path: "/receiving", flag: "receiving" },
     ],
   },
   {

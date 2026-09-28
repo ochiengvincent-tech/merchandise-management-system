@@ -2,6 +2,10 @@ import { db } from "../../db/index.js";
 import { AppError } from "../../errors/app-error.js";
 import { createAuditLogService } from "../audit/audit.service.js";
 import {
+  getVendorReliability,
+  getVendorReliabilitySummaries,
+} from "../reliability/vendor-reliability.repository.js";
+import {
   findVendorByCode,
   findVendorById,
   listVendors,
@@ -49,7 +53,10 @@ export async function createVendorService(
 }
 
 export async function getVendorByIdService(id: string) {
-  return findVendorById(id);
+  const vendor = await findVendorById(id);
+  if (!vendor) return null;
+  const reliability = await getVendorReliability(id);
+  return { ...vendor, reliabilitySummary: reliability.summary };
 }
 
 export async function getVendorsService({
@@ -63,12 +70,27 @@ export async function getVendorsService({
   status?: string | undefined;
   search?: string | undefined;
 }) {
-  return listVendors({
-    page,
-    limit,
-    status,
-    search,
-  });
+  const result = await listVendors({ page, limit, status, search });
+  const summaries = await getVendorReliabilitySummaries(
+    result.data.map((vendor) => vendor.id),
+  );
+  const summaryByVendorId = new Map(summaries.map((summary) => [summary.vendorId, summary]));
+  return {
+    ...result,
+    data: result.data.map((vendor) => {
+      const summary = summaryByVendorId.get(vendor.id);
+      return {
+        ...vendor,
+        reliabilitySummary: summary
+          ? {
+              ...summary,
+              score: summary.eligiblePurchaseOrders >= 3 ? summary.score : null,
+              minimumEligiblePurchaseOrders: 3,
+            }
+          : null,
+      };
+    }),
+  };
 }
 
 export async function updateVendorService(

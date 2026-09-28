@@ -18,6 +18,10 @@ export default defineConfig({
         target: "http://localhost:3003",
         rewrite: (path) => path.replace(/^\/api\/procurement/, "/api/v1"),
       },
+      "/api/receiving": {
+        target: "http://localhost:3004",
+        rewrite: (path) => path.replace(/^\/api\/receiving/, "/api/v1"),
+      },
     },
   },
 });

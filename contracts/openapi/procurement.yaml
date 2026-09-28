@@ -521,6 +521,67 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /api/v1/purchase-orders/{id}/receipts/from-receiving:
+    post:
+      tags:
+        - Receipts
+      summary: Confirm quantities submitted by Receiving
+      description: |
+        Applies the accepted quantities from a saved Receiving goods received
+        note to the purchase order. The Receiving receipt ID makes retries
+        idempotent. This route is available only while Receiving is enabled;
+        the legacy direct receipt route remains disabled in that mode.
+      operationId: confirmReceivingServiceReceipt
+      parameters:
+        - $ref: "#/components/parameters/PurchaseOrderId"
+        - name: x-actor-id
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [receivingReceiptId, items]
+              properties:
+                receivingReceiptId:
+                  type: string
+                  format: uuid
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: "#/components/schemas/ReceiptItem"
+      responses:
+        "200":
+          description: Receipt quantities confirmed and purchase order updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceiptResponse"
+        "400":
+          description: Invalid receipt or actor data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Purchase order or purchase order line not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Receipt conflicts with the purchase order or prior receipt data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /api/v1/reorder-suggestions:
     get:
       tags:

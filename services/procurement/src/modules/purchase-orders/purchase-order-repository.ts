@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { purchaseOrders } from "../../db/schema/purchase-orders.js";
 
@@ -49,7 +49,12 @@ export async function listPurchaseOrders({
   const conditions = [];
 
   if (status) {
-    conditions.push(eq(purchaseOrders.status, status));
+    const statuses = [...new Set(status.split(",").map((value) => value.trim()).filter(Boolean))];
+    if (statuses.length === 1) {
+      conditions.push(eq(purchaseOrders.status, statuses[0]!));
+    } else if (statuses.length > 1) {
+      conditions.push(inArray(purchaseOrders.status, statuses));
+    }
   }
 
   if (search) {

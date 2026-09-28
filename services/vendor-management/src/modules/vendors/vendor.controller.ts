@@ -13,6 +13,8 @@ import {
   updateVendorSchema,
 } from "./vendor.schema.js";
 import { z } from "zod";
+import { getVendorReliability } from "../reliability/vendor-reliability.repository.js";
+import { findVendorById } from "./vendor.repository.js";
 
 const systemActorId = process.env.SYSTEM_ACTOR_ID;
 
@@ -82,6 +84,27 @@ export async function getVendorByIdController(
     return res.status(200).json({
       data: vendor,
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getVendorReliabilityController(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const parsedId = z.uuid().safeParse(req.params.id);
+    if (!parsedId.success) {
+      return res.status(400).json({ error: { message: "Invalid vendor ID" } });
+    }
+    const vendor = await findVendorById(parsedId.data);
+    if (!vendor) {
+      return res.status(404).json({ error: { message: "Vendor not found" } });
+    }
+    const reliability = await getVendorReliability(parsedId.data);
+    return res.status(200).json({ data: reliability });
   } catch (error) {
     next(error);
   }

@@ -36,7 +36,7 @@ function LocationsPage() {
         <Button onClick={() => navigate("/locations/new")}>New Location</Button>
       </div>
 
-      <Card>
+      <Card className="p-5">
         <div className="grid gap-4 md:grid-cols-3">
           <div>
             <label
@@ -122,13 +122,13 @@ function LocationsPage() {
         )}
 
         {locationsQuery.isSuccess && locationsQuery.data.length > 0 && (
-          <Table className="table-fixed">
+          <Table className="min-w-[680px] table-fixed">
             <TableHead>
               <TableRow>
-                <TableHeader className="w-[27%]">Code</TableHeader>
-                <TableHeader className="w-[40%]">Name</TableHeader>
+                <TableHeader className="w-[24%]">Code</TableHeader>
+                <TableHeader className="w-[42%]">Name</TableHeader>
                 <TableHeader className="w-[18%]">Type</TableHeader>
-                <TableHeader className="w-[15%]">Status</TableHeader>
+                <TableHeader className="w-[16%]">Status</TableHeader>
               </TableRow>
             </TableHead>
 
@@ -139,7 +139,7 @@ function LocationsPage() {
                   onClick={() => navigate(`/locations/${location.id}`)}
                   className="cursor-pointer"
                 >
-                  <TableCell className="break-words font-medium text-slate-900">
+                  <TableCell className="break-words font-mono text-xs text-slate-600">
                     {location.locationCode}
                   </TableCell>
                   <TableCell className="font-medium text-slate-900">{location.name}</TableCell>

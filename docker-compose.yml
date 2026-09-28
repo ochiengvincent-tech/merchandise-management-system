@@ -43,6 +43,17 @@ services:
     tmpfs:
       - /var/lib/postgresql/data
 
+  receiving-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: receiving_db
+      POSTGRES_USER: mms_receiving
+      POSTGRES_PASSWORD: mms_receiving
+    ports:
+      - "5437:5432"
+    volumes:
+      - receiving_db_data:/var/lib/postgresql/data
+
   rabbitmq:
     image: rabbitmq:4-management
     container_name: mms-rabbitmq
@@ -60,3 +71,4 @@ volumes:
   procurement_db_data:
   inventory_db_data:
   rabbitmq_data:
+  receiving_db_data:

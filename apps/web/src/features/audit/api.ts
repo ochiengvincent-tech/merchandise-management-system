@@ -1,11 +1,13 @@
 import { z } from "zod";
 import { API_URLS } from "../../lib/api/config";
 import { apiRequest } from "../../lib/api/client";
+import { featureFlags } from "../../lib/feature-flags";
 
 export const auditSources = [
   "PROCUREMENT",
   "INVENTORY",
   "VENDOR_MANAGEMENT",
+  "RECEIVING",
 ] as const;
 export type AuditSource = (typeof auditSources)[number];
 export type AuditSourceFilter = AuditSource | "ALL";
@@ -20,6 +22,7 @@ const auditRecordSchema = z.object({
   locationId: z.string().nullable().optional(),
   vendorId: z.string().nullable().optional(),
   vendorProductId: z.string().nullable().optional(),
+  goodsReceiptId: z.string().nullable().optional(),
   beforeState: z.unknown().optional(),
   afterState: z.unknown().optional(),
   details: z.unknown().nullable().optional(),
@@ -53,6 +56,7 @@ const services: Array<{ source: AuditSource; baseUrl: string }> = [
   { source: "PROCUREMENT", baseUrl: API_URLS.procurement },
   { source: "INVENTORY", baseUrl: API_URLS.inventory },
   { source: "VENDOR_MANAGEMENT", baseUrl: API_URLS.vendor },
+  { source: "RECEIVING", baseUrl: API_URLS.receiving },
 ];
 
 export async function listAuditRecords(
@@ -60,7 +64,9 @@ export async function listAuditRecords(
   filters: AuditFilters,
 ) {
   const selected = services.filter(
-    ({ source }) => sourceFilter === "ALL" || sourceFilter === source,
+    ({ source }) =>
+      (source !== "RECEIVING" || featureFlags.receiving) &&
+      (sourceFilter === "ALL" || sourceFilter === source),
   );
   const query = new URLSearchParams({
     page: String(filters.page),

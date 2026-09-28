@@ -1,0 +1,531 @@
+openapi: 3.1.0
+info:
+  title: MMS Receiving API
+  version: 1.0.0
+  description: >-
+    Records inspected supplier deliveries as immutable goods received notes.
+    Procurement remains authoritative for purchase order quantities, and
+    Inventory receives accepted quantities through GoodsReceived events.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+security: []
+servers:
+  - url: http://localhost:3004/api/v1
+tags:
+  - name: Receiving purchase orders
+    description: Read-only Procurement views used to prepare a goods receipt.
+  - name: Goods received notes
+    description: Create and review immutable supplier delivery inspections.
+  - name: Receiving audit
+    description: Important persisted operations recorded by Receiving.
+paths:
+  /purchase-orders/open:
+    get:
+      tags: [Receiving purchase orders]
+      operationId: listOpenReceivingPurchaseOrders
+      summary: List sent and partially received purchase orders
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: Open purchase orders from Procurement
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OpenPurchaseOrder'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '400':
+          $ref: '#/components/responses/Error'
+        '502':
+          $ref: '#/components/responses/Error'
+  /purchase-orders/{id}:
+    get:
+      tags: [Receiving purchase orders]
+      operationId: getReceivingPurchaseOrder
+      summary: Get an eligible purchase order with current open quantities
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200':
+          description: Current purchase order detail for inspection
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ReceivingPurchaseOrder'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '502':
+          $ref: '#/components/responses/Error'
+  /receipts:
+    get:
+      tags: [Goods received notes]
+      operationId: listGoodsReceipts
+      summary: Search recorded goods received notes
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: purchaseOrderId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: search
+          in: query
+          description: Matches GRN number or supplier delivery note.
+          schema:
+            type: string
+            maxLength: 100
+        - name: discrepancy
+          in: query
+          schema:
+            type: string
+            enum: [SHORTAGE, OVERAGE, DAMAGE]
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Matching GRNs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GoodsReceipt'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '400':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Goods received notes]
+      operationId: createGoodsReceipt
+      summary: Record an inspected delivery
+      description: >-
+        A GRN is immutable after creation. Reuse the same Idempotency-Key to
+        retry a request whose response was lost. Accepted quantities are
+        calculated by Receiving and cannot be supplied by the client. If
+        Procurement is temporarily unavailable, the GRN is still persisted
+        and the response is a retryable 503 that identifies the saved GRN.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-actor-id
+          in: header
+          required: true
+          description: Actor UUID until platform authentication is implemented.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGoodsReceipt'
+      responses:
+        '201':
+          description: GRN recorded and Procurement synchronization completed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GoodsReceipt'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '502':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /receipts/{id}:
+    get:
+      tags: [Goods received notes]
+      operationId: getGoodsReceipt
+      summary: Get a goods received note
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200':
+          description: GRN detail and synchronization status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GoodsReceipt'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /audit-logs:
+    get:
+      tags: [Receiving audit]
+      operationId: listReceivingAuditEvents
+      summary: List important Receiving audit events
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: action
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: actorId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Paginated Receiving audit history
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEvent'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '400':
+          $ref: '#/components/responses/Error'
+components:
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    UuidPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    Error:
+      description: Standard MMS error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [message]
+          properties:
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                required: [message]
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+    Pagination:
+      type: object
+      required: [page, limit, total, totalPages]
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+    OpenPurchaseOrder:
+      type: object
+      required: [id, poNumber, status, vendorId, destinationLocationId, requestedDeliveryDate, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        poNumber:
+          type: string
+        status:
+          type: string
+          enum: [SENT, PARTIALLY_RECEIVED]
+        vendorId:
+          type: string
+          format: uuid
+        destinationLocationId:
+          type: string
+          format: uuid
+        requestedDeliveryDate:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    ReceivingPurchaseOrder:
+      allOf:
+        - $ref: '#/components/schemas/OpenPurchaseOrder'
+        - type: object
+          required: [currency, lines]
+          properties:
+            currency:
+              type: string
+              minLength: 3
+              maxLength: 3
+            lines:
+              type: array
+              items:
+                type: object
+                required: [id, productId, quantityOrdered, quantityReceived, quantityOutstanding, unitPrice, product]
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  productId:
+                    type: string
+                    format: uuid
+                  quantityOrdered:
+                    type: integer
+                    minimum: 0
+                  quantityReceived:
+                    type: integer
+                    minimum: 0
+                  quantityOutstanding:
+                    type: integer
+                    minimum: 0
+                  unitPrice:
+                    oneOf:
+                      - type: number
+                      - type: string
+                  product:
+                    $ref: '#/components/schemas/ProductSnapshot'
+    ProductSnapshot:
+      type: object
+      required: [id, sku, barcode, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        barcode:
+          type: [string, 'null']
+        name:
+          type: string
+    CreateGoodsReceipt:
+      type: object
+      required: [purchaseOrderId, lines]
+      properties:
+        purchaseOrderId:
+          type: string
+          format: uuid
+        supplierDeliveryNote:
+          type: string
+          maxLength: 100
+        notes:
+          type: string
+          maxLength: 4000
+        lines:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [productId, productCode, quantityObserved]
+            properties:
+              purchaseOrderLineId:
+                type: string
+                format: uuid
+              productId:
+                type: string
+                format: uuid
+              productCode:
+                type: string
+                minLength: 1
+                maxLength: 100
+              quantityObserved:
+                type: integer
+                minimum: 0
+              quantityDamaged:
+                type: integer
+                minimum: 0
+                default: 0
+              notes:
+                type: string
+                maxLength: 2000
+    GoodsReceipt:
+      type: object
+      required: [id, grnNumber, purchaseOrderId, destinationLocationId, supplierDeliveryNote, receivedBy, receivedAt, procurementSyncStatus, procurementSyncError, notes, createdAt, lines]
+      properties:
+        id:
+          type: string
+          format: uuid
+        grnNumber:
+          type: string
+        purchaseOrderId:
+          type: string
+          format: uuid
+        destinationLocationId:
+          type: string
+          format: uuid
+        supplierDeliveryNote:
+          type: [string, 'null']
+        receivedBy:
+          type: string
+          format: uuid
+        receivedAt:
+          type: string
+          format: date-time
+        procurementSyncStatus:
+          type: string
+          enum: [PENDING, SYNCED, RETRYING]
+        procurementSyncError:
+          type: [string, 'null']
+        notes:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoodsReceiptLine'
+    GoodsReceiptLine:
+      type: object
+      required: [id, goodsReceiptId, purchaseOrderLineId, productId, productCode, productName, quantityExpectedAtReceipt, quantityObserved, quantityDamaged, quantityAccepted, quantityRejected, condition, discrepancies, notes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        goodsReceiptId:
+          type: string
+          format: uuid
+        purchaseOrderLineId:
+          type: [string, 'null']
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        productCode:
+          type: string
+        productName:
+          type: [string, 'null']
+        quantityExpectedAtReceipt:
+          type: integer
+          minimum: 0
+        quantityObserved:
+          type: integer
+          minimum: 0
+        quantityDamaged:
+          type: integer
+          minimum: 0
+        quantityAccepted:
+          type: integer
+          minimum: 0
+        quantityRejected:
+          type: integer
+          minimum: 0
+        condition:
+          type: string
+          enum: [GOOD, DAMAGED, MIXED]
+        discrepancies:
+          type: array
+          items:
+            type: string
+            enum: [SHORTAGE, OVERAGE, DAMAGE]
+        notes:
+          type: [string, 'null']
+    AuditEvent:
+      type: object
+      required: [id, action, actorId, goodsReceiptId, details, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        action:
+          type: string
+        actorId:
+          type: string
+          format: uuid
+        goodsReceiptId:
+          type: string
+          format: uuid
+        details:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time

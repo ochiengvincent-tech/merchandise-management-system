@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { featureFlags } from "@mms/feature-flags";
 import app from "./app.js";
 import { env } from "./config/env.js";

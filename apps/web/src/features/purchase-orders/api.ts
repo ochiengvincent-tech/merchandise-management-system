@@ -11,12 +11,16 @@ import {
   purchaseOrderAmendmentApprovalResponseSchema,
   purchaseOrderAmendmentResponseSchema,
   purchaseOrderAmendmentsResponseSchema,
+  purchaseOrderAmendmentQueueResponseSchema,
+  reorderSuggestionsResponseSchema,
+  reorderSuggestionResponseSchema,
+  type ReorderSuggestion,
   purchaseOrderListResponseSchema,
   purchaseOrderPolicyResponseSchema,
-  purchaseOrderReceiptResponseSchema,
   purchaseOrderResponseSchema,
   type PurchaseOrderCreateResponse,
   type PurchaseOrderListResponse,
+  type PurchaseOrderAmendmentQueueResponse,
   type PurchaseOrderResponse,
 } from "./types";
 
@@ -51,10 +55,6 @@ export type UpdatePurchaseOrderInput = {
   lines?: CreatePurchaseOrderLineInput[];
 };
 
-export type ReceivePurchaseOrderItemInput = {
-  purchaseOrderLineId: string;
-  quantityReceived: number;
-};
 
 export type RequestPurchaseOrderAmendmentInput = {
   purchaseOrderId: string;
@@ -203,20 +203,21 @@ export const cancelPurchaseOrder = async (id: string, reason: string) => {
   return purchaseOrderActionResponseSchema.parse(response).data;
 };
 
-export const receivePurchaseOrder = async (
-  id: string,
-  items: ReceivePurchaseOrderItemInput[],
-) => {
+export const listPurchaseOrderAmendmentQueue = async ({
+  page = 1,
+  limit = 20,
+  status,
+}: {
+  page?: number;
+  limit?: number;
+  status?: "PENDING" | "APPROVED" | "REJECTED";
+} = {}): Promise<PurchaseOrderAmendmentQueueResponse> => {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (status) params.set("status", status);
   const response = await apiRequest<unknown>(
-    `${API_URLS.procurement}/purchase-orders/${id}/receipts`,
-    {
-      method: "POST",
-      headers: { "x-actor-id": CURRENT_ACTOR_ID },
-      body: JSON.stringify({ items }),
-    },
+    `${API_URLS.procurement}/amendments?${params.toString()}`,
   );
-
-  return purchaseOrderReceiptResponseSchema.parse(response).data;
+  return purchaseOrderAmendmentQueueResponseSchema.parse(response);
 };
 
 export const getPurchaseOrderAmendments = async (purchaseOrderId: string) => {
@@ -270,4 +271,36 @@ export const rejectPurchaseOrderAmendment = async (
   );
 
   return purchaseOrderAmendmentResponseSchema.parse(response).data;
+};
+
+export const listReorderSuggestions = async (): Promise<ReorderSuggestion[]> => {
+  const response = await apiRequest<unknown>(
+    `${API_URLS.procurement}/reorder-suggestions`,
+  );
+
+  return reorderSuggestionsResponseSchema.parse(response).data;
+};
+
+export const convertReorderSuggestion = async (
+  id: string,
+  purchaseOrderId: string,
+) => {
+  const response = await apiRequest<unknown>(
+    `${API_URLS.procurement}/reorder-suggestions/${id}/convert`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ purchaseOrderId }),
+    },
+  );
+
+  return reorderSuggestionResponseSchema.parse(response).data;
+};
+
+export const dismissReorderSuggestion = async (id: string) => {
+  const response = await apiRequest<unknown>(
+    `${API_URLS.procurement}/reorder-suggestions/${id}/dismiss`,
+    { method: "PATCH" },
+  );
+
+  return reorderSuggestionResponseSchema.parse(response).data;
 };

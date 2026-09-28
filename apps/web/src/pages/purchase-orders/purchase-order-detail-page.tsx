@@ -1,4 +1,5 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { useSmartBack } from "../../hooks/use-smart-back";
 
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -19,12 +20,11 @@ import {
 } from "../../features/purchase-orders/hooks";
 import { PurchaseOrderActions } from "../../features/purchase-orders/purchase-order-actions";
 import { PurchaseOrderAmendments } from "../../features/purchase-orders/purchase-order-amendments";
-import { PurchaseOrderReceiving } from "../../features/purchase-orders/purchase-order-receiving";
 import { EditDraftPurchaseOrder } from "../../features/purchase-orders/edit-draft-purchase-order";
 
 function PurchaseOrderDetailPage() {
   const { id = "" } = useParams();
-  const navigate = useNavigate();
+  const goBack = useSmartBack("/purchase-orders");
 
   const purchaseOrderQuery = usePurchaseOrder(id);
 
@@ -124,9 +124,9 @@ function PurchaseOrderDetailPage() {
       <div className="space-y-4">
         <Button
           variant="secondary"
-          onClick={() => navigate("/purchase-orders")}
+          onClick={goBack}
         >
-          Back to Purchase Orders
+          Back
         </Button>
 
         <Card className="p-6">
@@ -153,10 +153,10 @@ function PurchaseOrderDetailPage() {
       <div>
         <button
           type="button"
-          onClick={() => navigate("/purchase-orders")}
+          onClick={goBack}
           className="mb-3 text-sm font-medium text-slate-500 hover:text-slate-900"
         >
-          ← Purchase Orders
+          ← Back
         </button>
 
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
@@ -179,7 +179,7 @@ function PurchaseOrderDetailPage() {
           <div className="flex flex-wrap gap-2">
             <Button
               variant="secondary"
-              onClick={() => navigate("/purchase-orders")}
+              onClick={goBack}
             >
               Back
             </Button>
@@ -190,7 +190,6 @@ function PurchaseOrderDetailPage() {
       <PurchaseOrderActions purchaseOrder={purchaseOrder} />
       <EditDraftPurchaseOrder purchaseOrder={purchaseOrder} />
       <PurchaseOrderAmendments purchaseOrder={purchaseOrder} />
-      <PurchaseOrderReceiving purchaseOrder={purchaseOrder} />
 
       <Card className="p-6">
         <div>

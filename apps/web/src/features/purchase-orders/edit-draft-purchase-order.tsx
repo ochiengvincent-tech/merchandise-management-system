@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Select } from "../../components/ui/select";
+import { SearchableSelect } from "../../components/ui/searchable-select";
 import { getLocations } from "../locations/api";
 import { getVendors } from "../vendors/api";
 import { getVendorProducts } from "../vendor-products/api";
@@ -76,9 +77,6 @@ export function EditDraftPurchaseOrder({
   const [editing, setEditing] = useState(purchaseOrder.revisionRequired);
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    if (purchaseOrder.revisionRequired) setEditing(true);
-  }, [purchaseOrder.revisionRequired]);
 
   if (purchaseOrder.status !== "DRAFT") return null;
 
@@ -355,10 +353,20 @@ function DraftPurchaseOrderForm({
         </div>
         <div>
           <label htmlFor="draft-vendor" className="mb-1.5 block text-sm font-medium text-slate-700">Vendor</label>
-          <Select id="draft-vendor" value={form.vendorId} disabled={vendorsQuery.isLoading || isSubmitting} onChange={(event) => changeVendor(event.target.value)} aria-invalid={Boolean(fieldErrors.vendorId)}>
-            <option value="">Select vendor</option>
-            {vendors.map((vendor) => <option key={vendor.id} value={vendor.id}>{vendor.vendorCode} · {vendor.name}{vendor.status === "INACTIVE" ? " (inactive)" : ""}</option>)}
-          </Select>
+          <SearchableSelect
+            id="draft-vendor"
+            value={form.vendorId}
+            disabled={vendorsQuery.isLoading || isSubmitting}
+            onChange={changeVendor}
+            options={vendors.map((vendor) => ({
+              value: vendor.id,
+              label: `${vendor.vendorCode} · ${vendor.name}${vendor.status === "INACTIVE" ? " (inactive)" : ""}`,
+            }))}
+            placeholder="Search vendors…"
+            emptyMessage="No matching vendors"
+            required
+            aria-invalid={Boolean(fieldErrors.vendorId)}
+          />
           {fieldErrors.vendorId && <p role="alert" className="mt-1.5 text-sm text-red-600">{fieldErrors.vendorId}</p>}
         </div>
         <div>
@@ -417,13 +425,24 @@ function DraftPurchaseOrderForm({
             <div key={index} className="grid gap-4 rounded-md border border-slate-200 p-4 sm:grid-cols-[minmax(0,2fr)_minmax(120px,1fr)_minmax(140px,1fr)_auto] sm:items-end">
               <div>
                 <label htmlFor={`draft-product-${index}`} className="mb-1.5 block text-sm font-medium text-slate-700">Product</label>
-                <Select id={`draft-product-${index}`} value={line.productId} disabled={productListLoading || isSubmitting} onChange={(event) => updateLine(index, "productId", event.target.value)} aria-invalid={Boolean(fieldErrors[`lines.${index}.productId`])}>
-                  <option value="">Select product</option>
-                  {productOptions.map((option) => {
-                    const selectedElsewhere = form.lines.some((other, otherIndex) => otherIndex !== index && other.productId === option.id);
-                    return <option key={option.id} value={option.id} disabled={selectedElsewhere}>{option.sku} · {option.name}{option.retainedOnly ? " (existing line)" : ""}</option>;
-                  })}
-                </Select>
+                <SearchableSelect
+                  id={`draft-product-${index}`}
+                  value={line.productId}
+                  disabled={productListLoading || isSubmitting}
+                  onChange={(productId) => updateLine(index, "productId", productId)}
+                  options={productOptions.map((option) => ({
+                    value: option.id,
+                    label: `${option.sku} · ${option.name}${option.retainedOnly ? " (existing line)" : ""}`,
+                    disabled: form.lines.some(
+                      (other, otherIndex) =>
+                        otherIndex !== index && other.productId === option.id,
+                    ),
+                  }))}
+                  placeholder="Search vendor products…"
+                  emptyMessage="No matching vendor products"
+                  required
+                  aria-invalid={Boolean(fieldErrors[`lines.${index}.productId`])}
+                />
                 {fieldErrors[`lines.${index}.productId`] && <p role="alert" className="mt-1.5 text-sm text-red-600">{fieldErrors[`lines.${index}.productId`]}</p>}
               </div>
               <div>

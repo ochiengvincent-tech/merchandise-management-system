@@ -8,6 +8,7 @@ import {
   check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { purchaseOrders } from "./purchase-orders.js";
 
 export const reorderSuggestionStatus = [
   "PENDING",
@@ -25,6 +26,8 @@ export const reorderSuggestions = pgTable(
     productId: uuid("product_id").notNull(),
 
     locationId: uuid("location_id").notNull(),
+
+    purchaseOrderId: uuid("purchase_order_id").references(() => purchaseOrders.id),
 
     quantityOnHand: integer("quantity_on_hand").notNull(),
 

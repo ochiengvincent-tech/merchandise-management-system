@@ -1,15 +1,18 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useSmartBack } from "../../hooks/use-smart-back";
 
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
+import { SearchableSelect } from "../../components/ui/searchable-select";
 import { Select } from "../../components/ui/select";
 import { useLocations } from "../../features/locations/hooks";
 import { useProducts } from "../../features/products/hooks";
 import {
   useCreatePurchaseOrder,
   usePurchaseOrderPolicy,
+  useConvertReorderSuggestion,
 } from "../../features/purchase-orders/hooks";
 import { useVendorProducts } from "../../features/vendor-products/hooks";
 import { useVendors } from "../../features/vendors/hooks";
@@ -61,16 +64,25 @@ function formatErrorField(field: string) {
 
 function CreatePurchaseOrderPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const reorderSuggestionId = searchParams.get("reorderSuggestionId");
+  const goBack = useSmartBack("/purchase-orders");
   const createMutation = useCreatePurchaseOrder();
   const policyQuery = usePurchaseOrderPolicy();
+  const convertSuggestion = useConvertReorderSuggestion();
 
   const [poNumber, setPoNumber] = useState("");
   const [vendorId, setVendorId] = useState("");
-  const [destinationLocationId, setDestinationLocationId] = useState("");
+  const [destinationLocationId, setDestinationLocationId] = useState(searchParams.get("locationId") ?? "");
   const [requestedDeliveryDate, setRequestedDeliveryDate] = useState("");
   const [notes, setNotes] = useState("");
-  const [lines, setLines] = useState<OrderLineForm[]>([createEmptyLine()]);
+  const [lines, setLines] = useState<OrderLineForm[]>([
+    searchParams.get("productId")
+      ? { productId: searchParams.get("productId")!, quantityOrdered: searchParams.get("quantity") ?? "1" }
+      : createEmptyLine(),
+  ]);
   const [formError, setFormError] = useState("");
+  const [createdDraftId, setCreatedDraftId] = useState("");
 
   const vendorsQuery = useVendors({ status: "ACTIVE", limit: 100 });
   const locationsQuery = useLocations({ status: "ACTIVE" });
@@ -154,7 +166,9 @@ function CreatePurchaseOrderPage() {
   const handleVendorChange = (nextVendorId: string) => {
     clearSubmissionErrors();
     setVendorId(nextVendorId);
-    setLines([createEmptyLine()]);
+    setLines(reorderSuggestionId && searchParams.get("productId")
+      ? [{ productId: searchParams.get("productId")!, quantityOrdered: searchParams.get("quantity") ?? "1" }]
+      : [createEmptyLine()]);
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -183,6 +197,22 @@ function CreatePurchaseOrderPage() {
       return;
     }
 
+    const suggestedProductId = searchParams.get("productId");
+    if (reorderSuggestionId && !suggestedProductId) {
+      setFormError("This reorder suggestion is missing its product. Return to the suggestions page and open it again.");
+      return;
+    }
+    if (
+      reorderSuggestionId &&
+      suggestedProductId &&
+      !vendorProductsByProductId.has(suggestedProductId)
+    ) {
+      setFormError(
+        "Choose a supplier that carries the suggested product before creating this draft.",
+      );
+      return;
+    }
+
     try {
       const created = await createMutation.mutateAsync({
         poNumber: poNumber.trim(),
@@ -196,7 +226,22 @@ function CreatePurchaseOrderPage() {
         notes: notes.trim() || undefined,
       });
 
-      navigate(`/purchase-orders/${created.data.purchaseOrder.id}`);
+      const purchaseOrderId = created.data.purchaseOrder.id;
+      setCreatedDraftId(purchaseOrderId);
+      if (reorderSuggestionId) {
+        try {
+          await convertSuggestion.mutateAsync({
+            id: reorderSuggestionId,
+            purchaseOrderId,
+          });
+        } catch {
+          setFormError(
+            "The draft was created, but the suggestion is still pending. Open the draft below and review the suggestions page before creating another order.",
+          );
+          return;
+        }
+      }
+      navigate(`/purchase-orders/${purchaseOrderId}`);
     } catch {
       return;
     }
@@ -213,17 +258,17 @@ function CreatePurchaseOrderPage() {
         <div>
           <button
             type="button"
-            onClick={() => navigate("/purchase-orders")}
+            onClick={goBack}
             className="mb-3 text-sm font-medium text-slate-500 hover:text-slate-900"
           >
-            ← Purchase Orders
+            ← Back
           </button>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
             Create Purchase Order
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             Create a draft order using the selected vendor’s current product
-            prices.
+            prices.{reorderSuggestionId ? " Suggested product, destination, and quantity were filled from the reorder alert; choose a supplier and review the quantity." : ""}
           </p>
         </div>
       </div>
@@ -284,21 +329,20 @@ function CreatePurchaseOrderPage() {
                   >
                     Vendor <span className="text-red-600">*</span>
                   </label>
-                  <Select
+                  <SearchableSelect
                     id="po-vendor"
                     value={vendorId}
-                    onChange={(event) => handleVendorChange(event.target.value)}
+                    onChange={handleVendorChange}
+                    options={vendors.map((vendor) => ({
+                      value: vendor.id,
+                      label: `${vendor.name} (${vendor.vendorCode})`,
+                    }))}
+                    placeholder="Search vendors…"
+                    emptyMessage="No matching vendors"
                     required
                     disabled={isLoading || Boolean(loadError)}
                     aria-invalid={Boolean(fieldErrors.vendorId)}
-                  >
-                    <option value="">Select vendor</option>
-                    {vendors.map((vendor) => (
-                      <option key={vendor.id} value={vendor.id}>
-                        {vendor.name} ({vendor.vendorCode})
-                      </option>
-                    ))}
-                  </Select>
+                  />
                   {fieldErrors.vendorId && (
                     <p className="mt-1.5 text-sm text-red-600">
                       {fieldErrors.vendorId}
@@ -445,6 +489,13 @@ function CreatePurchaseOrderPage() {
                 </p>
               ) : (
                 <div className="divide-y divide-slate-200 px-5">
+                  {reorderSuggestionId &&
+                    searchParams.get("productId") &&
+                    !vendorProductsByProductId.has(searchParams.get("productId")!) && (
+                      <p className="my-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="status">
+                        This supplier does not carry the suggested product. Choose another supplier to continue.
+                      </p>
+                    )}
                   {lines.map((line, index) => {
                     const selectedAssociation = vendorProductsByProductId.get(
                       line.productId,
@@ -468,40 +519,43 @@ function CreatePurchaseOrderPage() {
                           >
                             Product <span className="text-red-600">*</span>
                           </label>
-                          <Select
+                          <SearchableSelect
                             id={`po-product-${index}`}
                             value={line.productId}
-                            onChange={(event) =>
-                              updateLine(index, "productId", event.target.value)
+                            onChange={(productId) =>
+                              updateLine(index, "productId", productId)
                             }
+                            options={availableVendorProducts.flatMap(
+                              (vendorProduct) => {
+                                const product = productsById.get(
+                                  vendorProduct.productId,
+                                );
+                                if (!product) return [];
+
+                                const usedByAnotherLine = lines.some(
+                                  (otherLine, otherIndex) =>
+                                    otherIndex !== index &&
+                                    otherLine.productId === product.id,
+                                );
+
+                                return [{
+                                  value: product.id,
+                                  label: `${product.sku} · ${product.name}`,
+                                  disabled: usedByAnotherLine,
+                                }];
+                              },
+                            )}
+                            placeholder="Search vendor products…"
+                            emptyMessage="No matching vendor products"
                             required
-                            disabled={isLoading || Boolean(loadError)}
+                            disabled={
+                              isLoading ||
+                              Boolean(loadError) ||
+                              (Boolean(reorderSuggestionId) &&
+                                line.productId === searchParams.get("productId"))
+                            }
                             aria-invalid={Boolean(lineError)}
-                          >
-                            <option value="">Select product</option>
-                            {availableVendorProducts.map((vendorProduct) => {
-                              const product = productsById.get(
-                                vendorProduct.productId,
-                              );
-                              if (!product) return null;
-
-                              const usedByAnotherLine = lines.some(
-                                (otherLine, otherIndex) =>
-                                  otherIndex !== index &&
-                                  otherLine.productId === product.id,
-                              );
-
-                              return (
-                                <option
-                                  key={product.id}
-                                  value={product.id}
-                                  disabled={usedByAnotherLine}
-                                >
-                                  {product.name} ({product.sku})
-                                </option>
-                              );
-                            })}
-                          </Select>
+                          />
                           {lineError && (
                             <p className="mt-1.5 text-sm text-red-600">
                               {lineError}
@@ -645,6 +699,14 @@ function CreatePurchaseOrderPage() {
                         ? createMutation.error.message
                         : "Unable to create purchase order.")}
                   </p>
+                  {createdDraftId && (
+                    <Link
+                      className="mt-2 inline-block text-sm font-medium text-blue-700 underline"
+                      to={`/purchase-orders/${createdDraftId}`}
+                    >
+                      Open the draft purchase order
+                    </Link>
+                  )}
                   {createMutation.error &&
                     Object.entries(fieldErrors).length > 0 && (
                       <ul className="mt-2 space-y-1 text-sm text-red-700">
@@ -666,6 +728,8 @@ function CreatePurchaseOrderPage() {
                   type="submit"
                   disabled={
                     createMutation.isPending ||
+                    convertSuggestion.isPending ||
+                    Boolean(createdDraftId) ||
                     isLoading ||
                     Boolean(loadError) ||
                     !selectedVendor?.paymentTerms
@@ -673,12 +737,16 @@ function CreatePurchaseOrderPage() {
                 >
                   {createMutation.isPending
                     ? "Creating..."
-                    : "Create draft order"}
+                    : convertSuggestion.isPending
+                      ? "Linking suggestion..."
+                      : createdDraftId
+                        ? "Draft created"
+                        : "Create draft order"}
                 </Button>
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={() => navigate("/purchase-orders")}
+                  onClick={goBack}
                 >
                   Cancel
                 </Button>

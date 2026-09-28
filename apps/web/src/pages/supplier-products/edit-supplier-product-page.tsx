@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useSmartBack } from "../../hooks/use-smart-back";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -13,6 +14,7 @@ import { getFieldErrorMap } from "../../lib/api/client";
 
 export function EditSupplierProductPage() {
   const navigate = useNavigate();
+  const goBack = useSmartBack("/supplier-products");
   const { id } = useParams();
 
   const vendorProductQuery = useVendorProduct(id ?? "");
@@ -92,12 +94,10 @@ export function EditSupplierProductPage() {
         <div>
           <button
             type="button"
-            onClick={() =>
-              navigate(id ? `/supplier-products/${id}` : "/supplier-products")
-            }
+            onClick={goBack}
             className="text-sm font-medium text-slate-500 hover:text-slate-900"
           >
-            ← Supplier Product
+            ← Back
           </button>
 
           <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
@@ -120,10 +120,10 @@ export function EditSupplierProductPage() {
         <div>
           <button
             type="button"
-            onClick={() => navigate("/supplier-products")}
+            onClick={goBack}
             className="text-sm font-medium text-slate-500 hover:text-slate-900"
           >
-            ← Supplier Products
+            ← Back
           </button>
 
           <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
@@ -147,10 +147,10 @@ export function EditSupplierProductPage() {
       <div>
         <button
           type="button"
-          onClick={() => navigate(`/supplier-products/${vendorProduct.id}`)}
+          onClick={goBack}
           className="text-sm font-medium text-slate-500 hover:text-slate-900"
         >
-          ← Supplier Product
+          ← Back
         </button>
 
         <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
@@ -305,7 +305,7 @@ export function EditSupplierProductPage() {
           <Button
             type="button"
             variant="secondary"
-            onClick={() => navigate(`/supplier-products/${vendorProduct.id}`)}
+            onClick={goBack}
             disabled={updateMutation.isPending}
           >
             Cancel

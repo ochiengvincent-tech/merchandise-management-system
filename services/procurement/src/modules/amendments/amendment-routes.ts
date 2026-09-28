@@ -2,12 +2,16 @@ import { Router } from "express";
 import { methodNotAllowed } from "../../middleware/method-not-allowed.js";
 import {
   listPurchaseOrderAmendmentsController,
+  listPurchaseOrderAmendmentQueueController,
   approvePurchaseOrderAmendmentController,
   rejectPurchaseOrderAmendmentController,
   requestPurchaseOrderAmendmentController,
 } from "./amendment-controller.js";
 
 const router: Router = Router();
+
+router.get("/", listPurchaseOrderAmendmentQueueController);
+router.all("/", methodNotAllowed);
 
 router.get("/purchase-orders/:id", listPurchaseOrderAmendmentsController);
 router.post("/purchase-orders/:id", requestPurchaseOrderAmendmentController);

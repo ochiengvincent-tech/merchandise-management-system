@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSmartBack } from "../../hooks/use-smart-back";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -9,6 +10,7 @@ import { getFieldErrorMap } from "../../lib/api/client";
 
 function NewLocationPage() {
   const navigate = useNavigate();
+  const goBack = useSmartBack("/locations");
   const createMutation = useCreateLocation();
 
   const [name, setName] = useState("");
@@ -34,7 +36,7 @@ function NewLocationPage() {
   };
 
   const handleCancel = () => {
-    navigate("/locations");
+    goBack();
   };
 
   return (
@@ -45,7 +47,7 @@ function NewLocationPage() {
           onClick={handleCancel}
           className="mb-3 text-sm text-slate-500 hover:text-slate-900"
         >
-          ← Locations
+          ← Back
         </button>
 
         <h1 className="text-2xl font-semibold text-slate-950">New Location</h1>

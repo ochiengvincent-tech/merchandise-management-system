@@ -41,6 +41,12 @@ jobs:
       - name: Typecheck Procurement
         run: pnpm --filter @mms/procurement typecheck
 
+      - name: Check Frontend lint
+        run: pnpm --filter web lint
+
+      - name: Build Frontend
+        run: pnpm --filter web build
+
       - name: Build Vendor Management
         run: pnpm --filter @mms/vendor-management build
 

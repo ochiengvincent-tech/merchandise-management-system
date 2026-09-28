@@ -377,6 +377,44 @@ paths:
         "400":
           $ref: "#/components/responses/ValidationError"
 
+  /api/v1/stock/valuation:
+    get:
+      tags:
+        - Stock
+      summary: Get the on-hand inventory valuation report
+      operationId: getInventoryValuation
+      responses:
+        "200":
+          description: Total stock value and valuation rows, calculated from quantity on hand and unit cost
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [currency, totalValue, records]
+                properties:
+                  currency:
+                    type: string
+                    example: KES
+                  totalValue:
+                    type: string
+                  records:
+                    type: array
+                    items:
+                      type: object
+                      required: [stockId, productId, sku, productName, locationId, locationCode, locationName, quantityOnHand, quantityAllocated, unitCost, extendedValue]
+                      properties:
+                        stockId: { type: string, format: uuid }
+                        productId: { type: string, format: uuid }
+                        sku: { type: string }
+                        productName: { type: string }
+                        locationId: { type: string, format: uuid }
+                        locationCode: { type: string }
+                        locationName: { type: string }
+                        quantityOnHand: { type: integer }
+                        quantityAllocated: { type: integer }
+                        unitCost: { type: string }
+                        extendedValue: { type: string }
+
   /api/v1/stock/by-product-and-location:
     get:
       tags:

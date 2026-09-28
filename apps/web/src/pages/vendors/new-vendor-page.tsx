@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSmartBack } from "../../hooks/use-smart-back";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
-import { Select } from "../../components/ui/select";
+import { SearchableSelect } from "../../components/ui/searchable-select";
 import { ApiError, getFieldErrorMap } from "../../lib/api/client";
 import { useProducts } from "../../features/products/hooks";
 import { useCreateVendor } from "../../features/vendors/hooks";
@@ -18,6 +19,7 @@ type InitialSupplierProduct = {
 
 function NewVendorPage() {
   const navigate = useNavigate();
+  const goBack = useSmartBack("/vendors");
   const createVendorMutation = useCreateVendor();
   const createVendorProductMutation = useCreateVendorProduct();
   const productsQuery = useProducts({ status: "ACTIVE" });
@@ -136,10 +138,10 @@ function NewVendorPage() {
       <div>
         <button
           type="button"
-          onClick={() => navigate("/vendors")}
+          onClick={goBack}
           className="mb-3 text-sm text-slate-500 hover:text-slate-900"
         >
-          ← Vendors
+          ← Back
         </button>
 
         <h1 className="text-2xl font-semibold text-slate-950">New Vendor</h1>
@@ -341,24 +343,20 @@ function NewVendorPage() {
                   Product
                 </label>
 
-                <Select
+                <SearchableSelect
                   id="supplier-product"
                   value={selectedProductId}
-                  onChange={(event) => setSelectedProductId(event.target.value)}
+                  onChange={setSelectedProductId}
+                  options={(productsQuery.data ?? []).map((product) => ({
+                    value: product.id,
+                    label: `${product.sku} · ${product.name}`,
+                  }))}
+                  placeholder={
+                    productsQuery.isLoading ? "Loading products…" : "Search products…"
+                  }
+                  emptyMessage="No matching products"
                   disabled={productsQuery.isLoading}
-                >
-                  <option value="">
-                    {productsQuery.isLoading
-                      ? "Loading products..."
-                      : "Select product"}
-                  </option>
-
-                  {productsQuery.data?.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name} ({product.sku})
-                    </option>
-                  ))}
-                </Select>
+                />
               </div>
 
               <div>
@@ -527,7 +525,7 @@ function NewVendorPage() {
             <Button
               type="button"
               variant="secondary"
-              onClick={() => navigate("/vendors")}
+              onClick={goBack}
               disabled={isSubmitting}
             >
               Cancel

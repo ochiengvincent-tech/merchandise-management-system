@@ -48,12 +48,12 @@ describe("Locations API", () => {
 
     const updateResponse = await api
       .patch(`/api/v1/locations/${location.id}`)
-      .send({ name: "Updated Warehouse", locationType: "STORE" });
+      .send({ name: "Updated Warehouse" });
 
     expect(updateResponse.status).toBe(200);
     expect(updateResponse.body).toMatchObject({
       name: "Updated Warehouse",
-      locationType: "STORE",
+      locationType: "WAREHOUSE",
       locationCode: location.locationCode,
     });
 

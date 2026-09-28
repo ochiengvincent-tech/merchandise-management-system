@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSmartBack } from "../../hooks/use-smart-back";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
@@ -9,6 +10,7 @@ import { useCreateProduct } from "../../features/products/hooks";
 
 export function NewProductPage() {
   const navigate = useNavigate();
+  const goBack = useSmartBack("/products");
   const createProduct = useCreateProduct();
 
   const [form, setForm] = useState({
@@ -77,10 +79,10 @@ export function NewProductPage() {
       <div>
         <button
           type="button"
-          onClick={() => navigate("/products")}
+          onClick={goBack}
           className="text-sm font-medium text-slate-500 hover:text-slate-900"
         >
-          ← Products
+          ← Back
         </button>
 
         <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
@@ -318,7 +320,7 @@ export function NewProductPage() {
           <Button
             type="button"
             variant="secondary"
-            onClick={() => navigate("/products")}
+            onClick={goBack}
             disabled={createProduct.isPending}
           >
             Cancel

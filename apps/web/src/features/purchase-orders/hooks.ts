@@ -10,6 +10,9 @@ import { getProduct } from "../products/api";
 import { getVendor } from "../vendors/api";
 import {
   createPurchaseOrder,
+  listReorderSuggestions,
+  convertReorderSuggestion,
+  dismissReorderSuggestion,
   submitPurchaseOrder,
   approvePurchaseOrder,
   rejectPurchaseOrder,
@@ -17,8 +20,8 @@ import {
   cancelPurchaseOrder,
   approvePurchaseOrderAmendment,
   getPurchaseOrderAmendments,
+  listPurchaseOrderAmendmentQueue,
   rejectPurchaseOrderAmendment,
-  receivePurchaseOrder,
   requestPurchaseOrderAmendment,
   getPurchaseOrder,
   getPurchaseOrderPolicy,
@@ -146,27 +149,15 @@ export const useCancelPurchaseOrder = () => {
   });
 };
 
-export const useReceivePurchaseOrder = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      id,
-      items,
-    }: {
-      id: string;
-      items: Array<{ purchaseOrderLineId: string; quantityReceived: number }>;
-    }) => receivePurchaseOrder(id, items),
-    onSuccess: async (result) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["purchase-orders"] }),
-        queryClient.invalidateQueries({
-          queryKey: ["purchase-orders", result.purchaseOrder.id],
-        }),
-      ]);
-    },
+export const usePurchaseOrderAmendmentQueue = (params: {
+  page?: number;
+  limit?: number;
+  status?: "PENDING" | "APPROVED" | "REJECTED";
+} = {}) =>
+  useQuery({
+    queryKey: ["purchase-order-amendment-queue", params],
+    queryFn: () => listPurchaseOrderAmendmentQueue(params),
   });
-};
 
 export const usePurchaseOrderAmendments = (purchaseOrderId: string) =>
   useQuery({
@@ -183,6 +174,9 @@ const invalidatePurchaseOrderAndAmendments = async (
     queryClient.invalidateQueries({ queryKey: ["purchase-orders"] }),
     queryClient.invalidateQueries({
       queryKey: ["purchase-order-amendments", purchaseOrderId],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ["purchase-order-amendment-queue"],
     }),
   ]);
 
@@ -282,3 +276,36 @@ export const usePurchaseOrderReferences = (
       productQueries.some((query) => query.isError),
   };
 };
+
+export function useReorderSuggestions() {
+  return useQuery({
+    queryKey: ["reorder-suggestions"],
+    queryFn: listReorderSuggestions,
+  });
+}
+
+export function useConvertReorderSuggestion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      purchaseOrderId,
+    }: {
+      id: string;
+      purchaseOrderId: string;
+    }) => convertReorderSuggestion(id, purchaseOrderId),
+    onSuccess: async () =>
+      queryClient.invalidateQueries({ queryKey: ["reorder-suggestions"] }),
+  });
+}
+
+export function useDismissReorderSuggestion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => dismissReorderSuggestion(id),
+    onSuccess: async () =>
+      queryClient.invalidateQueries({ queryKey: ["reorder-suggestions"] }),
+  });
+}

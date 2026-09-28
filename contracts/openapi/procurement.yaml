@@ -464,6 +464,145 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /api/v1/reorder-suggestions:
+    get:
+      tags:
+        - Purchase Orders
+      summary: List pending low-stock reorder suggestions
+      operationId: listReorderSuggestions
+      responses:
+        "200":
+          description: Pending suggestions generated from Inventory StockLow events
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string, format: uuid }
+                        eventId: { type: string, format: uuid }
+                        productId: { type: string, format: uuid }
+                        locationId: { type: string, format: uuid }
+                        purchaseOrderId: { type: string, format: uuid, nullable: true }
+                        quantityOnHand: { type: integer }
+                        quantityAllocated: { type: integer }
+                        quantityAvailable: { type: integer }
+                        reorderLevel: { type: integer }
+                        suggestedQuantity: { type: integer }
+                        status: { type: string, enum: [PENDING] }
+                        createdAt: { type: string, format: date-time }
+                        updatedAt: { type: string, format: date-time }
+
+  /api/v1/reorder-suggestions/{id}/convert:
+    patch:
+      tags: [Purchase Orders]
+      summary: Mark a reorder suggestion as converted to a draft purchase order
+      operationId: convertReorderSuggestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [purchaseOrderId]
+              properties:
+                purchaseOrderId: { type: string, format: uuid }
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Suggestion marked converted and linked to the draft purchase order
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      status: { type: string, enum: [CONVERTED] }
+                      purchaseOrderId: { type: string, format: uuid }
+        "404": { description: Suggestion or purchase order was not found }
+        "409": { description: Purchase order does not match the pending suggestion }
+
+  /api/v1/reorder-suggestions/{id}/dismiss:
+    patch:
+      tags: [Purchase Orders]
+      summary: Dismiss a pending reorder suggestion
+      operationId: dismissReorderSuggestion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Suggestion dismissed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      status: { type: string, enum: [DISMISSED] }
+        "404": { description: Suggestion was not found or is no longer pending }
+
+  /api/v1/amendments:
+    get:
+      tags:
+        - Amendments
+      summary: List purchase order amendments
+      operationId: listPurchaseOrderAmendmentQueue
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+      responses:
+        "200":
+          description: Paginated purchase order amendments with purchase order summaries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AmendmentQueueResponse"
+        "400":
+          description: Invalid amendment queue query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /api/v1/amendments/purchase-orders/{id}:
     get:
       tags:
@@ -1183,6 +1322,70 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PurchaseOrderAmendment"
+
+    PurchaseOrderAmendmentQueueItem:
+      allOf:
+        - $ref: "#/components/schemas/PurchaseOrderAmendment"
+        - type: object
+          required:
+            - purchaseOrder
+          properties:
+            purchaseOrder:
+              type: object
+              required:
+                - id
+                - poNumber
+                - status
+                - currency
+                - totalAmount
+                - vendorId
+                - destinationLocationId
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                poNumber:
+                  type: string
+                status:
+                  type: string
+                  enum: [DRAFT, PENDING_APPROVAL, APPROVED, SENT, PARTIALLY_RECEIVED, COMPLETED, CANCELLED]
+                currency:
+                  type: string
+                totalAmount:
+                  type: string
+                vendorId:
+                  type: string
+                  format: uuid
+                destinationLocationId:
+                  type: string
+                  format: uuid
+
+    AmendmentQueueResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PurchaseOrderAmendmentQueueItem"
+        pagination:
+          type: object
+          required:
+            - page
+            - limit
+            - total
+            - totalPages
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            totalPages:
+              type: integer
 
     AmendmentApprovalResponse:
       type: object

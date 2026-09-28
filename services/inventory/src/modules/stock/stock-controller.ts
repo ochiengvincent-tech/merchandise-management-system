@@ -1,9 +1,10 @@
-import type { Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import {
     createStockService,
   getStockByLocationService,
   getStockByProductAndLocationService,
-  getStockByProductService
+  getStockByProductService,
+  getInventoryValuationService
 } from "./stock-service.js";
 import {
   stockByLocationSchema,
@@ -60,4 +61,15 @@ export const createStockController = async (
   );
 
   return res.status(201).json(stock);
+};
+export const getInventoryValuationController = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    return res.status(200).json(await getInventoryValuationService());
+  } catch (error) {
+    next(error);
+  }
 };

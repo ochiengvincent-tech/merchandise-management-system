@@ -2,7 +2,7 @@ import { type FormEvent, useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
-import { Select } from "../../components/ui/select";
+import { SearchableSelect } from "../../components/ui/searchable-select";
 import { getFieldErrorMap } from "../../lib/api/client";
 import { useProducts } from "../products/hooks";
 import { useCreateVendorProduct } from "./hooks";
@@ -76,30 +76,22 @@ export function AddVendorProductForm({
               Product
             </label>
 
-            <Select
+            <SearchableSelect
               id="supplier-product"
               value={productId}
-              onChange={(event) => setProductId(event.target.value)}
-              required
-              disabled={
-                productsQuery.isLoading || availableProducts.length === 0
+              onChange={setProductId}
+              options={availableProducts.map((product) => ({
+                value: product.id,
+                label: `${product.sku} · ${product.name}`,
+              }))}
+              placeholder={
+                productsQuery.isLoading ? "Loading products…" : "Search products…"
               }
+              emptyMessage="No available matching products"
+              required
+              disabled={productsQuery.isLoading || availableProducts.length === 0}
               aria-invalid={Boolean(fieldErrors.productId)}
-            >
-              <option value="">
-                {productsQuery.isLoading
-                  ? "Loading products..."
-                  : availableProducts.length === 0
-                    ? "No available products"
-                    : "Select a product"}
-              </option>
-
-              {availableProducts.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.sku} · {product.name}
-                </option>
-              ))}
-            </Select>
+            />
 
             {fieldErrors.productId && (
               <p className="mt-1.5 text-sm text-red-600">

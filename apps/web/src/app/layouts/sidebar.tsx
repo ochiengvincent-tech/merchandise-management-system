@@ -19,6 +19,7 @@ const navigation: { label: string; items: NavItem[] }[] = [
         path: "/inventory/adjustments",
         flag: "inventory",
       },
+      { label: "Valuation", path: "/inventory/valuation", flag: "inventory" },
     ],
   },
   {
@@ -41,8 +42,8 @@ const navigation: { label: string; items: NavItem[] }[] = [
         flag: "procurement",
       },
       { label: "Approvals", path: "/approvals", flag: "procurement" },
+      { label: "Reorder suggestions", path: "/reorder-suggestions", flag: "procurement" },
       { label: "Amendments", path: "/amendments", flag: "procurement" },
-      { label: "Receiving", path: "/receiving", flag: "receiving" },
     ],
   },
   {

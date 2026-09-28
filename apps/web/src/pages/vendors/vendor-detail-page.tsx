@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useSmartBack } from "../../hooks/use-smart-back";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
@@ -16,6 +17,7 @@ import { useProducts } from "../../features/products/hooks";
 function VendorDetailPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const goBack = useSmartBack("/vendors");
 
   const [showAddProductForm, setShowAddProductForm] = useState(false);
 
@@ -41,8 +43,8 @@ function VendorDetailPage() {
           Vendor not found
         </h1>
 
-        <Button variant="secondary" onClick={() => navigate("/vendors")}>
-          Back to vendors
+        <Button variant="secondary" onClick={goBack}>
+          Back
         </Button>
       </div>
     );
@@ -82,10 +84,10 @@ function VendorDetailPage() {
       <div>
         <button
           type="button"
-          onClick={() => navigate("/vendors")}
+          onClick={goBack}
           className="mb-3 text-sm text-slate-500 hover:text-slate-900"
         >
-          ← Vendors
+          ← Back
         </button>
 
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">

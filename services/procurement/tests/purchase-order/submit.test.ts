@@ -114,10 +114,11 @@ describe("submit purchase order for approval", () => {
     const unchangedUpdateResponse = await request(app)
       .patch(`/api/v1/purchase-orders/${purchaseOrderId}`)
       .send({ actorId: ACTOR_ID, notes: "Original notes" });
-    expect(unchangedUpdateResponse.status).toBe(409);
-    expect(unchangedUpdateResponse.body.error.message).toBe(
-      "At least one purchase-order field must change",
-    );
+    expect(unchangedUpdateResponse.status).toBe(400);
+    expect(unchangedUpdateResponse.body.error).toMatchObject({
+      message: "Change at least one purchase-order field before saving",
+      details: [],
+    });
 
     const revisionResponse = await request(app)
       .patch(`/api/v1/purchase-orders/${purchaseOrderId}`)

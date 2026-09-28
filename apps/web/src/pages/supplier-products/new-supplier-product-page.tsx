@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSmartBack } from "../../hooks/use-smart-back";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
-import { Select } from "../../components/ui/select";
+import { SearchableSelect } from "../../components/ui/searchable-select";
 import { useProducts } from "../../features/products/hooks";
 import { useCreateVendorProduct } from "../../features/vendor-products/hooks";
 import { useVendors } from "../../features/vendors/hooks";
@@ -11,6 +12,7 @@ import { getFieldErrorMap } from "../../lib/api/client";
 
 export function NewSupplierProductPage() {
   const navigate = useNavigate();
+  const goBack = useSmartBack("/supplier-products");
   const createMutation = useCreateVendorProduct();
 
   const vendorsQuery = useVendors({
@@ -86,10 +88,10 @@ export function NewSupplierProductPage() {
       <div>
         <button
           type="button"
-          onClick={() => navigate("/supplier-products")}
+          onClick={goBack}
           className="text-sm font-medium text-slate-500 hover:text-slate-900"
         >
-          ← Supplier Products
+          ← Back
         </button>
 
         <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
@@ -131,24 +133,20 @@ export function NewSupplierProductPage() {
                   Supplier <span className="text-red-600">*</span>
                 </label>
 
-                <Select
+                <SearchableSelect
                   id="vendor"
                   value={form.vendorId}
-                  onChange={(event) =>
-                    updateField("vendorId", event.target.value)
-                  }
+                  onChange={(value) => updateField("vendorId", value)}
+                  options={vendors.map((vendor) => ({
+                    value: vendor.id,
+                    label: `${vendor.name} (${vendor.vendorCode})`,
+                  }))}
+                  placeholder="Search suppliers…"
+                  emptyMessage="No matching suppliers"
                   required
                   disabled={isLoading || Boolean(loadError)}
                   aria-invalid={Boolean(fieldErrors.vendorId)}
-                >
-                  <option value="">Select supplier</option>
-
-                  {vendors.map((vendor) => (
-                    <option key={vendor.id} value={vendor.id}>
-                      {vendor.name} ({vendor.vendorCode})
-                    </option>
-                  ))}
-                </Select>
+                />
 
                 {fieldErrors.vendorId && (
                   <p className="mt-1.5 text-sm text-red-600">
@@ -165,24 +163,20 @@ export function NewSupplierProductPage() {
                   Product <span className="text-red-600">*</span>
                 </label>
 
-                <Select
+                <SearchableSelect
                   id="product"
                   value={form.productId}
-                  onChange={(event) =>
-                    updateField("productId", event.target.value)
-                  }
+                  onChange={(value) => updateField("productId", value)}
+                  options={products.map((product) => ({
+                    value: product.id,
+                    label: `${product.sku} · ${product.name}`,
+                  }))}
+                  placeholder="Search products…"
+                  emptyMessage="No matching products"
                   required
                   disabled={isLoading || Boolean(loadError)}
                   aria-invalid={Boolean(fieldErrors.productId)}
-                >
-                  <option value="">Select product</option>
-
-                  {products.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name} ({product.sku})
-                    </option>
-                  ))}
-                </Select>
+                />
 
                 {fieldErrors.productId && (
                   <p className="mt-1.5 text-sm text-red-600">
@@ -308,7 +302,7 @@ export function NewSupplierProductPage() {
           <Button
             type="button"
             variant="secondary"
-            onClick={() => navigate("/supplier-products")}
+            onClick={goBack}
             disabled={createMutation.isPending}
           >
             Cancel

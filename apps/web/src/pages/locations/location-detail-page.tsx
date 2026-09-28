@@ -1,4 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
+import { useSmartBack } from "../../hooks/use-smart-back";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
@@ -11,6 +12,7 @@ import {
 function LocationDetailPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const goBack = useSmartBack("/locations");
 
   const locationQuery = useLocation(id);
   const deactivateMutation = useDeactivateLocation();
@@ -30,8 +32,8 @@ function LocationDetailPage() {
         <h1 className="text-2xl font-semibold text-slate-950">
           Location not found
         </h1>
-        <Button variant="secondary" onClick={() => navigate("/locations")}>
-          Back to locations
+        <Button variant="secondary" onClick={goBack}>
+          Back
         </Button>
       </div>
     );
@@ -66,10 +68,10 @@ function LocationDetailPage() {
       <div>
         <button
           type="button"
-          onClick={() => navigate("/locations")}
+          onClick={goBack}
           className="mb-3 text-sm text-slate-500 hover:text-slate-900"
         >
-          ← Locations
+          ← Back
         </button>
 
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">

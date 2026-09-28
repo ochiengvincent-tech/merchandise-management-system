@@ -5,6 +5,7 @@ import {
   getStockByLocationController,
   getStockByProductAndLocationController,
   getStockByProductController,
+  getInventoryValuationController,
 } from "./stock-controller.js";
 import {
   allocateStockController,
@@ -15,6 +16,9 @@ const router: Router = Router();
 
 router.post("/", createStockController);
 router.all("/", methodNotAllowed);
+
+router.get("/valuation", getInventoryValuationController);
+router.all("/valuation", methodNotAllowed);
 
 router.get("/by-product-and-location", getStockByProductAndLocationController);
 router.all("/by-product-and-location", methodNotAllowed);

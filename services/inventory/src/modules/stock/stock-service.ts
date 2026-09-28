@@ -6,6 +6,7 @@ import {
   findStockByLocation,
   findStockByProduct,
   findStockByProductAndLocation,
+  findInventoryValuation,
   updateStock
 } from "./stock-repository.js";
 
@@ -148,4 +149,15 @@ export const updateStockService = async (
     quantityAvailable:
       stock.quantityOnHand - stock.quantityAllocated
   };
+};
+export const getInventoryValuationService = async () => {
+  const records = await findInventoryValuation();
+  const totalCents = records.reduce((total, record) => {
+    const [whole = "0", fraction = ""] = record.extendedValue.split(".");
+    const cents = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0").slice(0, 2));
+    return total + cents;
+  }, 0n);
+  const totalValue = `${totalCents / 100n}.${String(totalCents % 100n).padStart(2, "0")}`;
+
+  return { currency: "KES", totalValue, records };
 };

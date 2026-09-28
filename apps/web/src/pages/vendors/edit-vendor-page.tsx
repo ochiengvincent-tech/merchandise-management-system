@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useSmartBack } from "../../hooks/use-smart-back";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -26,6 +27,7 @@ function VendorForm({
   initialPaymentTerms,
 }: VendorFormProps) {
   const navigate = useNavigate();
+  const goBack = useSmartBack("/vendors");
   const updateMutation = useUpdateVendor();
 
   const [name, setName] = useState(initialName);
@@ -195,7 +197,7 @@ function VendorForm({
           <Button
             type="button"
             variant="secondary"
-            onClick={() => navigate(`/vendors/${id}`)}
+            onClick={goBack}
             disabled={updateMutation.isPending}
           >
             Cancel
@@ -212,7 +214,7 @@ function VendorForm({
 
 function EditVendorPage() {
   const { id = "" } = useParams();
-  const navigate = useNavigate();
+  const goBack = useSmartBack("/vendors");
   const vendorQuery = useVendor(id);
 
   if (vendorQuery.isLoading) {
@@ -230,8 +232,8 @@ function EditVendorPage() {
           Vendor not found
         </h1>
 
-        <Button variant="secondary" onClick={() => navigate("/vendors")}>
-          Back to vendors
+        <Button variant="secondary" onClick={goBack}>
+          Back
         </Button>
       </div>
     );
@@ -244,10 +246,10 @@ function EditVendorPage() {
       <div>
         <button
           type="button"
-          onClick={() => navigate(`/vendors/${vendor.id}`)}
+          onClick={goBack}
           className="mb-3 text-sm text-slate-500 hover:text-slate-900"
         >
-          ← Vendor
+          ← Back
         </button>
 
         <h1 className="text-2xl font-semibold text-slate-950">Edit Vendor</h1>

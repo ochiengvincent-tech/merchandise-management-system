@@ -1,6 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { inventoryStock } from "../../db/schema/inventory-stock.js";
+import { products } from "../../db/schema/products.js";
+import { inventoryLocations } from "../../db/schema/inventory-locations.js";
 
 type Database = Pick<typeof db, "select" | "insert" | "update">;
 
@@ -55,6 +57,27 @@ export const findStockByLocation = async (locationId: string) => {
     .select()
     .from(inventoryStock)
     .where(eq(inventoryStock.locationId, locationId));
+};
+
+export const findInventoryValuation = async () => {
+  return db
+    .select({
+      stockId: inventoryStock.id,
+      productId: inventoryStock.productId,
+      sku: products.sku,
+      productName: products.name,
+      locationId: inventoryStock.locationId,
+      locationCode: inventoryLocations.locationCode,
+      locationName: inventoryLocations.name,
+      quantityOnHand: inventoryStock.quantityOnHand,
+      quantityAllocated: inventoryStock.quantityAllocated,
+      unitCost: inventoryStock.unitCost,
+      extendedValue: sql<string>`(${inventoryStock.quantityOnHand} * ${inventoryStock.unitCost})::numeric(14, 2)`,
+    })
+    .from(inventoryStock)
+    .innerJoin(products, eq(inventoryStock.productId, products.id))
+    .innerJoin(inventoryLocations, eq(inventoryStock.locationId, inventoryLocations.id))
+    .orderBy(products.name, inventoryLocations.name);
 };
 
 export const createStock = async (data: typeof inventoryStock.$inferInsert) => {

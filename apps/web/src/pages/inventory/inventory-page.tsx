@@ -1,14 +1,22 @@
-import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Badge } from "../../components/ui/badge";
 import { Card } from "../../components/ui/card";
-import { Select } from "../../components/ui/select";
+import { SearchableSelect } from "../../components/ui/searchable-select";
 import { Table } from "../../components/ui/table";
 import { useLocations } from "../../features/locations/hooks";
 import { useProducts } from "../../features/products/hooks";
 import { useStockByProduct } from "../../features/inventory/hooks";
 
 function InventoryPage() {
-  const [productId, setProductId] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const productId = searchParams.get("productId") ?? "";
+  const setProductId = (value: string) => {
+    if (value) {
+      setSearchParams({ productId: value });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   const productsQuery = useProducts({ status: "ACTIVE" });
   const stockQuery = useStockByProduct(productId);
@@ -41,18 +49,21 @@ function InventoryPage() {
               Product
             </label>
 
-            <Select
+            <SearchableSelect
               id="inventory-product"
               value={productId}
-              onChange={(event) => setProductId(event.target.value)}
-            >
-              <option value="">Select a product</option>
-              {productsQuery.data?.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.sku} · {product.name}
-                </option>
-              ))}
-            </Select>
+              onChange={setProductId}
+              options={[
+                { value: "", label: "Select a product" },
+                ...(productsQuery.data ?? []).map((product) => ({
+                  value: product.id,
+                  label: `${product.sku} · ${product.name}`,
+                })),
+              ]}
+              placeholder="Search products…"
+              emptyMessage="No matching products"
+              disabled={productsQuery.isLoading}
+            />
           </div>
         </div>
       </Card>

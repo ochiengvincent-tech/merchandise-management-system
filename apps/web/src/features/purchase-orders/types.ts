@@ -68,13 +68,6 @@ export const purchaseOrderResponseSchema = z.object({
   }),
 });
 
-export const purchaseOrderReceiptResponseSchema = z.object({
-  data: z.object({
-    purchaseOrder: purchaseOrderSchema,
-    lines: z.array(purchaseOrderLineSchema),
-  }),
-});
-
 export const purchaseOrderCreateResponseSchema = z.object({
   data: z.object({
     purchaseOrder: purchaseOrderSchema,
@@ -107,6 +100,29 @@ export const purchaseOrderAmendmentSchema = z.object({
   approvedAt: z.string().nullable(),
 });
 
+export const purchaseOrderAmendmentQueueItemSchema =
+  purchaseOrderAmendmentSchema.extend({
+    purchaseOrder: z.object({
+      id: z.uuid(),
+      poNumber: z.string(),
+      status: purchaseOrderStatusSchema,
+      currency: z.string(),
+      totalAmount: z.string(),
+      vendorId: z.uuid(),
+      destinationLocationId: z.uuid(),
+    }),
+  });
+
+export const purchaseOrderAmendmentQueueResponseSchema = z.object({
+  data: z.array(purchaseOrderAmendmentQueueItemSchema),
+  pagination: z.object({
+    page: z.number(),
+    limit: z.number(),
+    total: z.number(),
+    totalPages: z.number(),
+  }),
+});
+
 export const purchaseOrderAmendmentsResponseSchema = z.object({
   data: z.array(purchaseOrderAmendmentSchema),
 });
@@ -132,9 +148,6 @@ export type PurchaseOrderListResponse = z.infer<
   typeof purchaseOrderListResponseSchema
 >;
 export type PurchaseOrderResponse = z.infer<typeof purchaseOrderResponseSchema>;
-export type PurchaseOrderReceiptResponse = z.infer<
-  typeof purchaseOrderReceiptResponseSchema
->;
 export type PurchaseOrderCreateResponse = z.infer<
   typeof purchaseOrderCreateResponseSchema
 >;
@@ -147,3 +160,32 @@ export type PurchaseOrderPolicyResponse = z.infer<
 export type PurchaseOrderAmendment = z.infer<
   typeof purchaseOrderAmendmentSchema
 >;
+export type PurchaseOrderAmendmentQueueItem = z.infer<
+  typeof purchaseOrderAmendmentQueueItemSchema
+>;
+export type PurchaseOrderAmendmentQueueResponse = z.infer<
+  typeof purchaseOrderAmendmentQueueResponseSchema
+>;
+
+export const reorderSuggestionSchema = z.object({
+  id: z.uuid(),
+  eventId: z.uuid(),
+  productId: z.uuid(),
+  locationId: z.uuid(),
+  purchaseOrderId: z.uuid().nullable(),
+  quantityOnHand: z.number().int(),
+  quantityAllocated: z.number().int(),
+  quantityAvailable: z.number().int(),
+  reorderLevel: z.number().int(),
+  suggestedQuantity: z.number().int().positive(),
+  status: z.enum(["PENDING", "CONVERTED", "DISMISSED"]),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export const reorderSuggestionsResponseSchema = z.object({
+  data: z.array(reorderSuggestionSchema),
+});
+export const reorderSuggestionResponseSchema = z.object({
+  data: reorderSuggestionSchema,
+});
+export type ReorderSuggestion = z.infer<typeof reorderSuggestionSchema>;

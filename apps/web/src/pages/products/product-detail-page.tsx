@@ -1,4 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
+import { useSmartBack } from "../../hooks/use-smart-back";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
@@ -10,6 +11,7 @@ import {
 
 export function ProductDetailPage() {
   const navigate = useNavigate();
+  const goBack = useSmartBack("/products");
   const { id } = useParams();
 
   const { data: product, isLoading, isError, error } = useProduct(id ?? "");
@@ -42,8 +44,8 @@ export function ProductDetailPage() {
   if (isError || !product) {
     return (
       <div className="space-y-4">
-        <Button variant="secondary" onClick={() => navigate("/products")}>
-          Back to Products
+        <Button variant="secondary" onClick={goBack}>
+          Back
         </Button>
 
         <Card className="p-6">
@@ -89,10 +91,10 @@ export function ProductDetailPage() {
         <div>
           <button
             type="button"
-            onClick={() => navigate("/products")}
+            onClick={goBack}
             className="text-sm font-medium text-slate-500 hover:text-slate-900"
           >
-            ← Products
+            ← Back
           </button>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">

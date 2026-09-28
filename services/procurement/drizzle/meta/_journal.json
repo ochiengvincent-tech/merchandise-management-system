@@ -43,6 +43,13 @@
       "when": 1790549242000,
       "tag": "0005_require_po_revision_after_rejection",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790580987073,
+      "tag": "0006_link_reorder_suggestions_to_po",
+      "breakpoints": true
     }
   ]
 }

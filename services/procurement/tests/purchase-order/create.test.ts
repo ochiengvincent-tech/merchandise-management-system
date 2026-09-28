@@ -135,6 +135,12 @@ describe("POST /api/v1/purchase-orders", () => {
     expect(secondResponse.body).toEqual({
       error: {
         message: "Purchase order number already exists",
+        details: [
+          {
+            field: "poNumber",
+            message: "This PO number is already in use.",
+          },
+        ],
       },
     });
   });

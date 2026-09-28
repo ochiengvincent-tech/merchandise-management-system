@@ -93,16 +93,22 @@ export function DashboardPage() {
   });
   const stockIsLoading = productsQuery.isLoading || stockQueries.some((query) => query.isLoading);
   const stockHasError = productsQuery.isError || stockQueries.some((query) => query.isError);
-  const lowStockCount = useMemo(() => {
-    let count = 0;
-    products.forEach((product, index) => {
+  const lowStockProducts = useMemo(() =>
+    products.flatMap((product, index) => {
       const records = stockQueries[index]?.data;
-      if (!records) return;
+      if (!records) return [];
       const available = records.reduce((total, stock) => total + stock.quantityAvailable, 0);
-      if (available <= product.reorderLevel) count += 1;
-    });
-    return count;
-  }, [products, stockQueries]);
+      if (available > product.reorderLevel) return [];
+      return [{
+        product,
+        available,
+        onHand: records.reduce((total, stock) => total + stock.quantityOnHand, 0),
+        locationCount: records.length,
+      }];
+    }),
+    [products, stockQueries],
+  );
+  const lowStockCount = lowStockProducts.length;
 
   const statusTotals = Object.fromEntries(
     PO_STATUSES.map((status, index) => [status, statusQueries[index]?.data?.pagination.total ?? 0]),
@@ -150,6 +156,82 @@ export function DashboardPage() {
           <SummaryCard label="Active vendors" value={number(vendorsQuery.data?.total ?? 0, vendorsQuery.isLoading, vendorsQuery.isError)} helper="Vendors available for purchasing" onClick={() => navigate("/vendors")} />
         )}
       </section>
+
+      {inventoryEnabled && (
+        <Card className="overflow-hidden">
+          <div className="flex flex-col justify-between gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-center">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base font-semibold text-slate-950">Low stock</h2>
+                {!stockIsLoading && !stockHasError && (
+                  <Badge variant={lowStockCount > 0 ? "danger" : "success"}>
+                    {lowStockCount} {lowStockCount === 1 ? "product" : "products"}
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                Active products whose available stock is at or below the reorder level.
+              </p>
+            </div>
+            <Button variant="secondary" onClick={() => navigate("/inventory")}>Open inventory</Button>
+          </div>
+
+          {productsQuery.isError && (
+            <p role="alert" className="p-5 text-sm text-red-700">Could not load products for the low-stock overview.</p>
+          )}
+          {!productsQuery.isError && stockHasError && (
+            <p role="alert" className="p-5 text-sm text-red-700">Some stock records could not be loaded, so the low-stock list may be incomplete. Open Inventory to review stock levels.</p>
+          )}
+          {!stockHasError && stockIsLoading && (
+            <p role="status" className="p-5 text-sm text-slate-500">Checking stock levels…</p>
+          )}
+          {!stockHasError && !stockIsLoading && lowStockProducts.length === 0 && (
+            <p role="status" className="p-5 text-sm text-slate-600">No active products are at or below their reorder level.</p>
+          )}
+          {!stockHasError && !stockIsLoading && lowStockProducts.length > 0 && (
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableHeader>Product</TableHeader>
+                    <TableHeader>Available across locations</TableHeader>
+                    <TableHeader>On hand</TableHeader>
+                    <TableHeader>Reorder level</TableHeader>
+                    <TableHeader>Locations</TableHeader>
+                    <TableHeader><span className="sr-only">Action</span></TableHeader>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {lowStockProducts.slice(0, 8).map(({ product, available, onHand, locationCount }) => (
+                    <TableRow
+                      key={product.id}
+                      onClick={() => navigate(`/inventory?productId=${encodeURIComponent(product.id)}`)}
+                      className="cursor-pointer"
+                    >
+                      <TableCell>
+                        <p className="font-medium text-slate-950">{product.name}</p>
+                        <p className="text-xs text-slate-500">{product.sku}</p>
+                      </TableCell>
+                      <TableCell className="font-semibold tabular-nums text-amber-800">{available}</TableCell>
+                      <TableCell className="tabular-nums">{onHand}</TableCell>
+                      <TableCell className="tabular-nums">{product.reorderLevel}</TableCell>
+                      <TableCell className="tabular-nums">{locationCount}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" onClick={() => navigate(`/inventory?productId=${encodeURIComponent(product.id)}`)}>View stock</Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {lowStockProducts.length > 8 && (
+                <p className="border-t border-slate-200 px-5 py-3 text-xs text-slate-500">
+                  Showing 8 of {lowStockProducts.length} products at or below reorder level.
+                </p>
+              )}
+            </TableContainer>
+          )}
+        </Card>
+      )}
 
       <section className="grid gap-4 lg:grid-cols-3">
         <Card className="p-5">

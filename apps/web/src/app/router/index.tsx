@@ -8,6 +8,9 @@ import { PlaceholderPage } from "../../pages/placeholder-page";
 import { ProductDetailPage } from "../../pages/products/product-detail-page";
 import { EditProductPage } from "../../pages/products/edit-product-page";
 import InventoryPage from "../../pages/inventory/inventory-page";
+import { AdjustmentsPage } from "../../pages/inventory/adjustments-page";
+import { InventoryValuationPage } from "../../pages/inventory/valuation-page";
+import { ReorderSuggestionsPage } from "../../pages/purchase-orders/reorder-suggestions-page";
 import LocationsPage from "../../pages/locations/locations-page";
 import LocationDetailPage from "../../pages/locations/location-detail-page";
 import EditLocationPage from "../../pages/locations/edit-location-page";
@@ -24,6 +27,7 @@ import PurchaseOrdersPage from "../../pages/purchase-orders/purchase-orders-page
 import PurchaseOrderDetailPage from "../../pages/purchase-orders/purchase-order-detail-page";
 import CreatePurchaseOrderPage from "../../pages/purchase-orders/create-purchase-order";
 import { ApprovalsPage } from "../../pages/purchase-orders/approvals-page";
+import { AmendmentsPage } from "../../pages/purchase-orders/amendments-page";
 
 export function AppRouter() {
   return (
@@ -39,10 +43,8 @@ export function AppRouter() {
         <Route path="products/:id/edit" element={<EditProductPage />} />
 
         <Route path="/inventory" element={<InventoryPage />} />
-        <Route
-          path="/inventory/adjustments"
-          element={<PlaceholderPage title="Adjustments" />}
-        />
+        <Route path="/inventory/adjustments" element={<AdjustmentsPage />} />
+        <Route path="/inventory/valuation" element={<InventoryValuationPage />} />
 
         <Route path="/locations/new" element={<NewLocationPage />} />
         <Route path="/locations/:id/edit" element={<EditLocationPage />} />
@@ -75,6 +77,7 @@ export function AppRouter() {
         <Route path="/supplier-products" element={<SupplierProductsPage />} />
 
         <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
+        <Route path="/reorder-suggestions" element={<ReorderSuggestionsPage />} />
 
         <Route
           path="/purchase-orders/new"
@@ -90,14 +93,9 @@ export function AppRouter() {
 
         <Route
           path="/amendments"
-          element={<PlaceholderPage title="Amendments" />}
-        />
-
-        <Route
-          path="/receiving"
           element={
-            <FeatureGate flag="receiving" title="Receiving">
-              <PlaceholderPage title="Receiving" />
+            <FeatureGate flag="procurement" title="Amendments">
+              <AmendmentsPage />
             </FeatureGate>
           }
         />

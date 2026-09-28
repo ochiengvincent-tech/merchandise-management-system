@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useSmartBack } from "../../hooks/use-smart-back";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -21,6 +22,7 @@ function LocationForm({
   initialLocationType,
 }: LocationFormProps) {
   const navigate = useNavigate();
+  const goBack = useSmartBack("/locations");
   const updateMutation = useUpdateLocation();
 
   const [name, setName] = useState(initialName);
@@ -45,7 +47,7 @@ function LocationForm({
   };
 
   const handleCancel = () => {
-    navigate(`/locations/${id}`);
+    goBack();
   };
 
   return (
@@ -129,7 +131,7 @@ function LocationForm({
 
 function EditLocationPage() {
   const { id = "" } = useParams();
-  const navigate = useNavigate();
+  const goBack = useSmartBack("/locations");
   const locationQuery = useLocation(id);
 
   if (locationQuery.isLoading) {
@@ -147,8 +149,8 @@ function EditLocationPage() {
           Location not found
         </h1>
 
-        <Button variant="secondary" onClick={() => navigate("/locations")}>
-          Back to locations
+        <Button variant="secondary" onClick={goBack}>
+          Back
         </Button>
       </div>
     );
@@ -161,10 +163,10 @@ function EditLocationPage() {
       <div>
         <button
           type="button"
-          onClick={() => navigate(`/locations/${location.id}`)}
+          onClick={goBack}
           className="mb-3 text-sm text-slate-500 hover:text-slate-900"
         >
-          ← Location
+          ← Back
         </button>
 
         <h1 className="text-2xl font-semibold text-slate-950">Edit Location</h1>

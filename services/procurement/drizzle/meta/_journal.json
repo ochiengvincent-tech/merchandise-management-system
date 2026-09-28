@@ -29,6 +29,20 @@
       "when": 1790247438503,
       "tag": "0003_remarkable_tyrannus",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790545189608,
+      "tag": "0004_add_requested_delivery_date",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790549242000,
+      "tag": "0005_require_po_revision_after_rejection",
+      "breakpoints": true
     }
   ]
 }

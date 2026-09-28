@@ -5,8 +5,9 @@ import { createPurchaseOrder } from "./purchase-order-service.js";
 
 const bodySchema = z.object({
   poNumber: z.string().trim().min(1),
-  vendorId: z.string().uuid(),
-  destinationLocationId: z.string().uuid(),
+  vendorId: z.uuid(),
+  destinationLocationId: z.uuid(),
+  requestedDeliveryDate: z.iso.date().nullable().optional(),
   currency: z
     .string()
     .length(3)
@@ -15,13 +16,13 @@ const bodySchema = z.object({
   lines: z
     .array(
       z.object({
-        productId: z.string().uuid(),
+        productId: z.uuid(),
         quantityOrdered: z.number().int().positive(),
       }),
     )
     .min(1),
   notes: z.string().optional(),
-  createdBy: z.string().uuid(),
+  createdBy: z.uuid(),
 });
 
 export async function createPurchaseOrderController(
@@ -35,7 +36,11 @@ export async function createPurchaseOrderController(
     if (!result.success) {
       return res.status(400).json({
         error: {
-          message: "Invalid purchase order data",
+          message: "Validation failed",
+          details: result.error.issues.map((issue) => ({
+            field: issue.path.join("."),
+            message: issue.message,
+          })),
         },
       });
     }

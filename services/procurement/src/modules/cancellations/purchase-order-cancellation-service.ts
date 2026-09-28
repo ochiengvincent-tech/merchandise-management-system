@@ -6,9 +6,16 @@ import { createOutboxEvent } from "../events/outbox-service.js";
 
 import { findPurchaseOrderById } from "../purchase-orders/purchase-order-repository.js";
 import { findPurchaseOrderLinesWithDatabase } from "../purchase-orders/purchase-order-line-repository.js";
-import { cancelPurchaseOrderWithDatabase } from "./purchase-order-cancellation-repository.js";
+import {
+  cancelPurchaseOrderWithDatabase,
+  createPurchaseOrderCancellationWithDatabase,
+} from "./purchase-order-cancellation-repository.js";
 
-export async function cancelPurchaseOrder(id: string, actorId: string) {
+export async function cancelPurchaseOrder(
+  id: string,
+  actorId: string,
+  reason: string,
+) {
   const existingPurchaseOrder = await findPurchaseOrderById(id);
 
   if (!existingPurchaseOrder) {
@@ -30,6 +37,13 @@ export async function cancelPurchaseOrder(id: string, actorId: string) {
     );
   }
 
+  const normalizedReason = reason.trim();
+  if (!normalizedReason) {
+    throw new AppError("Cancellation reason is required", 400, [
+      { field: "reason", message: "Enter a reason for cancelling this PO." },
+    ]);
+  }
+
   return db.transaction(async (tx) => {
     const purchaseOrderLines = await findPurchaseOrderLinesWithDatabase(id, tx);
 
@@ -43,6 +57,19 @@ export async function cancelPurchaseOrder(id: string, actorId: string) {
       throw new Error("Failed to cancel purchase order");
     }
 
+    const cancellation = await createPurchaseOrderCancellationWithDatabase(
+      {
+        purchaseOrderId: purchaseOrder.id,
+        reason: normalizedReason,
+        cancelledBy: actorId,
+      },
+      tx,
+    );
+
+    if (!cancellation) {
+      throw new Error("Failed to create purchase order cancellation record");
+    }
+
     await createProcurementAuditLogService(
       {
         purchaseOrderId: purchaseOrder.id,
@@ -50,6 +77,7 @@ export async function cancelPurchaseOrder(id: string, actorId: string) {
         actorId,
         beforeState: existingPurchaseOrder,
         afterState: purchaseOrder,
+        details: { reason: normalizedReason },
       },
       tx,
     );

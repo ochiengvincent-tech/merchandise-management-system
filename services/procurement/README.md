@@ -80,6 +80,7 @@ Environment variables:
 ```text
 DATABASE_URL
 PORT                  # defaults to 3003
+MAX_PO_VALUE_KES      # defaults to 500000; positive whole KES amount
 RABBITMQ_URL          # defaults to amqp://localhost:5672
 VENDOR_SERVICE_URL    # defaults to http://localhost:3001/api/v1
 INVENTORY_SERVICE_URL # defaults to http://localhost:3002/api/v1
@@ -92,20 +93,21 @@ environment files must not be committed.
 
 All business routes are versioned under `/api/v1`.
 
-| Method  | Route                             | Purpose                        |
-| ------- | --------------------------------- | ------------------------------ |
-| `POST`  | `/purchase-orders`                | Create a draft purchase order  |
-| `GET`   | `/purchase-orders/:id`            | Retrieve a purchase order      |
-| `PATCH` | `/purchase-orders/:id`            | Update an eligible draft       |
-| `PATCH` | `/purchase-orders/:id/submit`     | Submit for approval            |
-| `PATCH` | `/purchase-orders/:id/approve`    | Approve a submitted order      |
-| `PATCH` | `/purchase-orders/:id/reject`     | Reject a submitted order       |
-| `PATCH` | `/purchase-orders/:id/send`       | Mark an approved order as sent |
-| `PATCH` | `/purchase-orders/:id/cancel`     | Cancel an eligible order       |
-| `POST`  | `/purchase-orders/:id/receipts`   | Record received quantities     |
-| `POST`  | `/amendments/purchase-orders/:id` | Request an amendment           |
-| `PATCH` | `/amendments/:id/approve`         | Approve an amendment           |
-| `PATCH` | `/amendments/:id/reject`          | Reject an amendment            |
+| Method  | Route                             | Purpose                            |
+| ------- | --------------------------------- | ---------------------------------- |
+| `POST`  | `/purchase-orders`                | Create a draft purchase order      |
+| `GET`   | `/purchase-orders/:id`            | Retrieve a purchase order          |
+| `PATCH` | `/purchase-orders/:id`            | Update an eligible draft           |
+| `PATCH` | `/purchase-orders/:id/submit`     | Submit for approval                |
+| `GET`   | `/purchase-orders/policy`         | Read the configured PO value limit |
+| `PATCH` | `/purchase-orders/:id/approve`    | Approve a submitted order          |
+| `PATCH` | `/purchase-orders/:id/reject`     | Reject a submitted order           |
+| `PATCH` | `/purchase-orders/:id/send`       | Mark an approved order as sent     |
+| `PATCH` | `/purchase-orders/:id/cancel`     | Cancel an eligible order           |
+| `POST`  | `/purchase-orders/:id/receipts`   | Record received quantities         |
+| `POST`  | `/amendments/purchase-orders/:id` | Request an amendment               |
+| `PATCH` | `/amendments/:id/approve`         | Approve an amendment               |
+| `PATCH` | `/amendments/:id/reject`          | Reject an amendment                |
 
 Operational endpoints are available outside the API version:
 

@@ -1,0 +1,1 @@
+ALTER TABLE "purchase_orders" ADD COLUMN "requested_delivery_date" date;

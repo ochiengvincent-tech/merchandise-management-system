@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { Select } from "../components/ui/select";
-import { useCreateLocation } from "../features/locations/hooks";
-import { getFieldErrorMap } from "../lib/api/client";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { Select } from "../../components/ui/select";
+import { useCreateLocation } from "../../features/locations/hooks";
+import { getFieldErrorMap } from "../../lib/api/client";
 
 function NewLocationPage() {
   const navigate = useNavigate();

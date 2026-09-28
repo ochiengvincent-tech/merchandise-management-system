@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { Select } from "../components/ui/select";
-import { ApiError, getFieldErrorMap } from "../lib/api/client";
-import { useProducts } from "../features/products/hooks";
-import { useCreateVendor } from "../features/vendors/hooks";
-import { useCreateVendorProduct } from "../features/vendor-products/hooks";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { Select } from "../../components/ui/select";
+import { ApiError, getFieldErrorMap } from "../../lib/api/client";
+import { useProducts } from "../../features/products/hooks";
+import { useCreateVendor } from "../../features/vendors/hooks";
+import { useCreateVendorProduct } from "../../features/vendor-products/hooks";
 
 type InitialSupplierProduct = {
   productId: string;

@@ -1,7 +1,36 @@
 import type { Request, Response, NextFunction } from "express";
-import { requestPurchaseOrderAmendment } from "./amendment-service.js";
+import {
+  getPurchaseOrderAmendments,
+  requestPurchaseOrderAmendment,
+} from "./amendment-service.js";
 import { approvePurchaseOrderAmendment } from "./amendment-approval-service.js";
 import { rejectPurchaseOrderAmendment } from "./amendment-rejection-service.js";
+
+export async function listPurchaseOrderAmendmentsController(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const { id } = req.params;
+    if (typeof id !== "string") {
+      return res.status(400).json({
+        error: { message: "Invalid purchase order ID" },
+      });
+    }
+
+    const amendments = await getPurchaseOrderAmendments(id);
+    if (!amendments) {
+      return res.status(404).json({
+        error: { message: "Purchase order not found" },
+      });
+    }
+
+    return res.status(200).json({ data: amendments });
+  } catch (error) {
+    next(error);
+  }
+}
 
 export async function requestPurchaseOrderAmendmentController(
   req: Request,

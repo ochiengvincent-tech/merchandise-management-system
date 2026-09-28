@@ -1,14 +1,14 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
 import {
   useDeactivateVendorProduct,
   useReactivateVendorProduct,
   useVendorProduct,
-} from "../features/vendor-products/hooks";
-import { useVendors } from "../features/vendors/hooks";
-import { useProducts } from "../features/products/hooks";
+} from "../../features/vendor-products/hooks";
+import { useVendors } from "../../features/vendors/hooks";
+import { useProducts } from "../../features/products/hooks";
 
 export function SupplierProductDetailPage() {
   const navigate = useNavigate();

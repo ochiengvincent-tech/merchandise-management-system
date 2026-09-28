@@ -1,12 +1,12 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
 import {
   useDeactivateLocation,
   useLocation,
   useReactivateLocation,
-} from "../features/locations/hooks";
+} from "../../features/locations/hooks";
 
 function LocationDetailPage() {
   const { id = "" } = useParams();

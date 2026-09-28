@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Badge } from "../components/ui/badge";
-import { Card } from "../components/ui/card";
-import { Select } from "../components/ui/select";
-import { Table } from "../components/ui/table";
-import { useLocations } from "../features/locations/hooks";
-import { useProducts } from "../features/products/hooks";
-import { useStockByProduct } from "../features/inventory/hooks";
+import { Badge } from "../../components/ui/badge";
+import { Card } from "../../components/ui/card";
+import { Select } from "../../components/ui/select";
+import { Table } from "../../components/ui/table";
+import { useLocations } from "../../features/locations/hooks";
+import { useProducts } from "../../features/products/hooks";
+import { useStockByProduct } from "../../features/inventory/hooks";
 
 function InventoryPage() {
   const [productId, setProductId] = useState("");

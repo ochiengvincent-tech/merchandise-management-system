@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { Select } from "../components/ui/select";
-import { Table } from "../components/ui/table";
-import { useLocations } from "../features/locations/hooks";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { Select } from "../../components/ui/select";
+import { Table } from "../../components/ui/table";
+import { useLocations } from "../../features/locations/hooks";
 
 function LocationsPage() {
   const [search, setSearch] = useState("");

@@ -1,10 +1,33 @@
 import { db } from "../../db/index.js";
+import { env } from "../../config/env.js";
 import { AppError } from "../../errors/app-error.js";
 import {
   findPurchaseOrderById,
   updatePurchaseOrderWithDatabase,
 } from "../purchase-orders/purchase-order-repository.js";
 import { createApprovalAuditLogWithDatabase } from "../approvals/approval-audit-repository.js";
+import { centsToMoney, moneyToCents } from "../purchase-orders/money.js";
+
+export function assertPurchaseOrderWithinLimit(
+  totalAmount: string,
+  maximumValueKes = env.MAX_PO_VALUE_KES,
+) {
+  const maximumCents = BigInt(maximumValueKes) * 100n;
+  const totalCents = moneyToCents(totalAmount);
+
+  if (totalCents > maximumCents) {
+    throw new AppError(
+      `PO total KES ${centsToMoney(totalCents)} exceeds the maximum allowed value of KES ${centsToMoney(maximumCents)}`,
+      409,
+      [
+        {
+          field: "totalAmount",
+          message: `The maximum PO value is KES ${centsToMoney(maximumCents)}.`,
+        },
+      ],
+    );
+  }
+}
 
 export async function submitPurchaseOrderForApproval(
   purchaseOrderId: string,
@@ -22,6 +45,28 @@ export async function submitPurchaseOrderForApproval(
       409,
     );
   }
+
+  if (purchaseOrder.revisionRequired) {
+    throw new AppError(
+      "Purchase order must be revised before it can be resubmitted",
+      409,
+      [
+        {
+          field: "revisionRequired",
+          message: "Change the notes or destination before resubmitting.",
+        },
+      ],
+    );
+  }
+
+  if (purchaseOrder.currency !== "KES") {
+    throw new AppError(
+      "Only KES purchase orders can be submitted while the value limit is configured in KES",
+      409,
+    );
+  }
+
+  assertPurchaseOrderWithinLimit(purchaseOrder.totalAmount);
 
   return db.transaction(async (tx) => {
     const updatedPurchaseOrder = await updatePurchaseOrderWithDatabase(

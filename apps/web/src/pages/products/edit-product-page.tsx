@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { getFieldErrorMap } from "../lib/api/client";
-import { useProduct, useUpdateProduct } from "../features/products/hooks";
-import type { Product } from "../features/products/types";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { getFieldErrorMap } from "../../lib/api/client";
+import { useProduct, useUpdateProduct } from "../../features/products/hooks";
+import type { Product } from "../../features/products/types";
 
 export function EditProductPage() {
   const navigate = useNavigate();

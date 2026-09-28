@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
 import {
   Table,
   TableBody,
@@ -10,10 +10,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../components/ui/table";
-import { useAllVendorProducts } from "../features/vendor-products/hooks";
-import { useVendors } from "../features/vendors/hooks";
-import { useProducts } from "../features/products/hooks";
+} from "../../components/ui/table";
+import { useAllVendorProducts } from "../../features/vendor-products/hooks";
+import { useVendors } from "../../features/vendors/hooks";
+import { useProducts } from "../../features/products/hooks";
 
 export function SupplierProductsPage() {
   const navigate = useNavigate();

@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { Select } from "../components/ui/select";
-import { useLocation, useUpdateLocation } from "../features/locations/hooks";
-import { getFieldErrorMap } from "../lib/api/client";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { Select } from "../../components/ui/select";
+import { useLocation, useUpdateLocation } from "../../features/locations/hooks";
+import { getFieldErrorMap } from "../../lib/api/client";
 
 type LocationFormProps = {
   id: string;

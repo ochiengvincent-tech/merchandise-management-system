@@ -1,10 +1,10 @@
 import { type FormEvent, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { getFieldErrorMap } from "../lib/api/client";
-import { useUpdateVendor, useVendor } from "../features/vendors/hooks";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { getFieldErrorMap } from "../../lib/api/client";
+import { useUpdateVendor, useVendor } from "../../features/vendors/hooks";
 
 type VendorFormProps = {
   id: string;

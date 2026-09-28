@@ -6,6 +6,7 @@ import {
   createPurchaseOrderWithDatabase,
   findPurchaseOrderById,
   findPurchaseOrderByNumber,
+  listPurchaseOrders as listPurchaseOrdersFromDatabase,
 } from "./purchase-order-repository.js";
 
 import {
@@ -14,6 +15,8 @@ import {
 } from "./purchase-order-line-repository.js";
 
 import { createApprovalAuditLogWithDatabase } from "../approvals/approval-audit-repository.js";
+import { centsToMoney, moneyToCents } from "./money.js";
+import { findPurchaseOrderCancellation } from "../cancellations/purchase-order-cancellation-repository.js";
 
 import {
   getVendorById,
@@ -36,64 +39,87 @@ type CreatePurchaseOrderInput = {
   poNumber: string;
   vendorId: string;
   destinationLocationId: string;
+  requestedDeliveryDate?: string | null;
   currency?: string;
   lines: PurchaseOrderLineInput[];
   notes?: string;
   createdBy: string;
 };
 
-const moneyToCents = (value: string) => {
-  const normalized = value.trim();
-
-  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
-    throw new AppError("Invalid monetary value", 400);
-  }
-
-  const decimalIndex = normalized.indexOf(".");
-
-  if (decimalIndex === -1) {
-    return BigInt(normalized) * 100n;
-  }
-
-  const whole = normalized.slice(0, decimalIndex);
-  const decimal = normalized.slice(decimalIndex + 1);
-
-  return BigInt(whole) * 100n + BigInt(decimal.padEnd(2, "0"));
+type ListPurchaseOrdersInput = {
+  offset: number;
+  limit: number;
+  status?: string;
+  search?: string;
 };
 
-const centsToMoney = (cents: bigint) => {
-  const whole = cents / 100n;
-  const decimal = (cents % 100n).toString().padStart(2, "0");
+export function assertRequestedDeliveryDateIsNotBeforeCreation(
+  requestedDeliveryDate: string | null | undefined,
+  createdAt = new Date(),
+) {
+  if (!requestedDeliveryDate) {
+    return;
+  }
 
-  return `${whole}.${decimal}`;
-};
+  const creationDate = createdAt.toISOString().slice(0, 10);
+  if (requestedDeliveryDate < creationDate) {
+    throw new AppError(
+      "Requested delivery date cannot be before the purchase-order creation date",
+      400,
+      [
+        {
+          field: "requestedDeliveryDate",
+          message: "Choose the creation date or a later date.",
+        },
+      ],
+    );
+  }
+}
 
 export async function createPurchaseOrder(data: CreatePurchaseOrderInput) {
+  assertRequestedDeliveryDateIsNotBeforeCreation(data.requestedDeliveryDate);
+
   if (data.lines.length === 0) {
     throw new AppError("Purchase order must contain at least one line", 400);
   }
 
   const productIds = new Set<string>();
 
-  for (const line of data.lines) {
+  data.lines.forEach((line, index) => {
     if (productIds.has(line.productId)) {
       throw new AppError(
         `Product ${line.productId} cannot appear more than once in a purchase order`,
         400,
+        [
+          {
+            field: `lines.${index}.productId`,
+            message: "A product can only appear once in an order.",
+          },
+        ],
       );
     }
 
     productIds.add(line.productId);
 
     if (!Number.isInteger(line.quantityOrdered) || line.quantityOrdered <= 0) {
-      throw new AppError("Ordered quantity must be a positive integer", 400);
+      throw new AppError("Ordered quantity must be a positive integer", 400, [
+        {
+          field: `lines.${index}.quantityOrdered`,
+          message: "Enter a positive whole-number quantity.",
+        },
+      ]);
     }
-  }
+  });
 
   const existingPurchaseOrder = await findPurchaseOrderByNumber(data.poNumber);
 
   if (existingPurchaseOrder) {
-    throw new AppError("Purchase order number already exists", 409);
+    throw new AppError("Purchase order number already exists", 409, [
+      {
+        field: "poNumber",
+        message: "This PO number is already in use.",
+      },
+    ]);
   }
 
   let location;
@@ -216,6 +242,7 @@ export async function createPurchaseOrder(data: CreatePurchaseOrderInput) {
         poNumber: data.poNumber,
         vendorId: data.vendorId,
         destinationLocationId: data.destinationLocationId,
+        requestedDeliveryDate: data.requestedDeliveryDate ?? null,
         status: "DRAFT",
         currency: data.currency ?? "KES",
         paymentTerms,
@@ -280,9 +307,15 @@ export async function getPurchaseOrder(id: string) {
   }
 
   const lines = await findPurchaseOrderLines(id);
+  const cancellation = await findPurchaseOrderCancellation(id);
 
   return {
     ...purchaseOrder,
     lines,
+    cancellation,
   };
+}
+
+export async function listPurchaseOrders(data: ListPurchaseOrdersInput) {
+  return listPurchaseOrdersFromDatabase(data);
 }

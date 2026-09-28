@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { getFieldErrorMap } from "../lib/api/client";
-import { useCreateProduct } from "../features/products/hooks";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { getFieldErrorMap } from "../../lib/api/client";
+import { useCreateProduct } from "../../features/products/hooks";
 
 export function NewProductPage() {
   const navigate = useNavigate();

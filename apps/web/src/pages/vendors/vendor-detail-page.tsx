@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { AddVendorProductForm } from "../features/vendor-products/add-vendor-product-form";
-import { VendorProductActions } from "../features/vendor-products/vendor-product-actions";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
+import { AddVendorProductForm } from "../../features/vendor-products/add-vendor-product-form";
+import { VendorProductActions } from "../../features/vendor-products/vendor-product-actions";
 import {
   useDeactivateVendor,
   useReactivateVendor,
   useVendor,
-} from "../features/vendors/hooks";
-import { useVendorProducts } from "../features/vendor-products/hooks";
-import { useProducts } from "../features/products/hooks";
+} from "../../features/vendors/hooks";
+import { useVendorProducts } from "../../features/vendor-products/hooks";
+import { useProducts } from "../../features/products/hooks";
 
 function VendorDetailPage() {
   const { id = "" } = useParams();

@@ -126,6 +126,20 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /api/v1/purchase-orders/policy:
+    get:
+      tags:
+        - Purchase Orders
+      summary: Get purchase-order submission policy
+      operationId: getPurchaseOrderPolicy
+      responses:
+        "200":
+          description: Configured purchase-order value limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrderPolicyResponse"
+
   /api/v1/purchase-orders/{id}:
     get:
       tags:
@@ -146,7 +160,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+            description: Purchase order is not a draft, is over the configured limit, or requires revision after rejection
         "404":
           description: Purchase order not found
           content:
@@ -230,7 +244,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "409":
-          description: Purchase order cannot be submitted in its current state
+          description: Purchase order is not a draft, requires revision after rejection, exceeds the configured KES limit, or uses an unsupported currency
           content:
             application/json:
               schema:
@@ -365,6 +379,18 @@ paths:
       operationId: cancelPurchaseOrder
       parameters:
         - $ref: "#/components/parameters/PurchaseOrderId"
+        - name: x-actor-id
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelPurchaseOrderRequest"
       responses:
         "200":
           description: Purchase order cancelled
@@ -373,7 +399,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/PurchaseOrderOnlyResponse"
         "400":
-          description: Invalid purchase order ID or actor ID
+          description: Invalid purchase order ID, actor ID, or missing cancellation reason
           content:
             application/json:
               schema:
@@ -438,7 +464,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /api/v1/purchase-orders/{id}/amendments:
+  /api/v1/amendments/purchase-orders/{id}:
+    get:
+      tags:
+        - Amendments
+      summary: List amendments for a purchase order
+      operationId: listPurchaseOrderAmendments
+      parameters:
+        - $ref: "#/components/parameters/PurchaseOrderId"
+      responses:
+        "200":
+          description: Purchase-order amendment history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AmendmentListResponse"
+        "404":
+          description: Purchase order not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
       tags:
         - Amendments
@@ -498,7 +544,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AmendmentResponse"
+                $ref: "#/components/schemas/AmendmentApprovalResponse"
         "400":
           description: Invalid amendment ID or approver ID
           content:
@@ -707,6 +753,10 @@ components:
         destinationLocationId:
           type: string
           format: uuid
+        requestedDeliveryDate:
+          type: string
+          format: date
+          nullable: true
         currency:
           type: string
           minLength: 3
@@ -742,19 +792,36 @@ components:
 
     UpdatePurchaseOrderRequest:
       type: object
+      description: Draft-only editable purchase-order fields. Currency and supplier-derived payment terms remain unchanged.
       required:
         - actorId
       properties:
         actorId:
           type: string
           format: uuid
-        notes:
+        poNumber:
           type: string
-          nullable: true
+          minLength: 1
+          maxLength: 50
+        vendorId:
+          type: string
+          format: uuid
         destinationLocationId:
           type: string
           format: uuid
+        requestedDeliveryDate:
+          type: string
+          format: date
           nullable: true
+        notes:
+          type: string
+          maxLength: 2000
+          nullable: true
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/CreatePurchaseOrderLine"
       minProperties: 2
 
     ReceivePurchaseOrderRequest:
@@ -822,7 +889,9 @@ components:
         - poNumber
         - vendorId
         - destinationLocationId
+        - requestedDeliveryDate
         - status
+        - revisionRequired
         - currency
         - paymentTerms
         - subtotal
@@ -843,6 +912,10 @@ components:
         destinationLocationId:
           type: string
           format: uuid
+        requestedDeliveryDate:
+          type: string
+          format: date
+          nullable: true
         status:
           type: string
           enum:
@@ -853,6 +926,9 @@ components:
             - PARTIALLY_RECEIVED
             - COMPLETED
             - CANCELLED
+        revisionRequired:
+          type: boolean
+          description: True after rejection until at least one editable PO field is changed.
         currency:
           type: string
           example: KES
@@ -941,11 +1017,50 @@ components:
         - type: object
           required:
             - lines
+            - cancellation
           properties:
             lines:
               type: array
               items:
                 $ref: "#/components/schemas/PurchaseOrderLine"
+            cancellation:
+              oneOf:
+                - $ref: "#/components/schemas/PurchaseOrderCancellation"
+                - type: "null"
+
+    PurchaseOrderCancellation:
+      type: object
+      required:
+        - id
+        - purchaseOrderId
+        - reason
+        - cancelledBy
+        - cancelledAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        purchaseOrderId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+        cancelledBy:
+          type: string
+          format: uuid
+        cancelledAt:
+          type: string
+          format: date-time
+
+    CancelPurchaseOrderRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
 
     PurchaseOrderResponse:
       type: object
@@ -962,6 +1077,25 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/PurchaseOrder"
+
+    PurchaseOrderPolicyResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - currency
+            - maxPoValueKes
+          properties:
+            currency:
+              type: string
+              enum: [KES]
+            maxPoValueKes:
+              type: string
+              pattern: "^\\d+(\\.\\d{2})$"
+              example: "500000.00"
 
     ReceiptResponse:
       type: object
@@ -1039,3 +1173,29 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/PurchaseOrderAmendment"
+
+    AmendmentListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PurchaseOrderAmendment"
+
+    AmendmentApprovalResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - amendment
+            - purchaseOrder
+          properties:
+            amendment:
+              $ref: "#/components/schemas/PurchaseOrderAmendment"
+            purchaseOrder:
+              $ref: "#/components/schemas/PurchaseOrder"

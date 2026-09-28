@@ -1,12 +1,12 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
 import {
   useDeactivateProduct,
   useProduct,
   useReactivateProduct,
-} from "../features/products/hooks";
+} from "../../features/products/hooks";
 
 export function ProductDetailPage() {
   const navigate = useNavigate();

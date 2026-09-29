@@ -7,7 +7,9 @@ export const createLocationAuditLog = async (data: {
     | "LOCATION_CREATED"
     | "LOCATION_UPDATED"
     | "LOCATION_DEACTIVATED"
-    | "LOCATION_REACTIVATED";
+    | "LOCATION_REACTIVATED"
+    | "WAREHOUSE_MANAGEMENT_ENABLED"
+    | "WAREHOUSE_MANAGEMENT_DISABLED";
   actorId?: string;
   details?: Record<string, unknown>;
 }) => {

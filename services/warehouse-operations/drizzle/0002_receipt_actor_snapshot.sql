@@ -1,0 +1,1 @@
+ALTER TABLE "warehouse_receipts" ADD COLUMN "received_by" uuid NOT NULL;

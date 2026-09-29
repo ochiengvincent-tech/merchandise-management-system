@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import {
   createLocationService,
   deactivateLocationService,
+  enableWarehouseManagementService,
   getLocationService,
   listLocationsService,
   reactivateLocationService,
@@ -12,6 +13,7 @@ import {
   listLocationsSchema,
   updateLocationSchema
 } from "./location-schema.js";
+import { warehouseManagementSchema } from "./warehouse-management-schema.js";
 
 export const createLocationController = async (
   req: Request,
@@ -92,5 +94,15 @@ export const reactivateLocationController = async (
 
   const location = await reactivateLocationService(id);
 
+  return res.status(200).json(location);
+};
+export const enableWarehouseManagementController = async (
+  req: Request,
+  res: Response,
+) => {
+  const { id } = req.params;
+  if (!id || Array.isArray(id)) throw new Error("Location ID is required");
+  const data = warehouseManagementSchema.parse(req.body);
+  const location = await enableWarehouseManagementService(id, data);
   return res.status(200).json(location);
 };

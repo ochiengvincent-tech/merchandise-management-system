@@ -2,6 +2,7 @@ import { Router } from "express";
 import { methodNotAllowed } from "../../middleware/method-not-allowed.js";
 import {
   createStockController,
+  createWarehouseAdjustmentController,
   getStockByLocationController,
   getStockByProductAndLocationController,
   getStockByProductController,
@@ -28,6 +29,9 @@ router.all("/by-product", methodNotAllowed);
 
 router.get("/by-location", getStockByLocationController);
 router.all("/by-location", methodNotAllowed);
+
+router.post("/adjustments/from-warehouse", createWarehouseAdjustmentController);
+router.all("/adjustments/from-warehouse", methodNotAllowed);
 
 router.post("/allocate", allocateStockController);
 router.all("/allocate", methodNotAllowed);

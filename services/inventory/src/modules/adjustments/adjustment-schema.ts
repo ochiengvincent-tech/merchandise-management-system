@@ -10,3 +10,15 @@ export const createAdjustmentSchema = z.object({
   reference: z.string().trim().max(100).optional(),
   createdBy: z.string().uuid()
 });
+export const warehouseAdjustmentSchema = z.object({
+  productId: z.uuid(),
+  locationId: z.uuid(),
+  quantityChange: z.number().int().refine((value) => value !== 0, {
+    message: "Quantity change cannot be zero",
+  }),
+  reason: z.string().trim().min(1).max(255),
+  createdBy: z.uuid(),
+  idempotencyKey: z.uuid(),
+  warehouseCommandId: z.uuid(),
+  sourceBinId: z.uuid(),
+});

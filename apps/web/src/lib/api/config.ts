@@ -3,6 +3,7 @@ export const API_URLS = {
   vendor: import.meta.env.VITE_VENDOR_API_URL || "/api/vendor",
   procurement: import.meta.env.VITE_PROCUREMENT_API_URL || "/api/procurement",
   receiving: import.meta.env.VITE_RECEIVING_API_URL || "/api/receiving",
+  warehouse: import.meta.env.VITE_WAREHOUSE_API_URL || "/api/warehouse-operations",
 };
 
 export const SYSTEM_ACTOR_ID = "00000000-0000-4000-8000-000000000001";

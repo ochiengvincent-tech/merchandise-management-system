@@ -56,6 +56,17 @@ export const createAdjustmentService = async (data: {
     throw new Error("Validation failed");
   }
 
+  if (location.warehouseManaged) {
+    throw new AppError(
+      "Stock adjustments for this location must be submitted through Warehouse Operations",
+      409,
+      [{
+        field: "locationId",
+        message: "Open Warehouse Operations and submit the adjustment from its source bin.",
+      }],
+    );
+  }
+
   const stock = await findStockByProductAndLocation(
     data.productId,
     data.locationId,

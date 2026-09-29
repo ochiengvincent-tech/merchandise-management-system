@@ -144,3 +144,37 @@ export const reactivateLocationService = async (id: string) => {
 
   return location;
 };
+
+export const enableWarehouseManagementService = async (
+  id: string,
+  data: { actorId: string; bootstrapCompleted: true; reconciliationVarianceCount: number },
+) => {
+  const existingLocation = await findLocationById(id);
+  if (!existingLocation) throw new AppError("Location not found", 404);
+  if (existingLocation.status !== "ACTIVE") {
+    throw new AppError("Inactive locations cannot be warehouse-managed", 409);
+  }
+  if (data.reconciliationVarianceCount !== 0) {
+    throw new AppError("Resolve all reconciliation variances before enabling Warehouse Operations", 409, [{ field: "reconciliationVarianceCount", message: "The location must reconcile with zero variance." }]);
+  }
+  if (existingLocation.warehouseManaged) {
+    // Warehouse retries this call if its bootstrap transaction committed but
+    // the Inventory response was lost. Treat an already-enabled location as
+    // success so the retry cannot strand the bootstrap workflow.
+    return existingLocation;
+  }
+  const location = await updateLocation(id, { warehouseManaged: true });
+  if (!location) throw new Error("Could not enable Warehouse management");
+  await createLocationAuditLog({
+    locationId: id,
+    actorId: data.actorId,
+    action: "WAREHOUSE_MANAGEMENT_ENABLED",
+    details: {
+      before: { warehouseManaged: existingLocation.warehouseManaged },
+      after: { warehouseManaged: location.warehouseManaged },
+      bootstrapCompleted: data.bootstrapCompleted,
+      reconciliationVarianceCount: data.reconciliationVarianceCount,
+    },
+  });
+  return location;
+};

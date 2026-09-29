@@ -6,6 +6,7 @@ export const locationSchema = z.object({
   name: z.string(),
   locationType: z.enum(["WAREHOUSE", "STORE"]),
   status: z.enum(["ACTIVE", "INACTIVE"]),
+  warehouseManaged: z.boolean().default(false),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

@@ -43,7 +43,7 @@ router.get("/movements", async (req, res) => {
     locationId: z.uuid(),
     productId: z.uuid().optional(),
     binId: z.uuid().optional(),
-    movementType: z.enum(["OPENING_BALANCE", "RECEIPT_INTAKE", "PUTAWAY", "BIN_TRANSFER", "QUARANTINE_TRANSFER", "INVENTORY_ADJUSTMENT"]).optional(),
+    movementType: z.enum(["OPENING_BALANCE", "RECEIPT_INTAKE", "PUTAWAY", "BIN_TRANSFER", "QUARANTINE_TRANSFER", "INVENTORY_ADJUSTMENT", "SALE_CONSUMPTION", "RETURN_INTAKE"]).optional(),
     from: z.iso.datetime().optional(),
     to: z.iso.datetime().optional(),
   }).merge(pageSchema).parse(req.query);

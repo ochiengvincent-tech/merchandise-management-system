@@ -137,7 +137,7 @@ export const warehouseMovements = pgTable(
     quantity: integer("quantity").notNull(),
     disposition: varchar("disposition", { length: 20 }).notNull(),
     sourceBinId: uuid("source_bin_id").references(() => warehouseBins.id),
-    destinationBinId: uuid("destination_bin_id").notNull().references(() => warehouseBins.id),
+    destinationBinId: uuid("destination_bin_id").references(() => warehouseBins.id),
     locationId: uuid("location_id").notNull(),
     referenceType: varchar("reference_type", { length: 50 }).notNull(),
     referenceId: uuid("reference_id"),
@@ -149,7 +149,7 @@ export const warehouseMovements = pgTable(
   (table) => [
     index("warehouse_movements_location_created_idx").on(table.locationId, table.createdAt),
     index("warehouse_movements_product_created_idx").on(table.productId, table.createdAt),
-    check("warehouse_movements_type_check", sql`${table.movementType} IN ('OPENING_BALANCE', 'RECEIPT_INTAKE', 'PUTAWAY', 'BIN_TRANSFER', 'QUARANTINE_TRANSFER', 'INVENTORY_ADJUSTMENT')`),
+    check("warehouse_movements_type_check", sql`${table.movementType} IN ('OPENING_BALANCE', 'RECEIPT_INTAKE', 'PUTAWAY', 'BIN_TRANSFER', 'QUARANTINE_TRANSFER', 'INVENTORY_ADJUSTMENT', 'SALE_CONSUMPTION', 'RETURN_INTAKE')`),
     check("warehouse_movements_quantity_check", sql`${table.quantity} > 0`),
     check("warehouse_movements_disposition_check", sql`${table.disposition} IN ('SELLABLE', 'QUARANTINED', 'DISCREPANCY')`),
   ],

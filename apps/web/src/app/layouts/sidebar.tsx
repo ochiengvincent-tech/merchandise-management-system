@@ -56,6 +56,12 @@ const navigation: { label: string; items: NavItem[] }[] = [
     items: [{ label: "Warehouse Operations", icon: "warehouse", path: "/warehouse-operations", flag: "warehouseOperations" }],
   },
   {
+    label: "Sales",
+    items: [
+      { label: "Retail Sales", icon: "purchase-order", path: "/retail-sales", flag: "retailSales" },
+    ],
+  },
+  {
     label: "System",
     items: [{ label: "Audit", icon: "audit", path: "/audit" }],
   },

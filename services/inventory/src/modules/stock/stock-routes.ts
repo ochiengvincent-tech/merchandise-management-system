@@ -12,6 +12,7 @@ import {
   allocateStockController,
   releaseStockController,
 } from "./stock-operation-controller.js";
+import { releaseSaleStockController, reserveSaleStockController } from "./sale-reservation-controller.js";
 
 const router: Router = Router();
 
@@ -38,5 +39,10 @@ router.all("/allocate", methodNotAllowed);
 
 router.post("/release", releaseStockController);
 router.all("/release", methodNotAllowed);
+
+router.post("/sale-reservations", reserveSaleStockController);
+router.all("/sale-reservations", methodNotAllowed);
+router.post("/sale-reservations/:id/release", releaseSaleStockController);
+router.all("/sale-reservations/:id/release", methodNotAllowed);
 
 export { router as stockRouter };

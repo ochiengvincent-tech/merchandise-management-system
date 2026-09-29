@@ -28,10 +28,11 @@ const sourceLabels = {
   INVENTORY: "Inventory",
   VENDOR_MANAGEMENT: "Vendor Management",
   RECEIVING: "Receiving",
+  RETAIL_SALES: "Retail Sales",
 } as const;
 
 function resourceId(record: AuditRecord) {
-  return record.goodsReceiptId ?? record.purchaseOrderId ?? record.productId ?? record.locationId ?? record.vendorProductId ?? record.vendorId ?? "—";
+  return record.goodsReceiptId ?? record.purchaseOrderId ?? record.recordId ?? record.productId ?? record.locationId ?? record.vendorProductId ?? record.vendorId ?? "—";
 }
 
 function eventDetails(record: AuditRecord) {
@@ -132,6 +133,7 @@ export function AuditPage() {
               <option value="INVENTORY">Inventory</option>
               <option value="VENDOR_MANAGEMENT">Vendor Management</option>
               {featureFlags.receiving && <option value="RECEIVING">Receiving</option>}
+              {featureFlags.retailSales && <option value="RETAIL_SALES">Retail Sales</option>}
             </Select>
           </label>
           <label className="block text-sm font-medium text-slate-700">

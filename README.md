@@ -43,15 +43,18 @@ foreign keys.
 | Procurement | `services/procurement` | Purchase orders, approvals, amendments, cancellations, receipts, and reorder suggestions | 1 | Backend implemented |
 | Inventory | `services/inventory` | Product master, locations, stock quantities, adjustments, valuation, and stock events | 1 | Backend implemented |
 | Receiving | `services/receiving` | Physical goods validation, discrepancies, GRNs, and GoodsReceived events | 2 | Implementation in progress |
-| Warehouse Operations | `services/warehouse-operations` | Putaway, picking, transfers, and warehouse capacity | 2 | Planned |
+| Warehouse Operations | `services/warehouse-operations` | Putaway, picking, transfers, and warehouse capacity | 2 | Backend implemented (initial workflow slice) |
 | Retail Sales | `services/retail-sales` | Retail prices, checkout, recorded tenders, returns, and sale events | 3 | Initial vertical slice implemented |
-| Sales Audit | `services/sales-audit` | Register reconciliation and manager sign-off | 3 | Planned |
+| Sales Audit | `services/sales-audit` | Register reconciliation and manager sign-off | 3 | Initial implementation |
 | Financials | `services/financials` | Ledger, accounts payable, inventory accounting, and profitability | 4 | Planned |
 
 Phase 1 service-specific architecture and data-flow diagrams are available in
 the [Vendor Management README](services/vendor-management/README.md),
 [Procurement README](services/procurement/README.md), and
 [Inventory README](services/inventory/README.md).
+
+Phase 3 designs are available for [Retail Sales](docs/phase3/retail-sales-service-design.md) and
+[Sales Audit](docs/phase3/sales-audit-service-design.md).
 
 ## Service endpoints
 
@@ -61,7 +64,9 @@ the [Vendor Management README](services/vendor-management/README.md),
 | Inventory | 3002 | `/health` | `/ready` |
 | Procurement | 3003 | `/health` | `/ready` |
 | Receiving | 3004 | `/health` | `/ready` |
+| Warehouse Operations | 3005 | `/health` | `/ready` |
 | Retail Sales | 3006 | `/health` | `/ready` |
+| Sales Audit | 3007 | `/health` | `/ready` |
 
 Business HTTP routes are versioned under `/api/v1`.
 
@@ -88,6 +93,9 @@ Requirements: Node.js 22, pnpm 12.3.4, and Docker Compose.
    cp services/procurement/.env.example services/procurement/.env
    cp services/inventory/.env.example services/inventory/.env
    cp services/receiving/.env.example services/receiving/.env
+   cp services/warehouse-operations/.env.example services/warehouse-operations/.env
+   cp services/retail-sales/.env.example services/retail-sales/.env
+   cp services/sales-audit/.env.example services/sales-audit/.env
    ```
 
 4. Apply all database migrations:
@@ -103,7 +111,9 @@ Requirements: Node.js 22, pnpm 12.3.4, and Docker Compose.
    pnpm --dir services/vendor-management dev
    pnpm --dir services/procurement dev
    pnpm --dir services/receiving dev
+   pnpm --dir services/warehouse-operations dev
    pnpm --dir services/retail-sales dev
+   pnpm --dir services/sales-audit dev
    ```
 
 RabbitMQ can be unavailable during startup. Services remain available for
@@ -130,6 +140,23 @@ FEATURE_FINANCIALS_ENABLED=false
 Disabled service routes and listeners are not registered. Use only `true` or
 `false` values.
 
+The System Audit page aggregates audit records from Procurement, Inventory,
+Vendor Management, and each enabled Receiving, Warehouse Operations, Retail
+Sales, and Sales Audit service. Enable the corresponding `VITE_FEATURE_*` flags
+in `apps/web/.env` to include later-phase sources in the page.
+
+To enable Sales Audit locally, set `FEATURE_RETAIL_SALES_ENABLED=true` in
+`services/retail-sales/.env`, `FEATURE_SALES_AUDIT_ENABLED=true` in
+`services/sales-audit/.env`, and set both `VITE_FEATURE_RETAIL_SALES_ENABLED=true`
+and `VITE_FEATURE_SALES_AUDIT_ENABLED=true` in `apps/web/.env`. Restart the
+services and Vite after changing these flags.
+
+To include Warehouse Operations records in System Audit, set
+`FEATURE_WAREHOUSE_OPERATIONS_ENABLED=true` in
+`services/warehouse-operations/.env` and
+`VITE_FEATURE_WAREHOUSE_OPERATIONS_ENABLED=true` in `apps/web/.env`. Restart
+the Warehouse Operations service and Vite after changing flags.
+
 To enable the Receiving Phase 2 slice locally, set
 `FEATURE_RECEIVING_ENABLED=true` in both `services/receiving/.env` and
 `services/procurement/.env`, and set `VITE_FEATURE_RECEIVING_ENABLED=true` in
@@ -147,6 +174,8 @@ contracts:
 - [Procurement OpenAPI](contracts/openapi/procurement.yaml)
 - [Inventory OpenAPI](contracts/openapi/inventory.yaml)
 - [Receiving OpenAPI](contracts/openapi/receiving.yaml)
+- [Retail Sales reconciliation OpenAPI](contracts/openapi/retail-sales.yaml)
+- [Sales Audit OpenAPI](contracts/openapi/sales-audit.yaml)
 
 Swagger UI is not currently bundled into the services; use these versioned
 specifications when exercising the APIs or generating client documentation.

@@ -5,6 +5,7 @@ export const API_URLS = {
   receiving: import.meta.env.VITE_RECEIVING_API_URL || "/api/receiving",
   warehouse: import.meta.env.VITE_WAREHOUSE_API_URL || "/api/warehouse-operations",
   retailSales: import.meta.env.VITE_RETAIL_SALES_API_URL || "/api/retail-sales",
+  salesAudit: import.meta.env.VITE_SALES_AUDIT_API_URL || "/api/sales-audit",
 };
 
 export const SYSTEM_ACTOR_ID = "00000000-0000-4000-8000-000000000001";

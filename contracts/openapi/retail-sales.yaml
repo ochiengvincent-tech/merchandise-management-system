@@ -1,0 +1,81 @@
+openapi: 3.1.0
+info:
+  title: MMS Retail Sales Reconciliation Contract
+  version: 1.0.0
+  license: {name: Proprietary, identifier: LicenseRef-Proprietary}
+servers:
+  - url: /api/v1
+security: []
+paths:
+  /sales-audit/register-totals:
+    get:
+      summary: Read authoritative recorded tender totals for a register interval
+      operationId: getRegisterTenderTotals
+      description: Uses a repeatable-read snapshot over the half-open interval from inclusive to exclusive. Pending and failed sales are excluded. Refunds are attributed by their recorded refund tender method.
+      parameters:
+        - in: query
+          name: registerId
+          required: true
+          schema: {type: string, format: uuid}
+        - in: query
+          name: from
+          required: true
+          description: Inclusive ISO 8601 transaction time
+          schema: {type: string, format: date-time}
+        - in: query
+          name: to
+          required: true
+          description: Exclusive ISO 8601 transaction time
+          schema: {type: string, format: date-time}
+      responses:
+        '200':
+          description: Committed Retail Sales tender totals
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [registerId, from, to, currency, snapshotAt, saleCount, returnCount, tenderTotals]
+                    properties:
+                      registerId: {type: string, format: uuid}
+                      from: {type: string, format: date-time}
+                      to: {type: string, format: date-time}
+                      currency: {type: string, const: KES}
+                      snapshotAt: {type: string, format: date-time}
+                      saleCount: {type: integer, minimum: 0}
+                      returnCount: {type: integer, minimum: 0}
+                      tenderTotals:
+                        type: object
+                        required: [CASH, CARD, GIFT_CARD]
+                        properties:
+                          CASH: {$ref: '#/components/schemas/TenderDirectionTotals'}
+                          CARD: {$ref: '#/components/schemas/TenderDirectionTotals'}
+                          GIFT_CARD: {$ref: '#/components/schemas/TenderDirectionTotals'}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+components:
+  schemas:
+    TenderDirectionTotals:
+      type: object
+      required: [saleMinor, refundMinor]
+      properties:
+        saleMinor: {type: integer, minimum: 0}
+        refundMinor: {type: integer, minimum: 0}
+  responses:
+    Error:
+      description: Request error
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error:
+                type: object
+                required: [message]
+                properties:
+                  message: {type: string}
+                  details: {type: array, items: {type: object}}

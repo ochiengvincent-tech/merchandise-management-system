@@ -9,6 +9,8 @@ export const auditSources = [
   "VENDOR_MANAGEMENT",
   "RECEIVING",
   "RETAIL_SALES",
+  "WAREHOUSE_OPERATIONS",
+  "SALES_AUDIT",
 ] as const;
 export type AuditSource = (typeof auditSources)[number];
 export type AuditSourceFilter = AuditSource | "ALL";
@@ -24,6 +26,9 @@ const auditRecordSchema = z.object({
   vendorId: z.string().nullable().optional(),
   vendorProductId: z.string().nullable().optional(),
   goodsReceiptId: z.string().nullable().optional(),
+  sessionId: z.string().nullable().optional(),
+  binId: z.string().nullable().optional(),
+  movementId: z.string().nullable().optional(),
   recordId: z.string().nullable().optional(),
   beforeState: z.unknown().optional(),
   afterState: z.unknown().optional(),
@@ -60,6 +65,8 @@ const services: Array<{ source: AuditSource; baseUrl: string }> = [
   { source: "VENDOR_MANAGEMENT", baseUrl: API_URLS.vendor },
   { source: "RECEIVING", baseUrl: API_URLS.receiving },
   { source: "RETAIL_SALES", baseUrl: API_URLS.retailSales },
+  { source: "WAREHOUSE_OPERATIONS", baseUrl: API_URLS.warehouse },
+  { source: "SALES_AUDIT", baseUrl: API_URLS.salesAudit },
 ];
 
 export async function listAuditRecords(
@@ -70,6 +77,8 @@ export async function listAuditRecords(
     ({ source }) =>
       (source !== "RECEIVING" || featureFlags.receiving) &&
       (source !== "RETAIL_SALES" || featureFlags.retailSales) &&
+      (source !== "WAREHOUSE_OPERATIONS" || featureFlags.warehouseOperations) &&
+      (source !== "SALES_AUDIT" || featureFlags.salesAudit) &&
       (sourceFilter === "ALL" || sourceFilter === source),
   );
   const query = new URLSearchParams({

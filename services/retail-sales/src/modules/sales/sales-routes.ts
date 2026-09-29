@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, gte, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, ilike, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../../db/index.js";
@@ -161,16 +161,42 @@ retailSalesRouter.post("/sales", async (req, res) => {
     throw error;
   }
   await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${plan.registerId}))`);
     const [locked] = await tx.select().from(retailSales).where(eq(retailSales.id, sale.id)).for("update").limit(1);
     if (!locked || locked.status === "COMPLETED") return;
     if (locked.status !== "PENDING") throw new AppError("Checkout is no longer pending", 409);
     for (const line of plan.lines) await tx.insert(retailSaleLines).values({ saleId: sale.id, productId: line.productId, reservationId: line.reservationId, skuSnapshot: line.sku, nameSnapshot: line.name, quantity: line.quantity, unitPriceMinor: line.unitPriceMinor, taxRateBps: line.taxRateBps, taxMinor: line.taxMinor, lineTotalMinor: line.lineTotalMinor });
-    for (const tender of plan.tenders) await tx.insert(retailTenders).values({ saleId: sale.id, method: tender.method, amountMinor: tender.amountMinor, currency: "KES", reference: tender.reference ?? null });
-    await tx.update(retailSales).set({ status: "COMPLETED", completedAt: new Date() }).where(eq(retailSales.id, sale.id));
+    const completedAt = new Date();
+    const persistedTenders = [];
+    for (const tender of plan.tenders) {
+      const [saved] = await tx.insert(retailTenders).values({ saleId: sale.id, method: tender.method, amountMinor: tender.amountMinor, currency: "KES", reference: tender.reference ?? null }).returning({ id: retailTenders.id, method: retailTenders.method, amountMinor: retailTenders.amountMinor, status: retailTenders.status });
+      if (saved) persistedTenders.push(saved);
+    }
+    await tx.update(retailSales).set({ status: "COMPLETED", completedAt }).where(eq(retailSales.id, sale.id));
     await tx.insert(retailAuditLogs).values({ action: "SALE_COMPLETED", actorId: plan.actorId, recordId: sale.id, details: { receiptNumber: sale.receiptNumber, registerId: plan.registerId, totalMinor: plan.totalMinor, lineCount: plan.lines.length } });
-    await tx.insert(retailOutboxEvents).values({ eventId: randomUUID(), eventType: "SaleCompleted", aggregateType: "Sale", aggregateId: sale.id, payload: { saleId: sale.id, actorId: plan.actorId, locationId: plan.locationId, warehouseManaged: plan.warehouseManaged, currency: "KES", totalMinor: plan.totalMinor, lines: plan.lines.map((line) => ({ reservationId: line.reservationId, productId: line.productId, quantity: line.quantity, unitPriceMinor: line.unitPriceMinor, taxMinor: line.taxMinor, lineTotalMinor: line.lineTotalMinor })), tenders: plan.tenders.map(({ method, amountMinor }) => ({ method, amountMinor })) } });
+    await tx.insert(retailOutboxEvents).values({ eventId: randomUUID(), eventType: "SaleCompleted", aggregateType: "Sale", aggregateId: sale.id, payload: { schemaVersion: 1, saleId: sale.id, receiptNumber: sale.receiptNumber, registerId: plan.registerId, actorId: plan.actorId, locationId: plan.locationId, warehouseManaged: plan.warehouseManaged, currency: "KES", completedAt: completedAt.toISOString(), totalMinor: plan.totalMinor, lines: plan.lines.map((line) => ({ reservationId: line.reservationId, productId: line.productId, locationId: plan.locationId, quantity: line.quantity, unitPriceMinor: line.unitPriceMinor, taxMinor: line.taxMinor, lineTotalMinor: line.lineTotalMinor })), tenders: persistedTenders.map(({ id, method, amountMinor, status }) => ({ id, method, amountMinor, outcome: status })) } });
   });
   return res.status(201).json({ data: await getSale(sale.id) });
+});
+
+retailSalesRouter.get("/sales-audit/register-totals", async (req, res) => {
+  const query = z.object({ registerId: uuid, from: z.coerce.date(), to: z.coerce.date() }).parse(req.query);
+  if (query.from >= query.to) throw new AppError("Invalid reconciliation interval", 400, [{ field: "to", message: "Choose an end time later than the start time." }]);
+  const [register] = await db.select().from(retailRegisters).where(eq(retailRegisters.id, query.registerId)).limit(1);
+  if (!register) throw new AppError("Register not found", 404);
+  const data = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${query.registerId}))`);
+    const snapshotAt = new Date();
+    const sales = await tx.select({ id: retailSales.id }).from(retailSales).where(and(eq(retailSales.registerId, query.registerId), eq(retailSales.status, "COMPLETED"), gte(retailSales.completedAt, query.from), lt(retailSales.completedAt, query.to)));
+    const saleTenders = sales.length ? await tx.select({ method: retailTenders.method, amountMinor: retailTenders.amountMinor }).from(retailTenders).where(and(inArray(retailTenders.saleId, sales.map((sale) => sale.id)), eq(retailTenders.status, "RECORDED"))) : [];
+    const returns = await tx.select({ id: retailReturns.id }).from(retailReturns).innerJoin(retailSales, eq(retailReturns.saleId, retailSales.id)).where(and(eq(retailSales.registerId, query.registerId), gte(retailReturns.createdAt, query.from), lt(retailReturns.createdAt, query.to), eq(retailReturns.status, "RECORDED")));
+    const refundTenders = returns.length ? await tx.select({ method: retailReturnTenders.method, amountMinor: retailReturnTenders.amountMinor }).from(retailReturnTenders).where(and(inArray(retailReturnTenders.returnId, returns.map((item) => item.id)), eq(retailReturnTenders.status, "RECORDED"))) : [];
+    const tenderTotals: Record<string, { saleMinor: number; refundMinor: number }> = { CASH: { saleMinor: 0, refundMinor: 0 }, CARD: { saleMinor: 0, refundMinor: 0 }, GIFT_CARD: { saleMinor: 0, refundMinor: 0 } };
+    for (const tender of saleTenders) tenderTotals[tender.method]!.saleMinor += tender.amountMinor;
+    for (const tender of refundTenders) tenderTotals[tender.method]!.refundMinor += tender.amountMinor;
+    return { registerId: query.registerId, from: query.from.toISOString(), to: query.to.toISOString(), currency: "KES", snapshotAt: snapshotAt.toISOString(), saleCount: sales.length, returnCount: returns.length, tenderTotals };
+  });
+  return res.json({ data });
 });
 
 retailSalesRouter.get("/sales", async (req, res) => {
@@ -221,6 +247,7 @@ retailSalesRouter.post("/sales/:id/returns", async (req, res) => {
   const result = await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${idempotencyKey.data}))`);
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${saleId}))`);
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${sale.registerId}))`);
     const [duplicate] = await tx.select().from(retailReturns).where(eq(retailReturns.idempotencyKey, idempotencyKey.data)).limit(1);
     if (duplicate) {
       if (duplicate.requestHash !== requestHash) throw new AppError("Idempotency-Key was already used with different return data", 409);
@@ -241,9 +268,13 @@ retailSalesRouter.post("/sales/:id/returns", async (req, res) => {
     const [created] = await tx.insert(retailReturns).values({ id: returnId, returnNumber: `RET-${returnId.slice(0, 12).toUpperCase()}`, saleId, actorId, reason: input.reason, totalRefundMinor: safeTotal, idempotencyKey: idempotencyKey.data, requestHash }).returning();
     if (!created) throw new Error("Return was not persisted");
     for (const line of safeLines) await tx.insert(retailReturnLines).values({ returnId, ...line });
-    for (const tender of input.tenders) await tx.insert(retailReturnTenders).values({ returnId, method: tender.method, amountMinor: tender.amountMinor, reference: tender.reference ?? null });
+    const persistedRefundTenders = [];
+    for (const tender of input.tenders) {
+      const [saved] = await tx.insert(retailReturnTenders).values({ returnId, method: tender.method, amountMinor: tender.amountMinor, reference: tender.reference ?? null }).returning({ id: retailReturnTenders.id, method: retailReturnTenders.method, amountMinor: retailReturnTenders.amountMinor, status: retailReturnTenders.status });
+      if (saved) persistedRefundTenders.push(saved);
+    }
     await tx.insert(retailAuditLogs).values({ action: "RETURN_RECORDED", actorId, recordId: returnId, details: { saleId, returnNumber: created.returnNumber, totalRefundMinor: safeTotal, reason: input.reason } });
-    await tx.insert(retailOutboxEvents).values({ eventId: randomUUID(), eventType: "SaleReturned", aggregateType: "Sale", aggregateId: saleId, payload: { returnId, saleId, actorId, locationId: sale.inventoryLocationId, warehouseManaged: sale.warehouseManaged, currency: sale.currency, totalRefundMinor: safeTotal, lines: safeLines } });
+    await tx.insert(retailOutboxEvents).values({ eventId: randomUUID(), eventType: "SaleReturned", aggregateType: "Sale", aggregateId: saleId, payload: { schemaVersion: 1, returnId, saleId, receiptNumber: sale.receiptNumber, registerId: sale.registerId, actorId, locationId: sale.inventoryLocationId, warehouseManaged: sale.warehouseManaged, currency: sale.currency, returnedAt: created.createdAt.toISOString(), totalRefundMinor: safeTotal, tenders: persistedRefundTenders.map(({ id, method, amountMinor, status }) => ({ id, method, amountMinor, outcome: status })), lines: safeLines } });
     return created;
   });
   const [lines, tenders] = await Promise.all([db.select().from(retailReturnLines).where(eq(retailReturnLines.returnId, result.id)), db.select().from(retailReturnTenders).where(eq(retailReturnTenders.returnId, result.id))]);

@@ -10,6 +10,7 @@ import { adjustmentRouter } from "./modules/movements/adjustment-routes.js";
 import { bootstrapRouter } from "./modules/bootstrap/bootstrap-routes.js";
 import { queryRouter } from "./modules/queries/query-routes.js";
 import { transferRouter } from "./modules/movements/transfer-routes.js";
+import { auditRouter } from "./modules/audit/audit-routes.js";
 
 const app: Application = express();
 app.use(express.json({ limit: "1mb" }));
@@ -38,6 +39,7 @@ if (featureFlags.warehouseOperations) {
   app.use("/api/v1", bootstrapRouter);
   app.use("/api/v1", queryRouter);
   app.use("/api/v1", transferRouter);
+  app.use("/api/v1", auditRouter);
 } else {
   app.use("/api/v1", (_req, res) => {
     return res.status(404).json({ error: { message: "Warehouse Operations is currently unavailable" } });

@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import {
-    createStockService,
+  createStockService,
   getStockByLocationService,
   getStockByProductAndLocationService,
   getStockByProductService,
@@ -11,6 +11,8 @@ import {
   stockByProductAndLocationSchema,
   stockByProductSchema
 } from "./stock-schema.js";
+import { warehouseAdjustmentSchema } from "../adjustments/adjustment-schema.js";
+import { createWarehouseAdjustmentService } from "../adjustments/warehouse-adjustment-service.js";
 
 export const getStockByProductAndLocationController = async (
   req: Request,
@@ -72,4 +74,13 @@ export const getInventoryValuationController = async (
   } catch (error) {
     next(error);
   }
+};
+
+export const createWarehouseAdjustmentController = async (
+  req: Request,
+  res: Response,
+) => {
+  const data = warehouseAdjustmentSchema.parse(req.body);
+  const result = await createWarehouseAdjustmentService(data);
+  return res.status(result.duplicate ? 200 : 201).json(result);
 };

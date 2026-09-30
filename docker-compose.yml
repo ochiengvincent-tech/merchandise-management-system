@@ -54,6 +54,17 @@ services:
     volumes:
       - receiving_db_data:/var/lib/postgresql/data
 
+  warehouse-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: warehouse_db
+      POSTGRES_USER: mms_warehouse
+      POSTGRES_PASSWORD: mms_warehouse
+    ports:
+      - "5438:5432"
+    volumes:
+      - warehouse_db_data:/var/lib/postgresql/data
+
   rabbitmq:
     image: rabbitmq:4-management
     container_name: mms-rabbitmq
@@ -72,3 +83,4 @@ volumes:
   inventory_db_data:
   rabbitmq_data:
   receiving_db_data:
+  warehouse_db_data:

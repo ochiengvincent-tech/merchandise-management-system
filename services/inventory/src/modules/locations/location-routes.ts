@@ -4,6 +4,7 @@ import {
   createLocationController,
   deactivateLocationController,
   getLocationController,
+  enableWarehouseManagementController,
   listLocationsController,
   reactivateLocationController,
   updateLocationController,
@@ -14,6 +15,9 @@ const router: Router = Router();
 router.post("/", createLocationController);
 router.get("/", listLocationsController);
 router.all("/", methodNotAllowed);
+
+router.post("/:id/warehouse-management/enable", enableWarehouseManagementController);
+router.all("/:id/warehouse-management/enable", methodNotAllowed);
 
 router.get("/:id", getLocationController);
 router.patch("/:id", updateLocationController);

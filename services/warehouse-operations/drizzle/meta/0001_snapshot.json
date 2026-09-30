@@ -1,0 +1,1224 @@
+{
+  "id": "139175b9-1390-4a2f-84ad-34b0289e228d",
+  "prevId": "b5825656-b4dd-4f0b-8c5b-50537a8b0f02",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.warehouse_adjustment_commands": {
+      "name": "warehouse_adjustment_commands",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_hash": {
+          "name": "request_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_bin_id": {
+          "name": "source_bin_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity_change": {
+          "name": "quantity_change",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reserved_quantity": {
+          "name": "reserved_quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "reason": {
+          "name": "reason",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "inventory_adjustment_id": {
+          "name": "inventory_adjustment_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "warehouse_adjustment_commands_status_idx": {
+          "name": "warehouse_adjustment_commands_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "warehouse_adjustment_commands_source_bin_id_warehouse_bins_id_fk": {
+          "name": "warehouse_adjustment_commands_source_bin_id_warehouse_bins_id_fk",
+          "tableFrom": "warehouse_adjustment_commands",
+          "tableTo": "warehouse_bins",
+          "columnsFrom": [
+            "source_bin_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "warehouse_adjustment_commands_idempotency_key_unique": {
+          "name": "warehouse_adjustment_commands_idempotency_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "idempotency_key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "warehouse_adjustment_commands_nonzero_check": {
+          "name": "warehouse_adjustment_commands_nonzero_check",
+          "value": "\"warehouse_adjustment_commands\".\"quantity_change\" <> 0"
+        },
+        "warehouse_adjustment_commands_reserved_check": {
+          "name": "warehouse_adjustment_commands_reserved_check",
+          "value": "\"warehouse_adjustment_commands\".\"reserved_quantity\" >= 0"
+        },
+        "warehouse_adjustment_commands_status_check": {
+          "name": "warehouse_adjustment_commands_status_check",
+          "value": "\"warehouse_adjustment_commands\".\"status\" IN ('PENDING', 'SYNCED', 'FAILED')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.warehouse_audit_logs": {
+      "name": "warehouse_audit_logs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "action": {
+          "name": "action",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bin_id": {
+          "name": "bin_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "movement_id": {
+          "name": "movement_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "details": {
+          "name": "details",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "warehouse_audit_logs_created_idx": {
+          "name": "warehouse_audit_logs_created_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.warehouse_bin_balances": {
+      "name": "warehouse_bin_balances",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "bin_id": {
+          "name": "bin_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "disposition": {
+          "name": "disposition",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "warehouse_bin_balances_product_id_idx": {
+          "name": "warehouse_bin_balances_product_id_idx",
+          "columns": [
+            {
+              "expression": "product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "warehouse_bin_balances_bin_id_warehouse_bins_id_fk": {
+          "name": "warehouse_bin_balances_bin_id_warehouse_bins_id_fk",
+          "tableFrom": "warehouse_bin_balances",
+          "tableTo": "warehouse_bins",
+          "columnsFrom": [
+            "bin_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "warehouse_bin_balances_bin_product_disposition_unique": {
+          "name": "warehouse_bin_balances_bin_product_disposition_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "bin_id",
+            "product_id",
+            "disposition"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "warehouse_bin_balances_disposition_check": {
+          "name": "warehouse_bin_balances_disposition_check",
+          "value": "\"warehouse_bin_balances\".\"disposition\" IN ('SELLABLE', 'QUARANTINED', 'DISCREPANCY')"
+        },
+        "warehouse_bin_balances_quantity_check": {
+          "name": "warehouse_bin_balances_quantity_check",
+          "value": "\"warehouse_bin_balances\".\"quantity\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.warehouse_bins": {
+      "name": "warehouse_bins",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bin_type": {
+          "name": "bin_type",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ACTIVE'"
+        },
+        "system_managed": {
+          "name": "system_managed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "zone": {
+          "name": "zone",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "aisle": {
+          "name": "aisle",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rack": {
+          "name": "rack",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "shelf": {
+          "name": "shelf",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "capacity": {
+          "name": "capacity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "warehouse_bins_location_id_idx": {
+          "name": "warehouse_bins_location_id_idx",
+          "columns": [
+            {
+              "expression": "location_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "warehouse_bins_location_code_unique": {
+          "name": "warehouse_bins_location_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "location_id",
+            "code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "warehouse_bins_type_check": {
+          "name": "warehouse_bins_type_check",
+          "value": "\"warehouse_bins\".\"bin_type\" IN ('RECEIVING', 'STORAGE', 'PICK_FACE', 'QUARANTINE', 'DISCREPANCY', 'UNASSIGNED')"
+        },
+        "warehouse_bins_status_check": {
+          "name": "warehouse_bins_status_check",
+          "value": "\"warehouse_bins\".\"status\" IN ('ACTIVE', 'INACTIVE')"
+        },
+        "warehouse_bins_capacity_check": {
+          "name": "warehouse_bins_capacity_check",
+          "value": "\"warehouse_bins\".\"capacity\" IS NULL OR \"warehouse_bins\".\"capacity\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.warehouse_movements": {
+      "name": "warehouse_movements",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "movement_type": {
+          "name": "movement_type",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "disposition": {
+          "name": "disposition",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_bin_id": {
+          "name": "source_bin_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "destination_bin_id": {
+          "name": "destination_bin_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reference_type": {
+          "name": "reference_type",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reference_id": {
+          "name": "reference_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "task_line_id": {
+          "name": "task_line_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "warehouse_movements_location_created_idx": {
+          "name": "warehouse_movements_location_created_idx",
+          "columns": [
+            {
+              "expression": "location_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "warehouse_movements_product_created_idx": {
+          "name": "warehouse_movements_product_created_idx",
+          "columns": [
+            {
+              "expression": "product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "warehouse_movements_source_bin_id_warehouse_bins_id_fk": {
+          "name": "warehouse_movements_source_bin_id_warehouse_bins_id_fk",
+          "tableFrom": "warehouse_movements",
+          "tableTo": "warehouse_bins",
+          "columnsFrom": [
+            "source_bin_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "warehouse_movements_destination_bin_id_warehouse_bins_id_fk": {
+          "name": "warehouse_movements_destination_bin_id_warehouse_bins_id_fk",
+          "tableFrom": "warehouse_movements",
+          "tableTo": "warehouse_bins",
+          "columnsFrom": [
+            "destination_bin_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "warehouse_movements_task_line_id_warehouse_putaway_task_lines_id_fk": {
+          "name": "warehouse_movements_task_line_id_warehouse_putaway_task_lines_id_fk",
+          "tableFrom": "warehouse_movements",
+          "tableTo": "warehouse_putaway_task_lines",
+          "columnsFrom": [
+            "task_line_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "warehouse_movements_idempotency_key_unique": {
+          "name": "warehouse_movements_idempotency_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "idempotency_key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "warehouse_movements_type_check": {
+          "name": "warehouse_movements_type_check",
+          "value": "\"warehouse_movements\".\"movement_type\" IN ('OPENING_BALANCE', 'RECEIPT_INTAKE', 'PUTAWAY', 'BIN_TRANSFER', 'QUARANTINE_TRANSFER', 'INVENTORY_ADJUSTMENT')"
+        },
+        "warehouse_movements_quantity_check": {
+          "name": "warehouse_movements_quantity_check",
+          "value": "\"warehouse_movements\".\"quantity\" > 0"
+        },
+        "warehouse_movements_disposition_check": {
+          "name": "warehouse_movements_disposition_check",
+          "value": "\"warehouse_movements\".\"disposition\" IN ('SELLABLE', 'QUARANTINED', 'DISCREPANCY')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.warehouse_outbox_events": {
+      "name": "warehouse_outbox_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aggregate_type": {
+          "name": "aggregate_type",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aggregate_id": {
+          "name": "aggregate_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "warehouse_outbox_status_idx": {
+          "name": "warehouse_outbox_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "warehouse_outbox_events_event_id_unique": {
+          "name": "warehouse_outbox_events_event_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "event_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "warehouse_outbox_attempts_check": {
+          "name": "warehouse_outbox_attempts_check",
+          "value": "\"warehouse_outbox_events\".\"attempts\" >= 0"
+        },
+        "warehouse_outbox_status_check": {
+          "name": "warehouse_outbox_status_check",
+          "value": "\"warehouse_outbox_events\".\"status\" IN ('PENDING', 'PUBLISHED', 'FAILED')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.warehouse_processed_events": {
+      "name": "warehouse_processed_events",
+      "schema": "",
+      "columns": {
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.warehouse_putaway_task_lines": {
+      "name": "warehouse_putaway_task_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "task_id": {
+          "name": "task_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "receipt_line_id": {
+          "name": "receipt_line_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity_accepted": {
+          "name": "quantity_accepted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity_placed": {
+          "name": "quantity_placed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "warehouse_putaway_task_lines_task_id_warehouse_putaway_tasks_id_fk": {
+          "name": "warehouse_putaway_task_lines_task_id_warehouse_putaway_tasks_id_fk",
+          "tableFrom": "warehouse_putaway_task_lines",
+          "tableTo": "warehouse_putaway_tasks",
+          "columnsFrom": [
+            "task_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "warehouse_putaway_task_lines_receipt_line_id_warehouse_receipt_lines_id_fk": {
+          "name": "warehouse_putaway_task_lines_receipt_line_id_warehouse_receipt_lines_id_fk",
+          "tableFrom": "warehouse_putaway_task_lines",
+          "tableTo": "warehouse_receipt_lines",
+          "columnsFrom": [
+            "receipt_line_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "warehouse_putaway_task_lines_task_receipt_line_unique": {
+          "name": "warehouse_putaway_task_lines_task_receipt_line_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "task_id",
+            "receipt_line_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "warehouse_putaway_task_lines_quantities_check": {
+          "name": "warehouse_putaway_task_lines_quantities_check",
+          "value": "\"warehouse_putaway_task_lines\".\"quantity_accepted\" > 0 AND \"warehouse_putaway_task_lines\".\"quantity_placed\" >= 0 AND \"warehouse_putaway_task_lines\".\"quantity_placed\" <= \"warehouse_putaway_task_lines\".\"quantity_accepted\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.warehouse_putaway_tasks": {
+      "name": "warehouse_putaway_tasks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "goods_receipt_id": {
+          "name": "goods_receipt_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'OPEN'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "warehouse_putaway_tasks_location_status_idx": {
+          "name": "warehouse_putaway_tasks_location_status_idx",
+          "columns": [
+            {
+              "expression": "location_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "warehouse_putaway_tasks_goods_receipt_id_warehouse_receipts_goods_receipt_id_fk": {
+          "name": "warehouse_putaway_tasks_goods_receipt_id_warehouse_receipts_goods_receipt_id_fk",
+          "tableFrom": "warehouse_putaway_tasks",
+          "tableTo": "warehouse_receipts",
+          "columnsFrom": [
+            "goods_receipt_id"
+          ],
+          "columnsTo": [
+            "goods_receipt_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "warehouse_putaway_tasks_goods_receipt_id_unique": {
+          "name": "warehouse_putaway_tasks_goods_receipt_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "goods_receipt_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "warehouse_putaway_tasks_status_check": {
+          "name": "warehouse_putaway_tasks_status_check",
+          "value": "\"warehouse_putaway_tasks\".\"status\" IN ('OPEN', 'IN_PROGRESS', 'COMPLETED')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.warehouse_receipt_lines": {
+      "name": "warehouse_receipt_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "goods_receipt_id": {
+          "name": "goods_receipt_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_index": {
+          "name": "line_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purchase_order_line_id": {
+          "name": "purchase_order_line_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity_observed": {
+          "name": "quantity_observed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity_damaged": {
+          "name": "quantity_damaged",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity_accepted": {
+          "name": "quantity_accepted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity_discrepancy": {
+          "name": "quantity_discrepancy",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "warehouse_receipt_lines_goods_receipt_id_warehouse_receipts_goods_receipt_id_fk": {
+          "name": "warehouse_receipt_lines_goods_receipt_id_warehouse_receipts_goods_receipt_id_fk",
+          "tableFrom": "warehouse_receipt_lines",
+          "tableTo": "warehouse_receipts",
+          "columnsFrom": [
+            "goods_receipt_id"
+          ],
+          "columnsTo": [
+            "goods_receipt_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "warehouse_receipt_lines_receipt_index_unique": {
+          "name": "warehouse_receipt_lines_receipt_index_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "goods_receipt_id",
+            "line_index"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "warehouse_receipt_lines_quantities_non_negative": {
+          "name": "warehouse_receipt_lines_quantities_non_negative",
+          "value": "\"warehouse_receipt_lines\".\"quantity_observed\" >= 0 AND \"warehouse_receipt_lines\".\"quantity_damaged\" >= 0 AND \"warehouse_receipt_lines\".\"quantity_accepted\" >= 0 AND \"warehouse_receipt_lines\".\"quantity_discrepancy\" >= 0"
+        },
+        "warehouse_receipt_lines_damaged_observed_check": {
+          "name": "warehouse_receipt_lines_damaged_observed_check",
+          "value": "\"warehouse_receipt_lines\".\"quantity_damaged\" <= \"warehouse_receipt_lines\".\"quantity_observed\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.warehouse_receipts": {
+      "name": "warehouse_receipts",
+      "schema": "",
+      "columns": {
+        "goods_receipt_id": {
+          "name": "goods_receipt_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "source_event_id": {
+          "name": "source_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grn_number": {
+          "name": "grn_number",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purchase_order_id": {
+          "name": "purchase_order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "received_at": {
+          "name": "received_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "warehouse_receipts_location_received_idx": {
+          "name": "warehouse_receipts_location_received_idx",
+          "columns": [
+            {
+              "expression": "location_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "received_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "warehouse_receipts_source_event_id_unique": {
+          "name": "warehouse_receipts_source_event_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source_event_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

@@ -248,6 +248,7 @@ export async function recordGoodsReceipt(
       purchaseOrderId: purchaseOrder.id,
       vendorId: purchaseOrder.vendorId,
       destinationLocationId: purchaseOrder.destinationLocationId,
+      receivedBy: input.receivedBy,
       currency: purchaseOrder.currency,
       lines: receiptEventLines,
     },

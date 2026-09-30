@@ -1,0 +1,2 @@
+ALTER TABLE "warehouse_bin_balances" ADD COLUMN "reserved_quantity" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "warehouse_bin_balances" ADD CONSTRAINT "warehouse_bin_balances_reserved_check" CHECK ("warehouse_bin_balances"."reserved_quantity" >= 0 AND "warehouse_bin_balances"."reserved_quantity" <= "warehouse_bin_balances"."quantity");

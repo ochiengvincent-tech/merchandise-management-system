@@ -22,6 +22,20 @@
       "when": 1790253369324,
       "tag": "0002_bored_scalphunter",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790636030814,
+      "tag": "0003_warehouse_managed_locations",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790638000000,
+      "tag": "0004_idempotent_warehouse_adjustments",
+      "breakpoints": true
     }
   ]
 }

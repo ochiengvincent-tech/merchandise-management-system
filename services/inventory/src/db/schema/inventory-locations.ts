@@ -2,6 +2,7 @@ import {
   pgTable,
   uuid,
   varchar,
+  boolean,
   timestamp,
   uniqueIndex,
   check
@@ -16,6 +17,7 @@ export const inventoryLocations = pgTable(
     name: varchar("name", { length: 255 }).notNull(),
     locationType: varchar("location_type", { length: 30 }).notNull(),
     status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
+    warehouseManaged: boolean("warehouse_managed").notNull().default(false),
     createdAt: timestamp("created_at", {
       withTimezone: true
     }).notNull().defaultNow(),

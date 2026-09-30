@@ -6,7 +6,26 @@ import { listPurchaseOrders } from "./purchase-order-service.js";
 const querySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
-  status: z.string().trim().optional(),
+  status: z
+    .string()
+    .trim()
+    .optional()
+    .refine(
+      (value) =>
+        !value ||
+        value.split(",").every((status) =>
+          [
+            "DRAFT",
+            "PENDING_APPROVAL",
+            "APPROVED",
+            "SENT",
+            "PARTIALLY_RECEIVED",
+            "COMPLETED",
+            "CANCELLED",
+          ].includes(status.trim()),
+        ),
+      "One or more purchase order statuses are invalid",
+    ),
   search: z.string().trim().optional(),
 });
 

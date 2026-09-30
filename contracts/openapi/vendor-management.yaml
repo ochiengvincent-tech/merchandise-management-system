@@ -211,6 +211,30 @@ paths:
         "400":
           $ref: "#/components/responses/ValidationError"
 
+  /api/v1/vendors/{id}/reliability:
+    get:
+      tags:
+        - Vendors
+      summary: Get a vendor's reliability summary and delivery history
+      operationId: getVendorReliability
+      parameters:
+        - $ref: "#/components/parameters/VendorId"
+      responses:
+        "200":
+          description: Rolling twelve-month supplier reliability and eligible PO history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorReliabilityResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          description: Vendor not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /api/v1/vendors/{id}:
     get:
       tags:
@@ -685,6 +709,80 @@ components:
         updatedAt:
           type: string
           format: date-time
+        reliabilitySummary:
+          allOf:
+            - $ref: "#/components/schemas/VendorReliabilitySummary"
+          nullable: true
+
+    VendorReliabilitySummary:
+      type: object
+      required: [score, onTimeRate, fulfillmentRate, qualityRate, eligiblePurchaseOrders, formulaVersion]
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          nullable: true
+          description: Null until the vendor has at least three eligible purchase orders.
+        onTimeRate:
+          type: integer
+          minimum: 0
+          maximum: 100
+        fulfillmentRate:
+          type: integer
+          minimum: 0
+          maximum: 100
+        qualityRate:
+          type: integer
+          minimum: 0
+          maximum: 100
+        eligiblePurchaseOrders:
+          type: integer
+          minimum: 0
+        formulaVersion:
+          type: string
+        minimumEligiblePurchaseOrders:
+          type: integer
+          minimum: 1
+
+    VendorReliabilityOrder:
+      type: object
+      required: [purchaseOrderId, poNumber, sentAt, status, orderedUnits, observedUnits, acceptedUnits, damagedUnits, onTimeRate, fulfillmentRate, qualityRate, score]
+      properties:
+        purchaseOrderId: { type: string, format: uuid }
+        poNumber: { type: string }
+        sentAt: { type: string, format: date-time }
+        dueAt: { type: string, format: date-time, nullable: true }
+        status: { type: string, enum: [OPEN, COMPLETED, CANCELLED] }
+        orderedUnits: { type: integer, minimum: 0 }
+        observedUnits: { type: integer, minimum: 0 }
+        acceptedUnits: { type: integer, minimum: 0 }
+        damagedUnits: { type: integer, minimum: 0 }
+        onTimeRate: { type: integer, minimum: 0, maximum: 100 }
+        fulfillmentRate: { type: integer, minimum: 0, maximum: 100 }
+        qualityRate: { type: integer, minimum: 0, maximum: 100 }
+        score: { type: integer, minimum: 0, maximum: 100 }
+
+    VendorReliabilityResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [summary, history]
+          properties:
+            summary:
+              allOf:
+                - $ref: "#/components/schemas/VendorReliabilitySummary"
+              properties:
+                periodStart: { type: string, format: date-time }
+                periodEnd: { type: string, format: date-time }
+                calculatedAt: { type: string, format: date-time }
+                minimumEligiblePurchaseOrders: { type: integer, minimum: 1 }
+            history:
+              type: array
+              items:
+                $ref: "#/components/schemas/VendorReliabilityOrder"
 
     CreateVendorRequest:
       type: object

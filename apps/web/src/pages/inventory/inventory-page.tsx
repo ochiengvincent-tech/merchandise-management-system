@@ -2,7 +2,14 @@ import { useSearchParams } from "react-router-dom";
 import { Badge } from "../../components/ui/badge";
 import { Card } from "../../components/ui/card";
 import { SearchableSelect } from "../../components/ui/searchable-select";
-import { Table } from "../../components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../../components/ui/table";
 import { useLocations } from "../../features/locations/hooks";
 import { useProducts } from "../../features/products/hooks";
 import { useStockByProduct } from "../../features/inventory/hooks";
@@ -39,7 +46,7 @@ function InventoryPage() {
         </p>
       </div>
 
-      <Card>
+      <Card className="w-full p-5 md:max-w-xl">
         <div className="max-w-md">
           <div>
             <label
@@ -123,23 +130,23 @@ function InventoryPage() {
 
           {stockQuery.isSuccess && stockQuery.data.length > 0 && (
             <Table>
-              <thead>
-                <tr>
-                  <th>Location</th>
-                  <th className="text-right">On Hand</th>
-                  <th className="text-right">Allocated</th>
-                  <th className="text-right">Available</th>
-                  <th className="text-right">On Order</th>
-                </tr>
-              </thead>
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Location</TableHeader>
+                  <TableHeader className="text-right">On Hand</TableHeader>
+                  <TableHeader className="text-right">Allocated</TableHeader>
+                  <TableHeader className="text-right">Available</TableHeader>
+                  <TableHeader className="text-right">On Order</TableHeader>
+                </TableRow>
+              </TableHead>
 
-              <tbody>
+              <TableBody>
                 {stockQuery.data.map((stock) => {
                   const location = locationsById.get(stock.locationId);
 
                   return (
-                    <tr key={stock.id}>
-                      <td className="min-w-52">
+                    <TableRow key={stock.id}>
+                      <TableCell className="min-w-52">
                         {location ? (
                           <div className="space-y-0.5">
                             <div className="text-sm font-medium text-slate-900">
@@ -154,23 +161,23 @@ function InventoryPage() {
                             {stock.locationId}
                           </span>
                         )}
-                      </td>
-                      <td className="text-right tabular-nums">
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
                         {stock.quantityOnHand}
-                      </td>
-                      <td className="text-right tabular-nums">
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
                         {stock.quantityAllocated}
-                      </td>
-                      <td className="text-right font-medium text-slate-900 tabular-nums">
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-slate-900 tabular-nums">
                         {stock.quantityAvailable}
-                      </td>
-                      <td className="text-right tabular-nums">
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
                         {stock.quantityOnOrder}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
+              </TableBody>
             </Table>
           )}
         </Card>

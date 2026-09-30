@@ -19,6 +19,7 @@ const EVENT_TYPES = [
   "PurchaseOrderApproved",
   "PurchaseOrderCancelled",
   "PurchaseOrderReceived",
+  "GoodsReceived",
 ] as const;
 
 let isConsuming = false;
@@ -167,6 +168,7 @@ export const startRabbitMqConsumer = async () => {
             break;
 
           case "PurchaseOrderReceived":
+          case "GoodsReceived":
             await processPurchaseOrderReceived(event);
             break;
 

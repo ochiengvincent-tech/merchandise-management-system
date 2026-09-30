@@ -1,15 +1,16 @@
+import { createHash } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { db } from "../../db/index.js";
+import { purchaseOrders } from "../../db/schema/purchase-orders.js";
+import { purchaseOrderReceiptRequests } from "../../db/schema/purchase-order-receipt-requests.js";
 import { AppError } from "../../errors/app-error.js";
 
 import { createProcurementAuditLogService } from "../audit/procurement-audit-service.js";
 import { createOutboxEvent } from "../events/outbox-service.js";
 
-import {
-  findPurchaseOrderById,
-  updatePurchaseOrderWithDatabase,
-} from "../purchase-orders/purchase-order-repository.js";
+import { updatePurchaseOrderWithDatabase } from "../purchase-orders/purchase-order-repository.js";
 
-import { findPurchaseOrderLines } from "../purchase-orders/purchase-order-line-repository.js";
+import { findPurchaseOrderLinesWithDatabase } from "../purchase-orders/purchase-order-line-repository.js";
 
 import { updatePurchaseOrderLineReceivedQuantityWithDatabase } from "./purchase-order-receipt-repository.js";
 
@@ -22,21 +23,40 @@ export async function receivePurchaseOrder(
   id: string,
   items: ReceiptItem[],
   actorId: string,
+  receivingReceiptId?: string,
 ) {
-  const existingPurchaseOrder = await findPurchaseOrderById(id);
+  const normalizedItems = [...items].sort((left, right) =>
+    left.purchaseOrderLineId.localeCompare(right.purchaseOrderLineId),
+  );
+  const requestHash = createHash("sha256")
+    .update(JSON.stringify({ id, items: normalizedItems }))
+    .digest("hex");
 
-  if (!existingPurchaseOrder) {
-    throw new AppError("Purchase order not found", 404);
-  }
+  if (receivingReceiptId) {
+    const [savedRequest] = await db
+      .select()
+      .from(purchaseOrderReceiptRequests)
+      .where(
+        eq(
+          purchaseOrderReceiptRequests.receivingReceiptId,
+          receivingReceiptId,
+        ),
+      )
+      .limit(1);
 
-  if (
-    existingPurchaseOrder.status !== "SENT" &&
-    existingPurchaseOrder.status !== "PARTIALLY_RECEIVED"
-  ) {
-    throw new AppError(
-      "Purchase order cannot receive goods in its current state",
-      409,
-    );
+    if (savedRequest) {
+      if (savedRequest.requestHash !== requestHash) {
+        throw new AppError(
+          "Receiving receipt ID was already used with different receipt data",
+          409,
+        );
+      }
+
+      return savedRequest.response as {
+        purchaseOrder: unknown;
+        lines: unknown[];
+      };
+    }
   }
 
   if (items.length === 0) {
@@ -49,39 +69,77 @@ export async function receivePurchaseOrder(
     }
   }
 
-  const purchaseOrderLines = await findPurchaseOrderLines(id);
+  return db.transaction(async (tx) => {
+    const [existingPurchaseOrder] = await tx
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.id, id))
+      .for("update")
+      .limit(1);
 
-  const lineMap = new Map(purchaseOrderLines.map((line) => [line.id, line]));
-
-  const seenLineIds = new Set<string>();
-
-  for (const item of items) {
-    if (seenLineIds.has(item.purchaseOrderLineId)) {
-      throw new AppError(
-        "A purchase order line cannot appear more than once in a receipt",
-        400,
-      );
+    if (!existingPurchaseOrder) {
+      throw new AppError("Purchase order not found", 404);
     }
 
-    seenLineIds.add(item.purchaseOrderLineId);
+    if (receivingReceiptId) {
+      const [savedRequest] = await tx
+        .select()
+        .from(purchaseOrderReceiptRequests)
+        .where(
+          eq(
+            purchaseOrderReceiptRequests.receivingReceiptId,
+            receivingReceiptId,
+          ),
+        )
+        .limit(1);
 
-    const line = lineMap.get(item.purchaseOrderLineId);
-
-    if (!line) {
-      throw new AppError("Purchase order line not found", 404);
+      if (savedRequest) {
+        if (savedRequest.requestHash !== requestHash) {
+          throw new AppError(
+            "Receiving receipt ID was already used with different receipt data",
+            409,
+          );
+        }
+        return savedRequest.response as {
+          purchaseOrder: unknown;
+          lines: unknown[];
+        };
+      }
     }
 
-    const newQuantityReceived = line.quantityReceived + item.quantityReceived;
-
-    if (newQuantityReceived > line.quantityOrdered) {
+    if (
+      existingPurchaseOrder.status !== "SENT" &&
+      existingPurchaseOrder.status !== "PARTIALLY_RECEIVED"
+    ) {
       throw new AppError(
-        "Received quantity cannot exceed ordered quantity",
+        "Purchase order cannot receive goods in its current state",
         409,
       );
     }
-  }
 
-  return db.transaction(async (tx) => {
+    const purchaseOrderLines = await findPurchaseOrderLinesWithDatabase(id, tx);
+    const lineMap = new Map(purchaseOrderLines.map((line) => [line.id, line]));
+    const seenLineIds = new Set<string>();
+
+    for (const item of items) {
+      if (seenLineIds.has(item.purchaseOrderLineId)) {
+        throw new AppError(
+          "A purchase order line cannot appear more than once in a receipt",
+          400,
+        );
+      }
+      seenLineIds.add(item.purchaseOrderLineId);
+
+      const line = lineMap.get(item.purchaseOrderLineId);
+      if (!line) throw new AppError("Purchase order line not found", 404);
+      if (line.quantityReceived + item.quantityReceived > line.quantityOrdered) {
+        throw new AppError(
+          "Received quantity cannot exceed ordered quantity",
+          409,
+        );
+      }
+    }
+
     const updatedLines = [];
 
     for (const item of items) {
@@ -157,6 +215,16 @@ export async function receivePurchaseOrder(
       tx,
     );
 
+    if (receivingReceiptId) {
+      const response = { purchaseOrder, lines: updatedLines };
+      await tx.insert(purchaseOrderReceiptRequests).values({
+        receivingReceiptId,
+        requestHash,
+        response,
+      });
+      return response;
+    }
+
     const outboxEvent = await createOutboxEvent(
       {
         eventId: crypto.randomUUID(),
@@ -192,9 +260,6 @@ export async function receivePurchaseOrder(
       throw new Error("Failed to create purchase order received outbox event");
     }
 
-    return {
-      purchaseOrder,
-      lines: updatedLines,
-    };
+    return { purchaseOrder, lines: updatedLines };
   });
 }

@@ -61,3 +61,26 @@ export const purchaseOrderReceivedEventSchema = z.object({
     )
     .min(1),
 });
+
+export const goodsReceivedEventSchema = z.object({
+  eventId: z.uuid(),
+  eventType: z.literal("GoodsReceived"),
+  goodsReceiptId: z.uuid(),
+  grnNumber: z.string().min(1),
+  purchaseOrderId: z.uuid(),
+  vendorId: z.uuid().optional(),
+  destinationLocationId: z.uuid(),
+  currency: z.string().length(3),
+  lines: z
+    .array(
+      z.object({
+        purchaseOrderLineId: z.uuid().nullable().optional(),
+        productId: z.uuid(),
+        quantityObserved: z.number().int().nonnegative().optional(),
+        quantityDamaged: z.number().int().nonnegative().optional(),
+        quantityAccepted: z.number().int().nonnegative(),
+        unitPrice: z.number().nonnegative(),
+      }),
+    )
+    .min(1),
+});

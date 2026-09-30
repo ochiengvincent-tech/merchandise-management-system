@@ -8,6 +8,7 @@ import {
   deactivateVendor,
   getVendor,
   getVendors,
+  getVendorReliability,
   reactivateVendor,
   updateVendor,
   type CreateVendorInput,
@@ -26,6 +27,14 @@ export function useVendor(id: string) {
   return useQuery({
     queryKey: ["vendor", id],
     queryFn: () => getVendor(id),
+    enabled: Boolean(id),
+  });
+}
+
+export function useVendorReliability(id: string) {
+  return useQuery({
+    queryKey: ["vendor", id, "reliability"],
+    queryFn: () => getVendorReliability(id),
     enabled: Boolean(id),
   });
 }

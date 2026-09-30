@@ -6,3 +6,4 @@ export * from "./purchase-order-cancellations.js";
 export * from "./procurement-audit-logs.js";
 export * from "./outbox-events.js";
 export * from "./reorder-suggestions.js";
+export * from "./purchase-order-receipt-requests.js";

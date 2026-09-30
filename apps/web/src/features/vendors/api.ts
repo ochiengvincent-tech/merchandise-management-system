@@ -3,7 +3,9 @@ import { apiRequest } from "../../lib/api/client";
 import {
   vendorListResponseSchema,
   vendorResponseSchema,
+  vendorReliabilityResponseSchema,
   type Vendor,
+  type VendorReliability,
 } from "./types";
 
 export type VendorFilters = {
@@ -70,6 +72,13 @@ export async function getVendor(id: string): Promise<Vendor> {
   );
 
   return vendorResponseSchema.parse(response).data;
+}
+
+export async function getVendorReliability(id: string): Promise<VendorReliability> {
+  const response = await apiRequest<unknown>(
+    `${API_URLS.vendor}/vendors/${id}/reliability`,
+  );
+  return vendorReliabilityResponseSchema.parse(response).data;
 }
 
 export async function createVendor(

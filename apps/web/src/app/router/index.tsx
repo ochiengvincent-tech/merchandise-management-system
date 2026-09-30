@@ -28,6 +28,8 @@ import PurchaseOrderDetailPage from "../../pages/purchase-orders/purchase-order-
 import CreatePurchaseOrderPage from "../../pages/purchase-orders/create-purchase-order";
 import { ApprovalsPage } from "../../pages/purchase-orders/approvals-page";
 import { AmendmentsPage } from "../../pages/purchase-orders/amendments-page";
+import { ReceivingPage } from "../../pages/receiving/receiving-page";
+import { ReceiptDetailPage } from "../../pages/receiving/receipt-detail-page";
 import { PlaceholderPage } from "../../pages/placeholder-page";
 import type { FeatureFlagKey } from "../../lib/feature-flags";
 
@@ -52,7 +54,8 @@ export function AppRouter() {
         <Route path="/inventory/adjustments" element={gatedPage("inventory", "Inventory", <AdjustmentsPage />)} />
         <Route path="/inventory/valuation" element={gatedPage("inventory", "Inventory", <InventoryValuationPage />)} />
 
-        <Route path="/receiving" element={gatedPage("receiving", "Receiving", <PlaceholderPage title="Receiving" />)} />
+        <Route path="/receiving" element={gatedPage("receiving", "Receiving", <ReceivingPage />)} />
+        <Route path="/receiving/receipts/:id" element={gatedPage("receiving", "Receiving", <ReceiptDetailPage />)} />
 
         <Route path="/locations/new" element={gatedPage("inventory", "Inventory", <NewLocationPage />)} />
         <Route path="/locations/:id/edit" element={gatedPage("inventory", "Inventory", <EditLocationPage />)} />

@@ -138,6 +138,10 @@ function VendorsPage() {
                     Phone
                   </th>
 
+                  <th className="w-36 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Reliability
+                  </th>
+
                   <th className="w-32 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Status
                   </th>
@@ -174,6 +178,17 @@ function VendorsPage() {
 
                     <td className="px-5 py-4 tabular-nums text-slate-600">
                       {vendor.phone ?? "—"}
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <div className="font-medium text-slate-900">
+                        {vendor.reliabilitySummary?.score == null
+                          ? "Not enough history"
+                          : `${vendor.reliabilitySummary.score} / 100`}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {vendor.reliabilitySummary?.eligiblePurchaseOrders ?? 0} eligible POs
+                      </div>
                     </td>
 
                     <td className="px-5 py-4">

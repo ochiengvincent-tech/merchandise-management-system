@@ -50,6 +50,13 @@
       "when": 1790580987073,
       "tag": "0006_link_reorder_suggestions_to_po",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790611200000,
+      "tag": "0007_idempotent_receiving_receipts",
+      "breakpoints": true
     }
   ]
 }

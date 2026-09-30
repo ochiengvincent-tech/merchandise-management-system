@@ -19,6 +19,7 @@ import {
   type AuditRecord,
   type AuditSourceFilter,
 } from "../features/audit/api";
+import { featureFlags } from "../lib/feature-flags";
 
 const PAGE_SIZE = 20;
 const sourceLabels = {
@@ -26,10 +27,11 @@ const sourceLabels = {
   PROCUREMENT: "Procurement",
   INVENTORY: "Inventory",
   VENDOR_MANAGEMENT: "Vendor Management",
+  RECEIVING: "Receiving",
 } as const;
 
 function resourceId(record: AuditRecord) {
-  return record.purchaseOrderId ?? record.productId ?? record.locationId ?? record.vendorProductId ?? record.vendorId ?? "—";
+  return record.goodsReceiptId ?? record.purchaseOrderId ?? record.productId ?? record.locationId ?? record.vendorProductId ?? record.vendorId ?? "—";
 }
 
 function eventDetails(record: AuditRecord) {
@@ -106,7 +108,7 @@ export function AuditPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Audit trail</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Review important operational events recorded by Procurement, Inventory, and Vendor Management.
+          Review important operational events recorded by Procurement, Inventory, Vendor Management, and Receiving.
         </p>
       </div>
 
@@ -129,6 +131,7 @@ export function AuditPage() {
               <option value="PROCUREMENT">Procurement</option>
               <option value="INVENTORY">Inventory</option>
               <option value="VENDOR_MANAGEMENT">Vendor Management</option>
+              {featureFlags.receiving && <option value="RECEIVING">Receiving</option>}
             </Select>
           </label>
           <label className="block text-sm font-medium text-slate-700">
@@ -201,7 +204,7 @@ export function AuditPage() {
                         )}
                         {record.signature && <p className="mt-1 text-xs text-slate-500">Integrity signature recorded</p>}
                       </TableCell>
-                      <TableCell><Badge variant={record.source === "PROCUREMENT" ? "info" : record.source === "INVENTORY" ? "success" : "default"}>{sourceLabels[record.source]}</Badge></TableCell>
+                      <TableCell><Badge variant={record.source === "PROCUREMENT" ? "info" : record.source === "INVENTORY" ? "success" : record.source === "RECEIVING" ? "partial" : "default"}>{sourceLabels[record.source]}</Badge></TableCell>
                       <TableCell className="font-mono text-xs">{record.actorId ?? "System"}</TableCell>
                       <TableCell className="max-w-56 truncate font-mono text-xs" title={resourceId(record)}>{resourceId(record)}</TableCell>
                       <TableCell className="whitespace-nowrap text-xs text-slate-600">{formatTimestamp(record.createdAt)}</TableCell>

@@ -5,10 +5,11 @@ import {
   recordGoodsReceivedEvent,
   recordInventoryStockAdjustedEvent,
 } from "./warehouse-event-repository.js";
+import { processSaleCompletedWarehouseEvent, processSaleReturnedWarehouseEvent } from "./sale-completed-service.js";
 import { getRabbitMQChannel } from "./rabbitmq.js";
 
 const EVENTS_EXCHANGE = "mms.events";
-const EVENT_TYPES = ["GoodsReceived", "InventoryStockAdjusted"] as const;
+const EVENT_TYPES = ["GoodsReceived", "InventoryStockAdjusted", "SaleCompleted", "SaleReturned"] as const;
 const QUEUE_NAME = `${env.RABBITMQ_QUEUE_PREFIX}warehouse-operations.goods-received`;
 const RETRY_EXCHANGE = `${env.RABBITMQ_QUEUE_PREFIX}mms.retry`;
 const DEAD_LETTER_EXCHANGE = `${env.RABBITMQ_QUEUE_PREFIX}mms.dead-letter`;
@@ -38,7 +39,18 @@ const inventoryStockAdjustedSchema = z.object({
     locationId: z.uuid(), sourceBinId: z.uuid(), quantityChange: z.number().int().refine((value) => value !== 0), actorId: z.uuid(),
   }),
 });
-const messageSchema = z.discriminatedUnion("eventType", [goodsReceivedSchema, inventoryStockAdjustedSchema]);
+const saleCompletedSchema = z.object({
+  eventId: z.uuid(), eventType: z.literal("SaleCompleted"), aggregateType: z.literal("Sale"), aggregateId: z.uuid(), occurredAt: z.iso.datetime(),
+  payload: z.object({
+    saleId: z.uuid(), actorId: z.uuid(), locationId: z.uuid(), warehouseManaged: z.boolean(),
+    lines: z.array(z.object({ productId: z.uuid(), quantity: z.number().int().positive() })).min(1),
+  }),
+});
+const saleReturnedSchema = z.object({
+  eventId: z.uuid(), eventType: z.literal("SaleReturned"), aggregateType: z.literal("Sale"), aggregateId: z.uuid(), occurredAt: z.iso.datetime(),
+  payload: z.object({ returnId: z.uuid(), saleId: z.uuid(), actorId: z.uuid(), locationId: z.uuid(), warehouseManaged: z.boolean(), lines: z.array(z.object({ productId: z.uuid(), quantity: z.number().int().positive(), disposition: z.enum(["RESTOCK_SELLABLE", "QUARANTINE", "NO_STOCK_RETURN"]) })).min(1) }),
+});
+const messageSchema = z.discriminatedUnion("eventType", [goodsReceivedSchema, inventoryStockAdjustedSchema, saleCompletedSchema, saleReturnedSchema]);
 
 let isConsuming = false;
 let isStopping = false;
@@ -96,7 +108,15 @@ async function processMessage(message: ConsumeMessage) {
     await recordGoodsReceivedEvent({ eventId: event.eventId, occurredAt: event.occurredAt, payload: event.payload });
     return;
   }
-  await recordInventoryStockAdjustedEvent({ eventId: event.eventId, occurredAt: event.occurredAt, payload: event.payload });
+  if (event.eventType === "InventoryStockAdjusted") {
+    await recordInventoryStockAdjustedEvent({ eventId: event.eventId, occurredAt: event.occurredAt, payload: event.payload });
+    return;
+  }
+  if (event.eventType === "SaleCompleted") {
+    await processSaleCompletedWarehouseEvent({ eventId: event.eventId, ...event.payload });
+    return;
+  }
+  await processSaleReturnedWarehouseEvent({ eventId: event.eventId, ...event.payload });
 }
 
 function scheduleReconnect() {

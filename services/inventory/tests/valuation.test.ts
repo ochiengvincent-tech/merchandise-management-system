@@ -1,8 +1,8 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import { db } from "../../src/db/index.js";
-import { inventoryLocations, inventoryStock, products } from "../../src/db/schema/index.js";
-import { app } from "../../src/app.js";
+import { db } from "../src/db/index.js";
+import { inventoryLocations, inventoryStock, products } from "../src/db/schema/index.js";
+import { app } from "../src/app.js";
 
 async function createStockRecord(input: {
   sku: string;

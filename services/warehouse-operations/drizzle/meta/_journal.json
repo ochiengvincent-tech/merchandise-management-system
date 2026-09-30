@@ -36,6 +36,13 @@
       "when": 1790674732705,
       "tag": "0004_location_bootstrap",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790710000001,
+      "tag": "0005_sale_consumption",
+      "breakpoints": true
     }
   ]
 }

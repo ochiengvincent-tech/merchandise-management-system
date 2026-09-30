@@ -65,6 +65,17 @@ services:
     volumes:
       - warehouse_db_data:/var/lib/postgresql/data
 
+  retail-sales-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: retail_sales_db
+      POSTGRES_USER: mms_retail
+      POSTGRES_PASSWORD: mms_retail
+    ports:
+      - "5439:5432"
+    volumes:
+      - retail_sales_db_data:/var/lib/postgresql/data
+
   rabbitmq:
     image: rabbitmq:4-management
     container_name: mms-rabbitmq
@@ -84,3 +95,4 @@ volumes:
   rabbitmq_data:
   receiving_db_data:
   warehouse_db_data:
+  retail_sales_db_data:

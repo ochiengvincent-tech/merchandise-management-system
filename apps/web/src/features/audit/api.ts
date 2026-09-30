@@ -8,6 +8,7 @@ export const auditSources = [
   "INVENTORY",
   "VENDOR_MANAGEMENT",
   "RECEIVING",
+  "RETAIL_SALES",
 ] as const;
 export type AuditSource = (typeof auditSources)[number];
 export type AuditSourceFilter = AuditSource | "ALL";
@@ -23,6 +24,7 @@ const auditRecordSchema = z.object({
   vendorId: z.string().nullable().optional(),
   vendorProductId: z.string().nullable().optional(),
   goodsReceiptId: z.string().nullable().optional(),
+  recordId: z.string().nullable().optional(),
   beforeState: z.unknown().optional(),
   afterState: z.unknown().optional(),
   details: z.unknown().nullable().optional(),
@@ -57,6 +59,7 @@ const services: Array<{ source: AuditSource; baseUrl: string }> = [
   { source: "INVENTORY", baseUrl: API_URLS.inventory },
   { source: "VENDOR_MANAGEMENT", baseUrl: API_URLS.vendor },
   { source: "RECEIVING", baseUrl: API_URLS.receiving },
+  { source: "RETAIL_SALES", baseUrl: API_URLS.retailSales },
 ];
 
 export async function listAuditRecords(
@@ -66,6 +69,7 @@ export async function listAuditRecords(
   const selected = services.filter(
     ({ source }) =>
       (source !== "RECEIVING" || featureFlags.receiving) &&
+      (source !== "RETAIL_SALES" || featureFlags.retailSales) &&
       (sourceFilter === "ALL" || sourceFilter === source),
   );
   const query = new URLSearchParams({

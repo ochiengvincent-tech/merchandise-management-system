@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { ConfirmChannel, ConsumeMessage } from "amqplib";
 
 import { env } from "../../config/env.js";
@@ -7,6 +8,8 @@ import {
   processPurchaseOrderCancelled,
   processPurchaseOrderReceived,
 } from "./purchase-order-event-service.js";
+import { consumeSaleCompletedEvent } from "../stock/sale-reservation-service.js";
+import { consumeSaleReturnedEvent } from "../stock/sale-return-service.js";
 
 const QUEUE_NAME = `${env.RABBITMQ_QUEUE_PREFIX}inventory.purchase-orders`;
 const DEAD_LETTER_EXCHANGE = `${env.RABBITMQ_QUEUE_PREFIX}mms.dead-letter`;
@@ -20,6 +23,8 @@ const EVENT_TYPES = [
   "PurchaseOrderCancelled",
   "PurchaseOrderReceived",
   "GoodsReceived",
+  "SaleCompleted",
+  "SaleReturned",
 ] as const;
 
 let isConsuming = false;
@@ -171,6 +176,23 @@ export const startRabbitMqConsumer = async () => {
           case "GoodsReceived":
             await processPurchaseOrderReceived(event);
             break;
+
+          case "SaleCompleted": {
+            const sale = z.object({
+              saleId: z.uuid(), actorId: z.uuid(),
+              lines: z.array(z.object({ reservationId: z.uuid(), productId: z.uuid(), locationId: z.uuid(), quantity: z.number().int().positive() })).min(1),
+            }).parse(envelope.payload);
+            await consumeSaleCompletedEvent({ eventId: envelope.eventId, ...sale });
+            break;
+          }
+          case "SaleReturned": {
+            const returned = z.object({
+              returnId: z.uuid(), saleId: z.uuid(), actorId: z.uuid(), locationId: z.uuid(),
+              lines: z.array(z.object({ productId: z.uuid(), quantity: z.number().int().positive(), disposition: z.enum(["RESTOCK_SELLABLE", "QUARANTINE", "NO_STOCK_RETURN"]) })).min(1),
+            }).parse(envelope.payload);
+            await consumeSaleReturnedEvent({ eventId: envelope.eventId, ...returned });
+            break;
+          }
 
           default:
             await sendToDeadLetterQueue(channel, message);

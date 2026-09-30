@@ -36,6 +36,13 @@
       "when": 1790638000000,
       "tag": "0004_idempotent_warehouse_adjustments",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790710000000,
+      "tag": "0005_idempotent_sale_reservations",
+      "breakpoints": true
     }
   ]
 }

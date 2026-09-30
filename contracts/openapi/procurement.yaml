@@ -26,6 +26,8 @@ servers:
 tags:
   - name: Health
     description: Service health and readiness
+  - name: Audit
+    description: Read-only access to persisted Procurement audit events
   - name: Purchase Orders
     description: Purchase order lifecycle operations
   - name: Approvals
@@ -36,6 +38,61 @@ tags:
     description: Purchase order receiving operations
 
 paths:
+  /api/v1/audit-logs:
+    get:
+      tags:
+        - Audit
+      summary: List persisted service audit events
+      operationId: listAuditLogs
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: actorId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Audit events ordered from newest to oldest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLogListResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
   /health:
     get:
       tags:
@@ -126,6 +183,20 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /api/v1/purchase-orders/policy:
+    get:
+      tags:
+        - Purchase Orders
+      summary: Get purchase-order submission policy
+      operationId: getPurchaseOrderPolicy
+      responses:
+        "200":
+          description: Configured purchase-order value limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrderPolicyResponse"
+
   /api/v1/purchase-orders/{id}:
     get:
       tags:
@@ -146,7 +217,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+            description: Purchase order is not a draft, is over the configured limit, or requires revision after rejection
         "404":
           description: Purchase order not found
           content:
@@ -230,7 +301,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "409":
-          description: Purchase order cannot be submitted in its current state
+          description: Purchase order is not a draft, requires revision after rejection, exceeds the configured KES limit, or uses an unsupported currency
           content:
             application/json:
               schema:
@@ -365,6 +436,18 @@ paths:
       operationId: cancelPurchaseOrder
       parameters:
         - $ref: "#/components/parameters/PurchaseOrderId"
+        - name: x-actor-id
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelPurchaseOrderRequest"
       responses:
         "200":
           description: Purchase order cancelled
@@ -373,7 +456,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/PurchaseOrderOnlyResponse"
         "400":
-          description: Invalid purchase order ID or actor ID
+          description: Invalid purchase order ID, actor ID, or missing cancellation reason
           content:
             application/json:
               schema:
@@ -438,7 +521,166 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /api/v1/purchase-orders/{id}/amendments:
+  /api/v1/reorder-suggestions:
+    get:
+      tags:
+        - Purchase Orders
+      summary: List pending low-stock reorder suggestions
+      operationId: listReorderSuggestions
+      responses:
+        "200":
+          description: Pending suggestions generated from Inventory StockLow events
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string, format: uuid }
+                        eventId: { type: string, format: uuid }
+                        productId: { type: string, format: uuid }
+                        locationId: { type: string, format: uuid }
+                        purchaseOrderId: { type: string, format: uuid, nullable: true }
+                        quantityOnHand: { type: integer }
+                        quantityAllocated: { type: integer }
+                        quantityAvailable: { type: integer }
+                        reorderLevel: { type: integer }
+                        suggestedQuantity: { type: integer }
+                        status: { type: string, enum: [PENDING] }
+                        createdAt: { type: string, format: date-time }
+                        updatedAt: { type: string, format: date-time }
+
+  /api/v1/reorder-suggestions/{id}/convert:
+    patch:
+      tags: [Purchase Orders]
+      summary: Mark a reorder suggestion as converted to a draft purchase order
+      operationId: convertReorderSuggestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [purchaseOrderId]
+              properties:
+                purchaseOrderId: { type: string, format: uuid }
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Suggestion marked converted and linked to the draft purchase order
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      status: { type: string, enum: [CONVERTED] }
+                      purchaseOrderId: { type: string, format: uuid }
+        "404": { description: Suggestion or purchase order was not found }
+        "409": { description: Purchase order does not match the pending suggestion }
+
+  /api/v1/reorder-suggestions/{id}/dismiss:
+    patch:
+      tags: [Purchase Orders]
+      summary: Dismiss a pending reorder suggestion
+      operationId: dismissReorderSuggestion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Suggestion dismissed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      status: { type: string, enum: [DISMISSED] }
+        "404": { description: Suggestion was not found or is no longer pending }
+
+  /api/v1/amendments:
+    get:
+      tags:
+        - Amendments
+      summary: List purchase order amendments
+      operationId: listPurchaseOrderAmendmentQueue
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+      responses:
+        "200":
+          description: Paginated purchase order amendments with purchase order summaries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AmendmentQueueResponse"
+        "400":
+          description: Invalid amendment queue query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/amendments/purchase-orders/{id}:
+    get:
+      tags:
+        - Amendments
+      summary: List amendments for a purchase order
+      operationId: listPurchaseOrderAmendments
+      parameters:
+        - $ref: "#/components/parameters/PurchaseOrderId"
+      responses:
+        "200":
+          description: Purchase-order amendment history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AmendmentListResponse"
+        "404":
+          description: Purchase order not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
       tags:
         - Amendments
@@ -498,7 +740,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AmendmentResponse"
+                $ref: "#/components/schemas/AmendmentApprovalResponse"
         "400":
           description: Invalid amendment ID or approver ID
           content:
@@ -579,6 +821,81 @@ components:
         format: uuid
 
   schemas:
+    AuditLogListResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - action
+              - createdAt
+            properties:
+              id:
+                type: string
+                format: uuid
+              action:
+                type: string
+              actorId:
+                type: string
+                format: uuid
+                nullable: true
+              purchaseOrderId:
+                type: string
+                format: uuid
+                nullable: true
+              productId:
+                type: string
+                format: uuid
+                nullable: true
+              locationId:
+                type: string
+                format: uuid
+                nullable: true
+              vendorId:
+                type: string
+                format: uuid
+                nullable: true
+              vendorProductId:
+                type: string
+                format: uuid
+                nullable: true
+              beforeState:
+                type: object
+                nullable: true
+              afterState:
+                type: object
+                nullable: true
+              details:
+                type: object
+                nullable: true
+              signature:
+                type: string
+              createdAt:
+                type: string
+                format: date-time
+        pagination:
+          type: object
+          required:
+            - page
+            - limit
+            - total
+            - totalPages
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            totalPages:
+              type: integer
+
     HealthResponse:
       type: object
       required:
@@ -641,6 +958,21 @@ components:
             message:
               type: string
               example: Invalid purchase order data
+            details:
+              type: array
+              items:
+                $ref: "#/components/schemas/ErrorDetail"
+
+    ErrorDetail:
+      type: object
+      required:
+        - message
+      properties:
+        field:
+          type: string
+          description: Dot-separated path to the invalid field; omitted for object-level errors.
+        message:
+          type: string
 
     ActorRequest:
       type: object
@@ -692,6 +1024,10 @@ components:
         destinationLocationId:
           type: string
           format: uuid
+        requestedDeliveryDate:
+          type: string
+          format: date
+          nullable: true
         currency:
           type: string
           minLength: 3
@@ -727,19 +1063,36 @@ components:
 
     UpdatePurchaseOrderRequest:
       type: object
+      description: Draft-only editable purchase-order fields. Currency and supplier-derived payment terms remain unchanged.
       required:
         - actorId
       properties:
         actorId:
           type: string
           format: uuid
-        notes:
+        poNumber:
           type: string
-          nullable: true
+          minLength: 1
+          maxLength: 50
+        vendorId:
+          type: string
+          format: uuid
         destinationLocationId:
           type: string
           format: uuid
+        requestedDeliveryDate:
+          type: string
+          format: date
           nullable: true
+        notes:
+          type: string
+          maxLength: 2000
+          nullable: true
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/CreatePurchaseOrderLine"
       minProperties: 2
 
     ReceivePurchaseOrderRequest:
@@ -807,7 +1160,9 @@ components:
         - poNumber
         - vendorId
         - destinationLocationId
+        - requestedDeliveryDate
         - status
+        - revisionRequired
         - currency
         - paymentTerms
         - subtotal
@@ -828,6 +1183,10 @@ components:
         destinationLocationId:
           type: string
           format: uuid
+        requestedDeliveryDate:
+          type: string
+          format: date
+          nullable: true
         status:
           type: string
           enum:
@@ -838,6 +1197,9 @@ components:
             - PARTIALLY_RECEIVED
             - COMPLETED
             - CANCELLED
+        revisionRequired:
+          type: boolean
+          description: True after rejection until at least one editable PO field is changed.
         currency:
           type: string
           example: KES
@@ -926,11 +1288,50 @@ components:
         - type: object
           required:
             - lines
+            - cancellation
           properties:
             lines:
               type: array
               items:
                 $ref: "#/components/schemas/PurchaseOrderLine"
+            cancellation:
+              oneOf:
+                - $ref: "#/components/schemas/PurchaseOrderCancellation"
+                - type: "null"
+
+    PurchaseOrderCancellation:
+      type: object
+      required:
+        - id
+        - purchaseOrderId
+        - reason
+        - cancelledBy
+        - cancelledAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        purchaseOrderId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+        cancelledBy:
+          type: string
+          format: uuid
+        cancelledAt:
+          type: string
+          format: date-time
+
+    CancelPurchaseOrderRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
 
     PurchaseOrderResponse:
       type: object
@@ -947,6 +1348,25 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/PurchaseOrder"
+
+    PurchaseOrderPolicyResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - currency
+            - maxPoValueKes
+          properties:
+            currency:
+              type: string
+              enum: [KES]
+            maxPoValueKes:
+              type: string
+              pattern: "^\\d+(\\.\\d{2})$"
+              example: "500000.00"
 
     ReceiptResponse:
       type: object
@@ -1024,3 +1444,93 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/PurchaseOrderAmendment"
+
+    AmendmentListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PurchaseOrderAmendment"
+
+    PurchaseOrderAmendmentQueueItem:
+      allOf:
+        - $ref: "#/components/schemas/PurchaseOrderAmendment"
+        - type: object
+          required:
+            - purchaseOrder
+          properties:
+            purchaseOrder:
+              type: object
+              required:
+                - id
+                - poNumber
+                - status
+                - currency
+                - totalAmount
+                - vendorId
+                - destinationLocationId
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                poNumber:
+                  type: string
+                status:
+                  type: string
+                  enum: [DRAFT, PENDING_APPROVAL, APPROVED, SENT, PARTIALLY_RECEIVED, COMPLETED, CANCELLED]
+                currency:
+                  type: string
+                totalAmount:
+                  type: string
+                vendorId:
+                  type: string
+                  format: uuid
+                destinationLocationId:
+                  type: string
+                  format: uuid
+
+    AmendmentQueueResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PurchaseOrderAmendmentQueueItem"
+        pagination:
+          type: object
+          required:
+            - page
+            - limit
+            - total
+            - totalPages
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            totalPages:
+              type: integer
+
+    AmendmentApprovalResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - amendment
+            - purchaseOrder
+          properties:
+            amendment:
+              $ref: "#/components/schemas/PurchaseOrderAmendment"
+            purchaseOrder:
+              $ref: "#/components/schemas/PurchaseOrder"

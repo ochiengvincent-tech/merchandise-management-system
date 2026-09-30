@@ -55,6 +55,54 @@ describe("POST /api/v1/purchase-orders", () => {
     expect(response.body.data.lines[0].lineTotal).toBe("7000.00");
   });
 
+  it("stores and returns the requested delivery date", async () => {
+    const requestedDeliveryDate = "2026-11-15";
+    const response = await request(app)
+      .post("/api/v1/purchase-orders")
+      .send({
+        poNumber: `PO-DELIVERY-DATE-${Date.now()}`,
+        vendorId: VENDOR_ID,
+        destinationLocationId: LOCATION_ID,
+        requestedDeliveryDate,
+        lines: [
+          {
+            productId: PRODUCT_ID,
+            quantityOrdered: 2,
+          },
+        ],
+        createdBy: ACTOR_ID,
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.data.purchaseOrder.requestedDeliveryDate).toBe(
+      requestedDeliveryDate,
+    );
+  });
+
+  it("rejects a requested delivery date before the PO creation date", async () => {
+    const response = await request(app)
+      .post("/api/v1/purchase-orders")
+      .send({
+        poNumber: `PO-PAST-DELIVERY-DATE-${Date.now()}`,
+        vendorId: VENDOR_ID,
+        destinationLocationId: LOCATION_ID,
+        requestedDeliveryDate: "2020-01-01",
+        lines: [
+          {
+            productId: PRODUCT_ID,
+            quantityOrdered: 2,
+          },
+        ],
+        createdBy: ACTOR_ID,
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.details).toContainEqual({
+      field: "requestedDeliveryDate",
+      message: "Choose the creation date or a later date.",
+    });
+  });
+
   it("rejects a duplicate purchase order number", async () => {
     const poNumber = `PO-DUPLICATE-${Date.now()}`;
 
@@ -87,6 +135,12 @@ describe("POST /api/v1/purchase-orders", () => {
     expect(secondResponse.body).toEqual({
       error: {
         message: "Purchase order number already exists",
+        details: [
+          {
+            field: "poNumber",
+            message: "This PO number is already in use.",
+          },
+        ],
       },
     });
   });

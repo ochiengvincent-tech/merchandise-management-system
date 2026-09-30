@@ -1,7 +1,6 @@
 import { AppError } from "../../errors/app-error.js";
 import {
-  createLocation,
-  findLocationByCode,
+  createLocationWithGeneratedCode,
   findLocationById,
   findLocations,
   updateLocation,
@@ -10,20 +9,17 @@ import {
 import { createLocationAuditLog } from "./location-audit-repository.js";
 
 export const createLocationService = async (
-  data: Parameters<typeof createLocation>[0],
+  data: Parameters<typeof createLocationWithGeneratedCode>[0],
 ) => {
-  const existingLocation = await findLocationByCode(data.locationCode);
-
-  if (existingLocation) {
-    throw new AppError("Validation failed", 400, [
-      {
-        field: "locationCode",
-        message: "Location code already exists",
-      },
-    ]);
+  const location = await createLocationWithGeneratedCode(data);
+  if (location) {
+    await createLocationAuditLog({
+      locationId: location.id,
+      action: "LOCATION_CREATED",
+      details: { after: location },
+    });
   }
-
-  return createLocation(data);
+  return location;
 };
 
 export const getLocationService = async (id: string) => {

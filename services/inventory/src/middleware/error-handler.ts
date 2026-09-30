@@ -12,7 +12,12 @@ export const errorHandler: ErrorRequestHandler = (
     return res.status(400).json({
       error: {
         message: "Validation failed",
-        details: error.issues
+        details: error.issues.map((issue) => ({
+          ...(issue.path.length > 0
+            ? { field: issue.path.map(String).join(".") }
+            : {}),
+          message: issue.message,
+        }))
       }
     });
   }
@@ -27,6 +32,7 @@ export const errorHandler: ErrorRequestHandler = (
   }
 
   if (error instanceof Error) {
+    console.error(error)
     return res.status(500).json({
       error: {
         message: "Internal server error"

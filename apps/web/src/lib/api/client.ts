@@ -3,6 +3,27 @@ export type ApiFieldError = {
   message: string;
 };
 
+type ApiErrorDetail = {
+  field?: unknown;
+  message?: unknown;
+};
+
+type ApiErrorBody = {
+  error?: {
+    message?: unknown;
+    details?: unknown;
+  };
+  message?: unknown;
+};
+
+export function getFieldErrorMap(error: unknown): Record<string, string> {
+  if (!(error instanceof ApiError)) return {};
+
+  return Object.fromEntries(
+    error.fieldErrors.map(({ field, message }) => [field, message]),
+  );
+}
+
 export class ApiError extends Error {
   fieldErrors: ApiFieldError[];
 
@@ -26,37 +47,34 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
-  const body = await response.json().catch(() => null);
+    const body = (await response
+      .json()
+      .catch(() => null)) as ApiErrorBody | null;
 
-  console.log("API ERROR RESPONSE:", body);
+    const details: ApiFieldError[] = Array.isArray(body?.error?.details)
+      ? body.error.details.flatMap((detail: unknown) => {
+          if (typeof detail !== "object" || detail === null) return [];
 
-  const details = Array.isArray(body?.error?.details)
-    ? body.error.details
-        .filter(
-          (detail: unknown): detail is { path?: unknown; message?: unknown } =>
-            typeof detail === "object" && detail !== null,
-        )
-        .map((detail: { path?: unknown; message?: unknown }) => ({
-          field: Array.isArray(detail.path)
-            ? detail.path
-                .filter((part): part is string => typeof part === "string")
-                .join(".")
-            : "",
-          message:
-            typeof detail.message === "string"
-              ? detail.message
-              : "Invalid value",
-        }))
-        .filter((detail: { field: string; message: string }) => detail.field)
-    : [];
+          const { field, message } = detail as ApiErrorDetail;
+          if (typeof field !== "string" || field.length === 0) return [];
 
-  throw new ApiError(
-    body?.error?.message ||
-      body?.message ||
-      `Request failed with status ${response.status}`,
-    details,
-  );
-}
+          return [{
+            field,
+            message: typeof message === "string" ? message : "Invalid value",
+          }];
+        })
+      : [];
+
+    throw new ApiError(
+      typeof body?.error?.message === "string"
+        ? body.error.message
+        : typeof body?.message === "string"
+          ? body.message
+          : `Request failed with status ${response.status}`,
+      details,
+    );
+  }
+
   if (response.status === 204) {
     return undefined as T;
   }

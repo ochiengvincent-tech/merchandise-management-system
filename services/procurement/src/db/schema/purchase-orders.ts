@@ -4,6 +4,8 @@ import {
   varchar,
   char,
   numeric,
+  date,
+  boolean,
   text,
   timestamp,
   check,
@@ -24,11 +26,17 @@ export const purchaseOrders = pgTable(
 
     destinationLocationId: uuid("destination_location_id").notNull(),
 
+    requestedDeliveryDate: date("requested_delivery_date", {
+      mode: "string",
+    }),
+
     status: varchar("status", {
       length: 30,
     })
       .notNull()
       .default("DRAFT"),
+
+    revisionRequired: boolean("revision_required").notNull().default(false),
 
     currency: char("currency", {
       length: 3,

@@ -1,10 +1,11 @@
 import { type FormEvent, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { ApiError } from "../lib/api/client";
-import { useUpdateVendor, useVendor } from "../features/vendors/hooks";
+import { useSmartBack } from "../../hooks/use-smart-back";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { getFieldErrorMap } from "../../lib/api/client";
+import { useUpdateVendor, useVendor } from "../../features/vendors/hooks";
 
 type VendorFormProps = {
   id: string;
@@ -26,6 +27,7 @@ function VendorForm({
   initialPaymentTerms,
 }: VendorFormProps) {
   const navigate = useNavigate();
+  const goBack = useSmartBack("/vendors");
   const updateMutation = useUpdateVendor();
 
   const [name, setName] = useState(initialName);
@@ -34,31 +36,27 @@ function VendorForm({
   const [address, setAddress] = useState(initialAddress);
   const [paymentTerms, setPaymentTerms] = useState(initialPaymentTerms);
 
-  const fieldErrors =
-    updateMutation.error instanceof ApiError
-      ? Object.fromEntries(
-          updateMutation.error.fieldErrors.map(({ field, message }) => [
-            field,
-            message,
-          ]),
-        )
-      : {};
+  const fieldErrors = getFieldErrorMap(updateMutation.error);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const vendor = await updateMutation.mutateAsync({
-      id,
-      data: {
-        name: name.trim(),
-        email: email.trim() || undefined,
-        phone: phone.trim() || undefined,
-        address: address.trim() || undefined,
-        paymentTerms: paymentTerms.trim() || undefined,
-      },
-    });
+    try {
+      const vendor = await updateMutation.mutateAsync({
+        id,
+        data: {
+          name: name.trim(),
+          email: email.trim() || undefined,
+          phone: phone.trim() || undefined,
+          address: address.trim() || undefined,
+          paymentTerms: paymentTerms.trim() || undefined,
+        },
+      });
 
-    navigate(`/vendors/${vendor.id}`);
+      navigate(`/vendors/${vendor.id}`);
+    } catch {
+      return;
+    }
   };
 
   return (
@@ -199,7 +197,8 @@ function VendorForm({
           <Button
             type="button"
             variant="secondary"
-            onClick={() => navigate(`/vendors/${id}`)}
+            onClick={goBack}
+            disabled={updateMutation.isPending}
           >
             Cancel
           </Button>
@@ -215,7 +214,7 @@ function VendorForm({
 
 function EditVendorPage() {
   const { id = "" } = useParams();
-  const navigate = useNavigate();
+  const goBack = useSmartBack("/vendors");
   const vendorQuery = useVendor(id);
 
   if (vendorQuery.isLoading) {
@@ -233,8 +232,8 @@ function EditVendorPage() {
           Vendor not found
         </h1>
 
-        <Button variant="secondary" onClick={() => navigate("/vendors")}>
-          Back to vendors
+        <Button variant="secondary" onClick={goBack}>
+          Back
         </Button>
       </div>
     );
@@ -247,10 +246,10 @@ function EditVendorPage() {
       <div>
         <button
           type="button"
-          onClick={() => navigate(`/vendors/${vendor.id}`)}
+          onClick={goBack}
           className="mb-3 text-sm text-slate-500 hover:text-slate-900"
         >
-          ← Vendor
+          ← Back
         </button>
 
         <h1 className="text-2xl font-semibold text-slate-950">Edit Vendor</h1>

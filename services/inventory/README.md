@@ -14,13 +14,17 @@ The Inventory Service manages:
 * Available stock calculation
 * Stock allocation and release
 * Manual stock adjustments
-* Inventory audit logs
+* Inventory audit logs for important product, location, and stock operations
 * StockLow events
 * PurchaseOrderApproved events
 * PurchaseOrderCancelled events
 * Durable event outbox
 * RabbitMQ event publishing
 * Incoming event idempotency
+
+## Audit records
+
+Read persisted Inventory audit events through `GET /api/v1/audit-logs`. Results are newest-first and support `page`, `limit` (up to 100), `action`, `actorId`, `from`, and `to` filters. Successful location creation is recorded as `LOCATION_CREATED`; product lifecycle, stock-record creation, stock adjustment/allocation/release, and purchase-order stock events use the existing Inventory audit table.
 
 ## Architecture
 

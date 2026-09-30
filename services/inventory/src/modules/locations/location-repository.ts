@@ -1,6 +1,11 @@
-import { and, eq, ilike, or } from "drizzle-orm";
+import { and, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { inventoryLocations } from "../../db/schema/inventory-locations.js";
+
+const LOCATION_CODE_LOCK_KEYS = {
+  WAREHOUSE: 81001,
+  STORE: 81002,
+} as const;
 
 export const createLocation = async (
   data: typeof inventoryLocations.$inferInsert,
@@ -11,6 +16,49 @@ export const createLocation = async (
     .returning();
 
   return location;
+};
+
+export const createLocationWithGeneratedCode = async (
+  data: Omit<typeof inventoryLocations.$inferInsert, "locationCode"> & {
+    locationType: "WAREHOUSE" | "STORE";
+  },
+) => {
+  return db.transaction(async (tx) => {
+    const lockKey = LOCATION_CODE_LOCK_KEYS[data.locationType];
+
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockKey})`);
+
+    const prefix = data.locationType === "WAREHOUSE" ? "WH" : "ST";
+
+    const result = await tx.execute<{ next_number: number }>(
+      sql`
+    SELECT COALESCE(
+      MAX(
+        CAST(
+          SUBSTRING(${inventoryLocations.locationCode} FROM 4)
+          AS INTEGER
+        )
+      ),
+      0
+    ) + 1 AS next_number
+    FROM ${inventoryLocations}
+    WHERE ${inventoryLocations.locationCode} ~ ${`^${prefix}-[0-9]+$`}
+  `,
+    );
+
+    const nextNumber = Number(result.rows[0]?.next_number ?? 1);
+    const locationCode = `${prefix}-${String(nextNumber).padStart(3, "0")}`;
+
+    const [location] = await tx
+      .insert(inventoryLocations)
+      .values({
+        ...data,
+        locationCode,
+      })
+      .returning();
+
+    return location;
+  });
 };
 
 export const findLocationById = async (id: string) => {
@@ -93,6 +141,7 @@ export const updateLocation = async (
 
   return location ?? null;
 };
+
 export const updateLocationStatus = async (
   id: string,
   status: "ACTIVE" | "INACTIVE",

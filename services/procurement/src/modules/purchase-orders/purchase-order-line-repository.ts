@@ -44,3 +44,13 @@ export async function findPurchaseOrderLineById(id: string) {
 
   return purchaseOrderLine ?? null;
 }
+
+
+export async function deletePurchaseOrderLinesWithDatabase<
+  T extends Pick<typeof db, "delete">,
+>(purchaseOrderId: string, database: T) {
+  return database
+    .delete(purchaseOrderLines)
+    .where(eq(purchaseOrderLines.purchaseOrderId, purchaseOrderId))
+    .returning();
+}

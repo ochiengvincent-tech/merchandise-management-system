@@ -4,6 +4,9 @@ import {
   stocksSchema,
   stockSchema,
   type Stock,
+  adjustmentResponseSchema,
+  type CreateAdjustmentInput,
+  inventoryValuationSchema,
 } from "./types";
 
 export async function getStockByProduct(
@@ -40,4 +43,17 @@ export async function getStockByProductAndLocation(
   );
 
   return stockSchema.parse(data);
+}
+export async function createAdjustment(data: CreateAdjustmentInput) {
+  const response = await apiRequest<unknown>(`${API_URLS.inventory}/adjustments`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+  return adjustmentResponseSchema.parse(response);
+}
+
+export async function getInventoryValuation() {
+  const response = await apiRequest<unknown>(`${API_URLS.inventory}/stock/valuation`);
+  return inventoryValuationSchema.parse(response);
 }

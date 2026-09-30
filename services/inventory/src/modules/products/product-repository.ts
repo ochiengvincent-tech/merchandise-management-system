@@ -18,6 +18,16 @@ export const findProductById = async (id: string) => {
   return product ?? null;
 };
 
+export const findProductByBarcode = async (barcode: string) => {
+  const [product] = await db
+    .select()
+    .from(products)
+    .where(eq(products.barcode, barcode))
+    .limit(1);
+
+  return product ?? null;
+};
+
 export const findProductBySku = async (sku: string) => {
   const [product] = await db
     .select()

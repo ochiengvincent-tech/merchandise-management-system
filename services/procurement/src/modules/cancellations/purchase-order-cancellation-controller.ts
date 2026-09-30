@@ -8,6 +8,9 @@ const paramsSchema = z.object({
 });
 
 const actorIdSchema = z.string().uuid();
+const bodySchema = z.object({
+  reason: z.string().trim().min(1).max(2000),
+});
 
 export async function cancelPurchaseOrderController(
   req: Request,
@@ -37,9 +40,23 @@ export async function cancelPurchaseOrderController(
       });
     }
 
+    const body = bodySchema.safeParse(req.body ?? {});
+    if (!body.success) {
+      return res.status(400).json({
+        error: {
+          message: "A cancellation reason is required",
+          details: body.error.issues.map((issue) => ({
+            field: issue.path.join("."),
+            message: issue.message,
+          })),
+        },
+      });
+    }
+
     const purchaseOrder = await cancelPurchaseOrder(
       params.data.id,
       actorIdResult.data,
+      body.data.reason,
     );
 
     return res.status(200).json({

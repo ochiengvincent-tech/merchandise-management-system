@@ -42,5 +42,5 @@
     "moduleResolution": "NodeNext",
     "esModuleInterop": true,
   },
-   "include": ["src", "tests/reorder-suggestions/reorder-suggestion-service.test.ts"]
+   "include": ["src", "tests/reorder-suggestions/reorder-suggestion-service.test.ts", "tests/reorder-suggestions/reorder-suggestion-routes.test.ts"]
 }

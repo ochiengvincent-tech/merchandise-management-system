@@ -1,4 +1,6 @@
 import { AppError } from "../../errors/app-error.js";
+import { inventoryAuditLogs } from "../../db/schema/inventory-audit-logs.js";
+import { db } from "../../db/index.js";
 import { findLocationById } from "../locations/location-repository.js";
 import { findProductById } from "../products/product-repository.js";
 import {
@@ -6,6 +8,7 @@ import {
   findStockByLocation,
   findStockByProduct,
   findStockByProductAndLocation,
+  findInventoryValuation,
   updateStock
 } from "./stock-repository.js";
 
@@ -115,13 +118,29 @@ export const createStockService = async (
     ]);
   }
 
-  return createStock({
+  const stock = await createStock({
     productId,
     locationId,
     quantityOnHand: 0,
     quantityAllocated: 0,
     quantityOnOrder: 0
   });
+
+  if (stock) {
+    await db.insert(inventoryAuditLogs).values({
+      productId,
+      locationId,
+      action: "STOCK_RECORD_CREATED",
+      details: {
+        stockId: stock.id,
+        quantityOnHand: stock.quantityOnHand,
+        quantityAllocated: stock.quantityAllocated,
+        quantityOnOrder: stock.quantityOnOrder,
+      },
+    });
+  }
+
+  return stock;
 };
 
 export const updateStockService = async (
@@ -148,4 +167,15 @@ export const updateStockService = async (
     quantityAvailable:
       stock.quantityOnHand - stock.quantityAllocated
   };
+};
+export const getInventoryValuationService = async () => {
+  const records = await findInventoryValuation();
+  const totalCents = records.reduce((total, record) => {
+    const [whole = "0", fraction = ""] = record.extendedValue.split(".");
+    const cents = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0").slice(0, 2));
+    return total + cents;
+  }, 0n);
+  const totalValue = `${totalCents / 100n}.${String(totalCents % 100n).padStart(2, "0")}`;
+
+  return { currency: "KES", totalValue, records };
 };

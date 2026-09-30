@@ -1,0 +1,1 @@
+ALTER TABLE "purchase_orders" ADD COLUMN "revision_required" boolean DEFAULT false NOT NULL;

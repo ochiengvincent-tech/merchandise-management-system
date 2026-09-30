@@ -10,6 +10,40 @@ const CREATOR_ID = "33333333-3333-4333-8333-333333333333";
 const APPROVER_ID = "22222222-2222-4222-8222-222222222222";
 
 describe("cancel purchase order", () => {
+  it("requires a cancellation reason and leaves the PO unchanged when missing", async () => {
+    const createResponse = await request(app)
+      .post("/api/v1/purchase-orders")
+      .send({
+        poNumber: `PO-CANCEL-NO-REASON-${Date.now()}`,
+        vendorId: VENDOR_ID,
+        destinationLocationId: LOCATION_ID,
+        currency: "KES",
+        lines: [
+          {
+            productId: PRODUCT_ID,
+            quantityOrdered: 2,
+          },
+        ],
+        createdBy: CREATOR_ID,
+      });
+
+    expect(createResponse.status).toBe(201);
+    const purchaseOrderId = createResponse.body.data.purchaseOrder.id;
+
+    const cancelResponse = await request(app)
+      .patch(`/api/v1/purchase-orders/${purchaseOrderId}/cancel`)
+      .set("x-actor-id", CREATOR_ID);
+
+    expect(cancelResponse.status).toBe(400);
+    expect(cancelResponse.body.error.details[0].field).toBe("reason");
+
+    const detailResponse = await request(app).get(
+      `/api/v1/purchase-orders/${purchaseOrderId}`,
+    );
+    expect(detailResponse.body.data.status).toBe("DRAFT");
+    expect(detailResponse.body.data.cancellation).toBeNull();
+  });
+
   it("cancels a draft purchase order", async () => {
     const poNumber = `PO-CANCEL-${Date.now()}`;
 
@@ -35,7 +69,8 @@ describe("cancel purchase order", () => {
 
     const cancelResponse = await request(app)
       .patch(`/api/v1/purchase-orders/${purchaseOrderId}/cancel`)
-      .set("x-actor-id", CREATOR_ID);
+      .set("x-actor-id", CREATOR_ID)
+      .send({ reason: "Created in error" });
 
     expect(cancelResponse.status).toBe(200);
 
@@ -44,6 +79,15 @@ describe("cancel purchase order", () => {
       poNumber,
       status: "CANCELLED",
     });
+
+    const detailResponse = await request(app).get(
+      `/api/v1/purchase-orders/${purchaseOrderId}`,
+    );
+    expect(detailResponse.body.data.cancellation).toMatchObject({
+      reason: "Created in error",
+      cancelledBy: CREATOR_ID,
+    });
+    expect(detailResponse.body.data.cancellation.cancelledAt).toBeTruthy();
   });
   it("rejects cancellation of a completed purchase order", async () => {
     const poNumber = `PO-CANCEL-COMPLETED-${Date.now()}`;
@@ -111,7 +155,8 @@ describe("cancel purchase order", () => {
 
     const cancelResponse = await request(app)
       .patch(`/api/v1/purchase-orders/${purchaseOrderId}/cancel`)
-      .set("x-actor-id", CREATOR_ID);
+      .set("x-actor-id", CREATOR_ID)
+      .send({ reason: "Already fully received" });
 
     expect(cancelResponse.status).toBe(409);
 
@@ -168,7 +213,8 @@ describe("cancel purchase order", () => {
 
     const cancelResponse = await request(app)
       .patch(`/api/v1/purchase-orders/${purchaseOrderId}/cancel`)
-      .set("x-actor-id", CREATOR_ID);
+      .set("x-actor-id", CREATOR_ID)
+      .send({ reason: "Supplier cannot fulfill the order" });
 
     expect(cancelResponse.status).toBe(200);
 
@@ -251,7 +297,8 @@ describe("cancel purchase order", () => {
 
     const cancelResponse = await request(app)
       .patch(`/api/v1/purchase-orders/${purchaseOrderId}/cancel`)
-      .set("x-actor-id", CREATOR_ID);
+      .set("x-actor-id", CREATOR_ID)
+      .send({ reason: "Supplier fulfilled only part of the order" });
 
     expect(cancelResponse.status).toBe(200);
 

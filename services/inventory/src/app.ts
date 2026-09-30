@@ -11,6 +11,7 @@ import { stockRouter } from "./modules/stock/stock-routes.js";
 import { adjustmentRouter } from "./modules/adjustments/adjustment-routes.js";
 import { eventRouter } from "./modules/events/event-routes.js";
 import { featureFlags } from "@mms/feature-flags";
+import { auditRouter } from "./modules/audit/audit-routes.js";
 
 const app: Application = express();
 
@@ -44,6 +45,8 @@ app.get("/ready", async (_req, res) => {
     });
   }
 });
+
+app.use("/api/v1/audit-logs", auditRouter);
 
 if (featureFlags.inventory) {
   app.use("/api/v1/products", productRouter);

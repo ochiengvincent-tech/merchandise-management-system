@@ -31,6 +31,10 @@ The service does not own:
 
 Product information is owned by the Inventory Service.
 
+## Audit records
+
+Read persisted Vendor Management audit events through `GET /api/v1/audit-logs`. Results are newest-first and support `page`, `limit` (up to 100), `action`, `actorId`, `from`, and `to` filters. Vendor, supplier-product, and supplier price changes retain their existing signed audit records.
+
 ## Architecture
 
 Vendor Management is an independently owned service with its own PostgreSQL database.

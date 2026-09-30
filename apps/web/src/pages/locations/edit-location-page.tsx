@@ -1,10 +1,12 @@
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { Select } from "../components/ui/select";
-import { useLocation, useUpdateLocation } from "../features/locations/hooks";
+import { useSmartBack } from "../../hooks/use-smart-back";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { Select } from "../../components/ui/select";
+import { useLocation, useUpdateLocation } from "../../features/locations/hooks";
+import { getFieldErrorMap } from "../../lib/api/client";
 
 type LocationFormProps = {
   id: string;
@@ -20,29 +22,32 @@ function LocationForm({
   initialLocationType,
 }: LocationFormProps) {
   const navigate = useNavigate();
+  const goBack = useSmartBack("/locations");
   const updateMutation = useUpdateLocation();
 
   const [name, setName] = useState(initialName);
-  const [locationType, setLocationType] = useState<"WAREHOUSE" | "STORE">(
-    initialLocationType,
-  );
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const fieldErrors = getFieldErrorMap(updateMutation.error);
+
+  const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    await updateMutation.mutateAsync({
-      id,
-      data: {
-        name: name.trim(),
-        locationType,
-      },
-    });
+    try {
+      await updateMutation.mutateAsync({
+        id,
+        data: {
+          name: name.trim(),
+        },
+      });
 
-    navigate(`/locations/${id}`);
+      navigate(`/locations/${id}`);
+    } catch {
+      return;
+    }
   };
 
   const handleCancel = () => {
-    navigate(`/locations/${id}`);
+    goBack();
   };
 
   return (
@@ -76,7 +81,12 @@ function LocationForm({
             value={name}
             onChange={(event) => setName(event.target.value)}
             required
+            aria-invalid={Boolean(fieldErrors.name)}
           />
+
+          {fieldErrors.name && (
+            <p className="mt-1.5 text-sm text-red-600">{fieldErrors.name}</p>
+          )}
         </div>
 
         <div>
@@ -87,19 +97,17 @@ function LocationForm({
             Type
           </label>
 
-          <Select
-            id="location-type"
-            value={locationType}
-            onChange={(event) =>
-              setLocationType(event.target.value as "WAREHOUSE" | "STORE")
-            }
-          >
+          <Select id="location-type" value={initialLocationType} disabled>
             <option value="WAREHOUSE">Warehouse</option>
             <option value="STORE">Store</option>
           </Select>
+
+          <p className="mt-1.5 text-xs text-slate-500">
+            Location type cannot be changed.
+          </p>
         </div>
 
-        {updateMutation.isError && (
+        {updateMutation.isError && Object.keys(fieldErrors).length === 0 && (
           <p className="text-sm text-red-600">
             {updateMutation.error instanceof Error
               ? updateMutation.error.message
@@ -123,7 +131,7 @@ function LocationForm({
 
 function EditLocationPage() {
   const { id = "" } = useParams();
-  const navigate = useNavigate();
+  const goBack = useSmartBack("/locations");
   const locationQuery = useLocation(id);
 
   if (locationQuery.isLoading) {
@@ -141,8 +149,8 @@ function EditLocationPage() {
           Location not found
         </h1>
 
-        <Button variant="secondary" onClick={() => navigate("/locations")}>
-          Back to locations
+        <Button variant="secondary" onClick={goBack}>
+          Back
         </Button>
       </div>
     );
@@ -155,10 +163,10 @@ function EditLocationPage() {
       <div>
         <button
           type="button"
-          onClick={() => navigate(`/locations/${location.id}`)}
+          onClick={goBack}
           className="mb-3 text-sm text-slate-500 hover:text-slate-900"
         >
-          ← Location
+          ← Back
         </button>
 
         <h1 className="text-2xl font-semibold text-slate-950">Edit Location</h1>

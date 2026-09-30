@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { Input } from "../components/ui/input";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
 import {
   Table,
   TableBody,
@@ -11,8 +11,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../components/ui/table";
-import { useProducts } from "../features/products/hooks";
+} from "../../components/ui/table";
+import { useProducts } from "../../features/products/hooks";
 import { useNavigate } from "react-router-dom";
 
 export function ProductsPage() {

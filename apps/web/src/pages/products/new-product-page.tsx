@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { useCreateProduct } from "../features/products/hooks";
+import { useSmartBack } from "../../hooks/use-smart-back";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { getFieldErrorMap } from "../../lib/api/client";
+import { useCreateProduct } from "../../features/products/hooks";
 
 export function NewProductPage() {
   const navigate = useNavigate();
+  const goBack = useSmartBack("/products");
   const createProduct = useCreateProduct();
 
   const [form, setForm] = useState({
@@ -22,17 +25,16 @@ export function NewProductPage() {
 
   const [error, setError] = useState("");
 
-  const updateField = (
-    field: keyof typeof form,
-    value: string,
-  ) => {
+  const fieldErrors = getFieldErrorMap(createProduct.error);
+
+  const updateField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({
       ...current,
       [field]: value,
     }));
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
 
@@ -67,12 +69,8 @@ export function NewProductPage() {
       });
 
       navigate("/products");
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to create product.",
-      );
+    } catch {
+      setError("");
     }
   };
 
@@ -81,10 +79,10 @@ export function NewProductPage() {
       <div>
         <button
           type="button"
-          onClick={() => navigate("/products")}
+          onClick={goBack}
           className="text-sm font-medium text-slate-500 hover:text-slate-900"
         >
-          ← Products
+          ← Back
         </button>
 
         <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
@@ -103,6 +101,7 @@ export function NewProductPage() {
               <h2 className="text-base font-semibold text-slate-950">
                 Product details
               </h2>
+
               <p className="mt-1 text-sm text-slate-500">
                 Basic information used to identify and manage the product.
               </p>
@@ -116,16 +115,22 @@ export function NewProductPage() {
                 >
                   SKU <span className="text-red-600">*</span>
                 </label>
+
                 <Input
                   id="sku"
                   value={form.sku}
-                  onChange={(event) =>
-                    updateField("sku", event.target.value)
-                  }
+                  onChange={(event) => updateField("sku", event.target.value)}
                   placeholder="SKU-001"
                   maxLength={100}
                   required
+                  aria-invalid={Boolean(fieldErrors.sku)}
                 />
+
+                {fieldErrors.sku && (
+                  <p className="mt-1.5 text-sm text-red-600">
+                    {fieldErrors.sku}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -135,16 +140,22 @@ export function NewProductPage() {
                 >
                   Product name <span className="text-red-600">*</span>
                 </label>
+
                 <Input
                   id="name"
                   value={form.name}
-                  onChange={(event) =>
-                    updateField("name", event.target.value)
-                  }
+                  onChange={(event) => updateField("name", event.target.value)}
                   placeholder="Product name"
                   maxLength={255}
                   required
+                  aria-invalid={Boolean(fieldErrors.name)}
                 />
+
+                {fieldErrors.name && (
+                  <p className="mt-1.5 text-sm text-red-600">
+                    {fieldErrors.name}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -154,6 +165,7 @@ export function NewProductPage() {
                 >
                   Category <span className="text-red-600">*</span>
                 </label>
+
                 <Input
                   id="category"
                   value={form.category}
@@ -163,7 +175,14 @@ export function NewProductPage() {
                   placeholder="Electronics"
                   maxLength={100}
                   required
+                  aria-invalid={Boolean(fieldErrors.category)}
                 />
+
+                {fieldErrors.category && (
+                  <p className="mt-1.5 text-sm text-red-600">
+                    {fieldErrors.category}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -173,6 +192,7 @@ export function NewProductPage() {
                 >
                   Unit of measure <span className="text-red-600">*</span>
                 </label>
+
                 <Input
                   id="unitOfMeasure"
                   value={form.unitOfMeasure}
@@ -182,7 +202,14 @@ export function NewProductPage() {
                   placeholder="EACH"
                   maxLength={30}
                   required
+                  aria-invalid={Boolean(fieldErrors.unitOfMeasure)}
                 />
+
+                {fieldErrors.unitOfMeasure && (
+                  <p className="mt-1.5 text-sm text-red-600">
+                    {fieldErrors.unitOfMeasure}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -192,6 +219,7 @@ export function NewProductPage() {
                 >
                   Barcode
                 </label>
+
                 <Input
                   id="barcode"
                   value={form.barcode}
@@ -200,7 +228,14 @@ export function NewProductPage() {
                   }
                   placeholder="Optional barcode"
                   maxLength={100}
+                  aria-invalid={Boolean(fieldErrors.barcode)}
                 />
+
+                {fieldErrors.barcode && (
+                  <p className="mt-1.5 text-sm text-red-600">
+                    {fieldErrors.barcode}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -210,6 +245,7 @@ export function NewProductPage() {
                 >
                   Reorder level
                 </label>
+
                 <Input
                   id="reorderLevel"
                   type="number"
@@ -219,7 +255,14 @@ export function NewProductPage() {
                   onChange={(event) =>
                     updateField("reorderLevel", event.target.value)
                   }
+                  aria-invalid={Boolean(fieldErrors.reorderLevel)}
                 />
+
+                {fieldErrors.reorderLevel && (
+                  <p className="mt-1.5 text-sm text-red-600">
+                    {fieldErrors.reorderLevel}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -230,6 +273,7 @@ export function NewProductPage() {
               >
                 Description
               </label>
+
               <textarea
                 id="description"
                 value={form.description}
@@ -239,20 +283,35 @@ export function NewProductPage() {
                 placeholder="Optional product description"
                 maxLength={1000}
                 rows={4}
+                aria-invalid={Boolean(fieldErrors.description)}
                 className="w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
+
               <p className="mt-1 text-xs text-slate-400">
                 {form.description.length}/1000
               </p>
+
+              {fieldErrors.description && (
+                <p className="mt-1.5 text-sm text-red-600">
+                  {fieldErrors.description}
+                </p>
+              )}
             </div>
           </div>
         </Card>
 
-        {error && (
+        {(error ||
+          (createProduct.isError && Object.keys(fieldErrors).length === 0)) && (
           <Card className="border-red-200 bg-red-50 p-4">
             <div className="flex items-start gap-3">
               <Badge variant="danger">Error</Badge>
-              <p className="text-sm text-red-700">{error}</p>
+
+              <p className="text-sm text-red-700">
+                {error ||
+                  (createProduct.error instanceof Error
+                    ? createProduct.error.message
+                    : "Unable to create product.")}
+              </p>
             </div>
           </Card>
         )}
@@ -261,7 +320,7 @@ export function NewProductPage() {
           <Button
             type="button"
             variant="secondary"
-            onClick={() => navigate("/products")}
+            onClick={goBack}
             disabled={createProduct.isPending}
           >
             Cancel

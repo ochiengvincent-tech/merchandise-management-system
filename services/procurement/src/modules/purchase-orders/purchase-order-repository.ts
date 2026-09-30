@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { purchaseOrders } from "../../db/schema/purchase-orders.js";
 
@@ -31,6 +31,52 @@ export async function findPurchaseOrderByNumber(poNumber: string) {
     .limit(1);
 
   return purchaseOrder ?? null;
+}
+
+type ListPurchaseOrdersFilters = {
+  offset: number;
+  limit: number;
+  status?: string;
+  search?: string;
+};
+
+export async function listPurchaseOrders({
+  offset,
+  limit,
+  status,
+  search,
+}: ListPurchaseOrdersFilters) {
+  const conditions = [];
+
+  if (status) {
+    conditions.push(eq(purchaseOrders.status, status));
+  }
+
+  if (search) {
+    conditions.push(
+      or(
+        ilike(purchaseOrders.poNumber, `%${search}%`),
+        ilike(purchaseOrders.status, `%${search}%`),
+      ),
+    );
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const data = await db
+    .select()
+    .from(purchaseOrders)
+    .where(whereClause)
+    .orderBy(desc(purchaseOrders.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  const total = await db.$count(purchaseOrders, whereClause);
+
+  return {
+    data,
+    total,
+  };
 }
 
 export async function updatePurchaseOrderWithDatabase<
@@ -77,6 +123,7 @@ export async function rejectPurchaseOrderWithDatabase<
     .update(purchaseOrders)
     .set({
       status: "DRAFT",
+      revisionRequired: true,
       updatedAt: new Date(),
     })
     .where(

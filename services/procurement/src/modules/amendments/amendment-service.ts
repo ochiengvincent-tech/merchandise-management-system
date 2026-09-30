@@ -9,6 +9,7 @@ import { createApprovalAuditLogWithDatabase } from "../approvals/approval-audit-
 import {
   createPurchaseOrderAmendmentWithDatabase,
   findPurchaseOrderAmendments,
+  listPurchaseOrderAmendmentQueue as listPurchaseOrderAmendmentQueueFromDatabase,
 } from "./amendment-repository.js";
 
 type PurchaseOrderAmendmentData = {
@@ -117,4 +118,26 @@ export async function requestPurchaseOrderAmendment(
 
     return amendment;
   });
+}
+
+export async function getPurchaseOrderAmendments(purchaseOrderId: string) {
+  const purchaseOrder = await findPurchaseOrderById(purchaseOrderId);
+
+  if (!purchaseOrder) {
+    return null;
+  }
+
+  const amendments = await findPurchaseOrderAmendments(purchaseOrderId);
+  return amendments.sort(
+    (first, second) => first.amendmentNumber - second.amendmentNumber,
+  );
+}
+
+
+export async function listPurchaseOrderAmendmentQueue(data: {
+  offset: number;
+  limit: number;
+  status?: "PENDING" | "APPROVED" | "REJECTED";
+}) {
+  return listPurchaseOrderAmendmentQueueFromDatabase(data);
 }

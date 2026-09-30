@@ -71,6 +71,13 @@ describe("purchase order amendments", () => {
     expect(amendmentResponse.body.data.newData).toMatchObject({
       destinationLocationId: LOCATION_ID,
     });
+
+    const listResponse = await request(app).get(
+      `/api/v1/amendments/purchase-orders/${purchaseOrderId}`,
+    );
+    expect(listResponse.status).toBe(200);
+    expect(listResponse.body.data).toHaveLength(1);
+    expect(listResponse.body.data[0].id).toBe(amendmentResponse.body.data.id);
   });
 
   it("approves an amendment and applies the changes to the purchase order", async () => {

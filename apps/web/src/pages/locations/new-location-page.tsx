@@ -1,35 +1,42 @@
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { Select } from "../components/ui/select";
-import { useCreateLocation } from "../features/locations/hooks";
+import { useSmartBack } from "../../hooks/use-smart-back";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { Select } from "../../components/ui/select";
+import { useCreateLocation } from "../../features/locations/hooks";
+import { getFieldErrorMap } from "../../lib/api/client";
 
 function NewLocationPage() {
   const navigate = useNavigate();
+  const goBack = useSmartBack("/locations");
   const createMutation = useCreateLocation();
 
-  const [locationCode, setLocationCode] = useState("");
   const [name, setName] = useState("");
-  const [locationType, setLocationType] = useState<
-    "WAREHOUSE" | "STORE"
-  >("WAREHOUSE");
+  const [locationType, setLocationType] = useState<"WAREHOUSE" | "STORE">(
+    "WAREHOUSE",
+  );
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const fieldErrors = getFieldErrorMap(createMutation.error);
+
+  const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const location = await createMutation.mutateAsync({
-      locationCode: locationCode.trim(),
-      name: name.trim(),
-      locationType,
-    });
+    try {
+      const location = await createMutation.mutateAsync({
+        name: name.trim(),
+        locationType,
+      });
 
-    navigate(`/locations/${location.id}`);
+      navigate(`/locations/${location.id}`);
+    } catch {
+      return;
+    }
   };
 
   const handleCancel = () => {
-    navigate("/locations");
+    goBack();
   };
 
   return (
@@ -40,12 +47,10 @@ function NewLocationPage() {
           onClick={handleCancel}
           className="mb-3 text-sm text-slate-500 hover:text-slate-900"
         >
-          ← Locations
+          ← Back
         </button>
 
-        <h1 className="text-2xl font-semibold text-slate-950">
-          New Location
-        </h1>
+        <h1 className="text-2xl font-semibold text-slate-950">New Location</h1>
 
         <p className="mt-1 text-sm text-slate-500">
           Add a warehouse or store for inventory operations.
@@ -54,23 +59,6 @@ function NewLocationPage() {
 
       <Card>
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label
-              htmlFor="location-code"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
-            >
-              Location Code
-            </label>
-
-            <Input
-              id="location-code"
-              value={locationCode}
-              onChange={(event) => setLocationCode(event.target.value)}
-              placeholder="e.g. WH-001"
-              required
-            />
-          </div>
-
           <div>
             <label
               htmlFor="location-name"
@@ -85,7 +73,12 @@ function NewLocationPage() {
               onChange={(event) => setName(event.target.value)}
               placeholder="e.g. Main Warehouse"
               required
+              aria-invalid={Boolean(fieldErrors.name)}
             />
+
+            {fieldErrors.name && (
+              <p className="mt-1.5 text-sm text-red-600">{fieldErrors.name}</p>
+            )}
           </div>
 
           <div>
@@ -100,17 +93,22 @@ function NewLocationPage() {
               id="location-type"
               value={locationType}
               onChange={(event) =>
-                setLocationType(
-                  event.target.value as "WAREHOUSE" | "STORE",
-                )
+                setLocationType(event.target.value as "WAREHOUSE" | "STORE")
               }
+              aria-invalid={Boolean(fieldErrors.locationType)}
             >
               <option value="WAREHOUSE">Warehouse</option>
               <option value="STORE">Store</option>
             </Select>
+
+            {fieldErrors.locationType && (
+              <p className="mt-1.5 text-sm text-red-600">
+                {fieldErrors.locationType}
+              </p>
+            )}
           </div>
 
-          {createMutation.isError && (
+          {createMutation.isError && Object.keys(fieldErrors).length === 0 && (
             <p className="text-sm text-red-600">
               {createMutation.error instanceof Error
                 ? createMutation.error.message
@@ -119,11 +117,7 @@ function NewLocationPage() {
           )}
 
           <div className="flex justify-end gap-2 border-t border-slate-200 pt-5">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleCancel}
-            >
+            <Button type="button" variant="secondary" onClick={handleCancel}>
               Cancel
             </Button>
 

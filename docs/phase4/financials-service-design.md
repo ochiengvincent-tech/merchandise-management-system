@@ -11,17 +11,17 @@ The first release should establish a reliable, append-only ledger and post only 
 
 ## Ownership and service boundaries
 
-| Concern | Owner | Financials relationship |
-| --- | --- | --- |
-| Suppliers, terms, vendor identity | Vendor Management | Store vendor ID and display snapshot; read through its API when needed |
-| Purchase orders and approved prices | Procurement | Use IDs and immutable event facts; never edit POs |
-| GRNs, accepted/damaged counts, receipt prices | Receiving | Use `GoodsReceived` as the receiving fact |
-| Product/location on-hand and moving-average unit cost | Inventory | Inventory remains authoritative; publish a cost-impact fact before Financials posts stock value changes |
-| Bin-level physical stock | Warehouse Operations | Not a separate ledger valuation source |
-| Completed sale and refund tenders, sales tax and revenue values | Retail Sales | Consume committed, versioned events; no direct database access |
-| Register count, variance, and manager close decisions | Sales Audit | Operational close evidence; not a source for sale recognition |
-| Chart of accounts, journals, payable invoices, financial periods and reports | Financials | Own and preserve |
-| User identity, roles, posting-period permissions | Shared identity platform (future) | Record actor IDs; authorization remains deferred until the platform exists |
+| Concern                                                                      | Owner                             | Financials relationship                                                                                 |
+| ---------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Suppliers, terms, vendor identity                                            | Vendor Management                 | Store vendor ID and display snapshot; read through its API when needed                                  |
+| Purchase orders and approved prices                                          | Procurement                       | Use IDs and immutable event facts; never edit POs                                                       |
+| GRNs, accepted/damaged counts, receipt prices                                | Receiving                         | Use `GoodsReceived` as the receiving fact                                                               |
+| Product/location on-hand and moving-average unit cost                        | Inventory                         | Inventory remains authoritative; publish a cost-impact fact before Financials posts stock value changes |
+| Bin-level physical stock                                                     | Warehouse Operations              | Not a separate ledger valuation source                                                                  |
+| Completed sale and refund tenders, sales tax and revenue values              | Retail Sales                      | Consume committed, versioned events; no direct database access                                          |
+| Register count, variance, and manager close decisions                        | Sales Audit                       | Operational close evidence; not a source for sale recognition                                           |
+| Chart of accounts, journals, payable invoices, financial periods and reports | Financials                        | Own and preserve                                                                                        |
+| User identity, roles, posting-period permissions                             | Shared identity platform (future) | Record actor IDs; authorization remains deferred until the platform exists                              |
 
 Each service keeps its own database. Cross-service IDs are references only, not foreign keys. Financials consumes events over the existing durable `mms.events` bus and stores its own inbox and projection state.
 
@@ -63,15 +63,15 @@ Each service keeps its own database. Cross-service IDs are references only, not 
 
 Use a configurable posting-rule table that maps event type, source dimensions, currency, and tax/category codes to accounts. Seed the initial mapping, but require a finance operator to confirm it before the posting consumer is enabled.
 
-| Operational fact | Proposed debit | Proposed credit | Rule |
-| --- | --- | --- | --- |
-| Accepted receipt with authoritative Inventory carrying value | Inventory asset | GRNI liability | Post accepted quantity at the cost fact supplied by Inventory. Do not post the ordered amount on PO approval. |
-| Approved supplier invoice matched to receipt(s) | GRNI and configured recoverable-tax account | Accounts payable | Match invoice lines to PO and accepted GRN quantities. Variances above configured tolerances go to review; do not silently change inventory cost. |
-| Sale completed | Cash-on-hand clearing, card clearing, or gift-card clearing by recorded tender | Sales revenue and sales-tax payable by source tax breakdown | Use immutable Retail Sales line/tender values. “Clearing” is not a claim that funds reached a bank or processor. |
-| Refund recorded | Sales returns/allowances and sales-tax payable reversal, proportionally by original sale tax allocation | Tender clearing by recorded refund method | Use Retail Sales refund amounts and tender breakdown. |
-| Inventory cost consumed by sale | Cost of goods sold | Inventory asset | Requires a cost snapshot emitted by Inventory at the moment stock is consumed. Do not derive from selling price or a later stock query. |
-| Inventory write-off or adjustment | Configured shrinkage/variance or inventory asset account | Inventory asset or configured variance account | Requires an authoritative cost delta from Inventory and a reason. Warehouse bin movements alone have no financial effect. |
-| Supplier credit note | Accounts payable / configured tax reversal / inventory or expense adjustment | Accounts payable / related accounts | Only after invoice and receipt linkage plus an approved reason are present. |
+| Operational fact                                             | Proposed debit                                                                                          | Proposed credit                                             | Rule                                                                                                                                              |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accepted receipt with authoritative Inventory carrying value | Inventory asset                                                                                         | GRNI liability                                              | Post accepted quantity at the cost fact supplied by Inventory. Do not post the ordered amount on PO approval.                                     |
+| Approved supplier invoice matched to receipt(s)              | GRNI and configured recoverable-tax account                                                             | Accounts payable                                            | Match invoice lines to PO and accepted GRN quantities. Variances above configured tolerances go to review; do not silently change inventory cost. |
+| Sale completed                                               | Cash-on-hand clearing, card clearing, or gift-card clearing by recorded tender                          | Sales revenue and sales-tax payable by source tax breakdown | Use immutable Retail Sales line/tender values. “Clearing” is not a claim that funds reached a bank or processor.                                  |
+| Refund recorded                                              | Sales returns/allowances and sales-tax payable reversal, proportionally by original sale tax allocation | Tender clearing by recorded refund method                   | Use Retail Sales refund amounts and tender breakdown.                                                                                             |
+| Inventory cost consumed by sale                              | Cost of goods sold                                                                                      | Inventory asset                                             | Requires a cost snapshot emitted by Inventory at the moment stock is consumed. Do not derive from selling price or a later stock query.           |
+| Inventory write-off or adjustment                            | Configured shrinkage/variance or inventory asset account                                                | Inventory asset or configured variance account              | Requires an authoritative cost delta from Inventory and a reason. Warehouse bin movements alone have no financial effect.                         |
+| Supplier credit note                                         | Accounts payable / configured tax reversal / inventory or expense adjustment                            | Accounts payable / related accounts                         | Only after invoice and receipt linkage plus an approved reason are present.                                                                       |
 
 The exact account mapping is a finance-owned configuration. A posting must remain in an exception state if its mapping is not configured.
 
@@ -160,26 +160,26 @@ Record account/rule changes, invoice state transitions, period close/reopen, exc
 
 Base path: `/api/v1`. Use the shared MMS error shape. Mutating commands require an idempotency key and actor ID; actor IDs are not authorization until the shared identity platform is implemented.
 
-| Method | Route | Purpose |
-| --- | --- | --- |
-| GET | `/accounts` | Search chart of accounts |
-| POST | `/accounts` | Create an account before first use; later changes are audited |
-| GET | `/journals` | Filter by source, account, period, actor, status, and date |
-| GET | `/journals/:id` | Read immutable header, lines, and source references |
-| POST | `/journals/:id/reverse` | Create a linked reversal for an eligible posted journal |
-| GET | `/reports/trial-balance` | Balanced debit/credit totals by account and period/date |
-| GET | `/reports/income-statement` | Revenue, contra-revenue, and expenses for a date range |
-| GET | `/reports/inventory-value` | Financial carrying value by location/product from posted journal lines |
-| GET | `/supplier-invoices` | Search draft, exception, approved, and posted invoices |
-| POST | `/supplier-invoices` | Record an idempotent supplier invoice draft |
-| POST | `/supplier-invoices/:id/match` | Match invoice lines against PO and accepted GRN quantities/prices |
-| POST | `/supplier-invoices/:id/approve` | Approve a matched invoice and post AP journal |
-| POST | `/periods/:id/close` | Close an eligible period after validation and audit |
-| POST | `/periods/:id/reopen` | Reopen with an explicit reason and elevated authorization when available |
-| GET | `/posting-exceptions` | Review incomplete, mismatched, or unmapped source facts |
-| POST | `/posting-exceptions/:id/retry` | Retry after source/rule correction without duplicating journals |
-| GET | `/audit-logs` | Paginated Financials audit history |
-| GET | `/health`, `/ready` | Liveness and database/broker readiness |
+| Method | Route                            | Purpose                                                                  |
+| ------ | -------------------------------- | ------------------------------------------------------------------------ |
+| GET    | `/accounts`                      | Search chart of accounts                                                 |
+| POST   | `/accounts`                      | Create an account before first use; later changes are audited            |
+| GET    | `/journals`                      | Filter by source, account, period, actor, status, and date               |
+| GET    | `/journals/:id`                  | Read immutable header, lines, and source references                      |
+| POST   | `/journals/:id/reverse`          | Create a linked reversal for an eligible posted journal                  |
+| GET    | `/reports/trial-balance`         | Balanced debit/credit totals by account and period/date                  |
+| GET    | `/reports/income-statement`      | Revenue, contra-revenue, and expenses for a date range                   |
+| GET    | `/reports/inventory-value`       | Financial carrying value by location/product from posted journal lines   |
+| GET    | `/supplier-invoices`             | Search draft, exception, approved, and posted invoices                   |
+| POST   | `/supplier-invoices`             | Record an idempotent supplier invoice draft                              |
+| POST   | `/supplier-invoices/:id/match`   | Match invoice lines against PO and accepted GRN quantities/prices        |
+| POST   | `/supplier-invoices/:id/approve` | Approve a matched invoice and post AP journal                            |
+| POST   | `/periods/:id/close`             | Close an eligible period after validation and audit                      |
+| POST   | `/periods/:id/reopen`            | Reopen with an explicit reason and elevated authorization when available |
+| GET    | `/posting-exceptions`            | Review incomplete, mismatched, or unmapped source facts                  |
+| POST   | `/posting-exceptions/:id/retry`  | Retry after source/rule correction without duplicating journals          |
+| GET    | `/audit-logs`                    | Paginated Financials audit history                                       |
+| GET    | `/health`, `/ready`              | Liveness and database/broker readiness                                   |
 
 ## UI outline
 
@@ -219,7 +219,6 @@ Base path: `/api/v1`. Use the shared MMS error shape. Mutating commands require 
 - Are retail cash/card/gift-card tender records eligible for revenue posting before external payment/cash settlement integration? The proposal posts to method-specific clearing accounts and does not claim settlement.
 
 These are finance/product policy decisions. The service can be scaffolded before all are final, but automated postings must remain disabled until the relevant mappings and source facts are approved. The concrete sign-off matrix is in [financials-finance-approval.md](financials-finance-approval.md).
-
 
 ## Implementation status (2026-09-30)
 

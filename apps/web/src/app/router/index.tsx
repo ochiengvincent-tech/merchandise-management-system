@@ -30,10 +30,10 @@ import { ApprovalsPage } from "../../pages/purchase-orders/approvals-page";
 import { AmendmentsPage } from "../../pages/purchase-orders/amendments-page";
 import { ReceivingPage } from "../../pages/receiving/receiving-page";
 import { ReceiptDetailPage } from "../../pages/receiving/receipt-detail-page";
-import { PlaceholderPage } from "../../pages/placeholder-page";
 import { WarehouseOperationsPage } from "../../pages/warehouse-operations/warehouse-operations-page";
 import { RetailSalesPage } from "../../pages/retail-sales/retail-sales-page";
 import { SalesAuditPage } from "../../pages/sales-audit/sales-audit-page";
+import { FinancialsPage } from "../../pages/financials/financials-page";
 import type { FeatureFlagKey } from "../../lib/feature-flags";
 
 function gatedPage(flag: FeatureFlagKey, title: string, page: React.ReactNode) {
@@ -111,7 +111,7 @@ export function AppRouter() {
         <Route path="/warehouse-operations" element={gatedPage("warehouseOperations", "Warehouse Operations", <WarehouseOperationsPage />)} />
         <Route path="/retail-sales" element={gatedPage("retailSales", "Retail Sales", <RetailSalesPage />)} />
         <Route path="/sales-audit" element={gatedPage("salesAudit", "Sales Audit", <SalesAuditPage />)} />
-        <Route path="/financials" element={gatedPage("financials", "Financials", <PlaceholderPage title="Financials" />)} />
+        <Route path="/financials" element={gatedPage("financials", "Financials", <FinancialsPage />)} />
       </Route>
     </Routes>
   );

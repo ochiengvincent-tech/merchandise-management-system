@@ -229,7 +229,7 @@ retailSalesRouter.post("/sales/:id/returns", async (req, res) => {
   const [sale] = await db.select().from(retailSales).where(eq(retailSales.id, saleId)).limit(1);
   if (!sale || sale.status !== "COMPLETED") throw new AppError("Only a completed sale can be returned", 409);
   const saleLines = await db.select().from(retailSaleLines).where(eq(retailSaleLines.saleId, saleId));
-  const prepared: Array<{ saleLineId: string; productId: string; quantity: number; refundMinor: number; disposition: string }> = [];
+  const prepared: Array<{ saleLineId: string; productId: string; quantity: number; refundMinor: number; taxRefundMinor: number; disposition: string }> = [];
   for (const requestLine of input.lines) {
     const line = saleLines.find((item) => item.id === requestLine.saleLineId);
     if (!line) throw new AppError("Return line does not belong to this sale", 400, [{ field: "lines", message: "Select an item from this receipt." }]);
@@ -238,7 +238,7 @@ retailSalesRouter.post("/sales/:id/returns", async (req, res) => {
     const refunded = previousRows.reduce((n, row) => n + row.returnLine.refundMinor, 0);
     if (returnedQty + requestLine.quantity > line.quantity) throw new AppError("Return quantity exceeds the remaining sale quantity", 409, [{ field: "lines", message: `${line.nameSnapshot} has ${line.quantity - returnedQty} unit(s) remaining for return.` }]);
     const lineRefund = Math.round(line.lineTotalMinor * (returnedQty + requestLine.quantity) / line.quantity) - refunded;
-    prepared.push({ saleLineId: line.id, productId: line.productId, quantity: requestLine.quantity, refundMinor: lineRefund, disposition: requestLine.disposition });
+    prepared.push({ saleLineId: line.id, productId: line.productId, quantity: requestLine.quantity, refundMinor: lineRefund, taxRefundMinor: Math.round(line.taxMinor * (returnedQty + requestLine.quantity) / line.quantity) - Math.round(line.taxMinor * returnedQty / line.quantity), disposition: requestLine.disposition });
   }
   const totalRefundMinor = prepared.reduce((sum, line) => sum + line.refundMinor, 0);
   const tenderTotal = input.tenders.reduce((sum, tender) => sum + tender.amountMinor, 0);
@@ -261,7 +261,7 @@ retailSalesRouter.post("/sales/:id/returns", async (req, res) => {
       const returnedQty = previousRows.reduce((n, row) => n + row.returnLine.quantity, 0);
       const refunded = previousRows.reduce((n, row) => n + row.returnLine.refundMinor, 0);
       if (returnedQty + requestLine.quantity > line.quantity) throw new AppError("Return quantity exceeds the remaining sale quantity", 409, [{ field: "lines", message: `${line.nameSnapshot} has ${line.quantity - returnedQty} unit(s) remaining for return.` }]);
-      safeLines.push({ saleLineId: line.id, productId: line.productId, quantity: requestLine.quantity, refundMinor: Math.round(line.lineTotalMinor * (returnedQty + requestLine.quantity) / line.quantity) - refunded, disposition: requestLine.disposition });
+      safeLines.push({ saleLineId: line.id, productId: line.productId, quantity: requestLine.quantity, refundMinor: Math.round(line.lineTotalMinor * (returnedQty + requestLine.quantity) / line.quantity) - refunded, taxRefundMinor: Math.round(line.taxMinor * (returnedQty + requestLine.quantity) / line.quantity) - Math.round(line.taxMinor * returnedQty / line.quantity), disposition: requestLine.disposition });
     }
     const safeTotal = safeLines.reduce((sum, line) => sum + line.refundMinor, 0);
     if (input.tenders.reduce((sum, tender) => sum + tender.amountMinor, 0) !== safeTotal) throw new AppError("Refund tender amounts changed because earlier returns were recorded", 409, [{ field: "tenders", message: `Retry with the current refund amount KES ${(safeTotal / 100).toFixed(2)}.` }]);

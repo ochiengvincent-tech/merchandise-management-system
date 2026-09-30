@@ -64,7 +64,8 @@ const navigation: { label: string; items: NavItem[] }[] = [
   },
   {
     label: "System",
-    items: [{ label: "Audit", icon: "audit", path: "/audit" }],
+    items: [{ label: "Audit", icon: "audit", path: "/audit" },
+      { label: "Financials", icon: "valuation", path: "/financials", flag: "financials" }],
   },
 ];
 

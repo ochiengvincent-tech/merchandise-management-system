@@ -31,6 +31,7 @@ const sourceLabels = {
   RETAIL_SALES: "Retail Sales",
   WAREHOUSE_OPERATIONS: "Warehouse Operations",
   SALES_AUDIT: "Sales Audit",
+  FINANCIALS: "Financials",
 } as const;
 
 function resourceId(record: AuditRecord) {
@@ -138,6 +139,7 @@ export function AuditPage() {
               {featureFlags.retailSales && <option value="RETAIL_SALES">Retail Sales</option>}
               {featureFlags.warehouseOperations && <option value="WAREHOUSE_OPERATIONS">Warehouse Operations</option>}
               {featureFlags.salesAudit && <option value="SALES_AUDIT">Sales Audit</option>}
+              {featureFlags.financials && <option value="FINANCIALS">Financials</option>}
             </Select>
           </label>
           <label className="block text-sm font-medium text-slate-700">

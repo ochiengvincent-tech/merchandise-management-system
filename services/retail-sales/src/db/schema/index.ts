@@ -64,7 +64,7 @@ export const retailReturns = pgTable("retail_returns", {
 export const retailReturnLines = pgTable("retail_return_lines", {
   id: uuid("id").defaultRandom().primaryKey(), returnId: uuid("return_id").notNull().references(() => retailReturns.id, { onDelete: "cascade" }),
   saleLineId: uuid("sale_line_id").notNull().references(() => retailSaleLines.id), productId: uuid("product_id").notNull(), quantity: integer("quantity").notNull(),
-  refundMinor: integer("refund_minor").notNull(), disposition: varchar("disposition", { length: 24 }).notNull(),
+  refundMinor: integer("refund_minor").notNull(), taxRefundMinor: integer("tax_refund_minor"), disposition: varchar("disposition", { length: 24 }).notNull(),
 }, (t) => [index("retail_return_lines_sale_line_idx").on(t.saleLineId), check("retail_return_lines_quantity_check", sql`${t.quantity} > 0`), check("retail_return_lines_disposition_check", sql`${t.disposition} IN ('RESTOCK_SELLABLE', 'QUARANTINE', 'NO_STOCK_RETURN')`)]);
 
 export const retailReturnTenders = pgTable("retail_return_tenders", {

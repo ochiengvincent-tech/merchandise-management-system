@@ -11,6 +11,7 @@ export const auditSources = [
   "RETAIL_SALES",
   "WAREHOUSE_OPERATIONS",
   "SALES_AUDIT",
+  "FINANCIALS",
 ] as const;
 export type AuditSource = (typeof auditSources)[number];
 export type AuditSourceFilter = AuditSource | "ALL";
@@ -67,6 +68,7 @@ const services: Array<{ source: AuditSource; baseUrl: string }> = [
   { source: "RETAIL_SALES", baseUrl: API_URLS.retailSales },
   { source: "WAREHOUSE_OPERATIONS", baseUrl: API_URLS.warehouse },
   { source: "SALES_AUDIT", baseUrl: API_URLS.salesAudit },
+  { source: "FINANCIALS", baseUrl: API_URLS.financials },
 ];
 
 export async function listAuditRecords(
@@ -79,6 +81,7 @@ export async function listAuditRecords(
       (source !== "RETAIL_SALES" || featureFlags.retailSales) &&
       (source !== "WAREHOUSE_OPERATIONS" || featureFlags.warehouseOperations) &&
       (source !== "SALES_AUDIT" || featureFlags.salesAudit) &&
+      (source !== "FINANCIALS" || featureFlags.financials) &&
       (sourceFilter === "ALL" || sourceFilter === source),
   );
   const query = new URLSearchParams({

@@ -43,6 +43,20 @@
       "when": 1790710000000,
       "tag": "0005_idempotent_sale_reservations",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790800000000,
+      "tag": "0006_financial_valuation_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790800000001,
+      "tag": "0007_exact_carrying_value",
+      "breakpoints": true
     }
   ]
 }

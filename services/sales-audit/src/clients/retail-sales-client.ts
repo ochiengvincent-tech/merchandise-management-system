@@ -3,7 +3,7 @@ import { env } from "../config/env.js";
 import { AppError } from "../errors/app-error.js";
 
 const registerSchema = z.object({ id: z.uuid(), code: z.string(), name: z.string(), inventoryLocationId: z.uuid() });
-const registerListSchema = z.object({ data: z.array(registerSchema) });
+const registerListSchema = z.array(registerSchema);
 const totalsSchema = z.object({
   registerId: z.uuid(), from: z.iso.datetime(), to: z.iso.datetime(), currency: z.string().length(3), snapshotAt: z.iso.datetime(),
   saleCount: z.number().int().nonnegative(), returnCount: z.number().int().nonnegative(),
@@ -27,7 +27,7 @@ async function get<T>(path: string, schema: z.ZodType<T>): Promise<T> {
 }
 
 export async function listRetailRegisters() {
-  return (await get("/registers", registerListSchema)).data;
+  return await get("/registers", registerListSchema);
 }
 
 export async function getRetailTotals(registerId: string, from: Date, to: Date): Promise<RetailTotals> {

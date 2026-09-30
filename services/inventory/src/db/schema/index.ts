@@ -5,3 +5,4 @@ export * from "./inventory-adjustments.js";
 export * from "./inventory-audit-logs.js";
 export * from "./inventory-processed-events.js";
 export * from "./inventory-outbox-events.js";export * from "./inventory-sale-reservations.js";
+export * from "./inventory-sale-costs.js";

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
@@ -55,33 +55,26 @@ export function ReceiveGoodsForm({ purchaseOrderId }: { purchaseOrderId: string 
   const navigate = useNavigate();
   const purchaseOrderQuery = useReceivingPurchaseOrder(purchaseOrderId);
   const recordMutation = useRecordGoodsReceipt();
-  const [deliveryNote, setDeliveryNote] = useState("");
-  const [notes, setNotes] = useState("");
-  const [counts, setCounts] = useState<Record<string, LineCount>>({});
   const [pendingSubmission, setPendingSubmission] = useState<PendingSubmission | null>(
     () => loadPendingSubmission(purchaseOrderId),
   );
+  const [deliveryNote, setDeliveryNote] = useState(() => pendingSubmission?.input.supplierDeliveryNote ?? "");
+  const [notes, setNotes] = useState(() => pendingSubmission?.input.notes ?? "");
+  const [countOverrides, setCountOverrides] = useState<Record<string, LineCount>>({});
   const [localError, setLocalError] = useState("");
-  const [confirmedDiscrepancies, setConfirmedDiscrepancies] = useState(false);
-
-  useEffect(() => {
-    const order = purchaseOrderQuery.data;
-    if (!order) return;
+  const [confirmedDiscrepancies, setConfirmedDiscrepancies] = useState(Boolean(pendingSubmission));
+  const counts = useMemo(() => {
     const savedLines = pendingSubmission?.input.lines ?? [];
-    setCounts(Object.fromEntries(order.lines.map((line) => {
+    const initialCounts = Object.fromEntries((purchaseOrderQuery.data?.lines ?? []).map((line) => {
       const savedLine = savedLines.find((item) => item.purchaseOrderLineId === line.id);
       return [line.id, {
         include: Boolean(savedLine),
         observed: String(savedLine?.quantityObserved ?? ""),
         damaged: String(savedLine?.quantityDamaged ?? 0),
       }];
-    })));
-    if (pendingSubmission) {
-      setDeliveryNote(pendingSubmission.input.supplierDeliveryNote ?? "");
-      setNotes(pendingSubmission.input.notes ?? "");
-      setConfirmedDiscrepancies(true);
-    }
-  }, [purchaseOrderQuery.data, pendingSubmission]);
+    }));
+    return { ...initialCounts, ...countOverrides };
+  }, [countOverrides, pendingSubmission, purchaseOrderQuery.data]);
 
   if (purchaseOrderQuery.isLoading) {
     return <Card className="p-6 text-sm text-slate-500">Loading purchase order…</Card>;
@@ -106,7 +99,7 @@ export function ReceiveGoodsForm({ purchaseOrderId }: { purchaseOrderId: string 
   });
 
   const updateLine = (lineId: string, update: Partial<LineCount>) => {
-    setCounts((current) => ({
+    setCountOverrides((current) => ({
       ...current,
       [lineId]: { ...current[lineId]!, ...update },
     }));

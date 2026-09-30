@@ -360,6 +360,20 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /api/v1/vendors/products:
+    get:
+      tags: [Vendor Products]
+      summary: List supplier-product relationships across vendors
+      operationId: listAllVendorProducts
+      responses:
+        "200":
+          description: Vendor products returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorProductListResponse"
+        "400": {$ref: "#/components/responses/ValidationError"}
+
   /api/v1/vendors/{vendorId}/products:
     post:
       tags:
@@ -423,7 +437,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /api/v1/vendor-products/{id}:
+  /api/v1/vendors/products/{id}:
     get:
       tags:
         - Vendor Products
@@ -710,6 +724,7 @@ components:
           type: string
           format: date-time
         reliabilitySummary:
+          type: object
           allOf:
             - $ref: "#/components/schemas/VendorReliabilitySummary"
           nullable: true

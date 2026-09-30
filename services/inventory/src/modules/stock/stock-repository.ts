@@ -72,7 +72,7 @@ export const findInventoryValuation = async () => {
       quantityOnHand: inventoryStock.quantityOnHand,
       quantityAllocated: inventoryStock.quantityAllocated,
       unitCost: inventoryStock.unitCost,
-      extendedValue: sql<string>`(${inventoryStock.quantityOnHand} * ${inventoryStock.unitCost})::numeric(14, 2)`,
+      extendedValue: sql<string>`(${inventoryStock.carryingValueMinor}::numeric / 100)::numeric(20, 2)::text`,
     })
     .from(inventoryStock)
     .innerJoin(products, eq(inventoryStock.productId, products.id))

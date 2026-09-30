@@ -24,9 +24,10 @@ export const inventoryStock = pgTable(
     quantityOnHand: integer("quantity_on_hand").notNull().default(0),
     quantityAllocated: integer("quantity_allocated").notNull().default(0),
     quantityOnOrder: integer("quantity_on_order").notNull().default(0),
+    carryingValueMinor: numeric("carrying_value_minor", { precision: 20, scale: 0 }).notNull().default("0"),
     unitCost: numeric("unit_cost", {
-      precision: 12,
-      scale: 2,
+      precision: 18,
+      scale: 6,
     })
       .notNull()
       .default("0"),
@@ -53,6 +54,7 @@ export const inventoryStock = pgTable(
     ),
     check("inventory_stock_on_order_check", sql`${table.quantityOnOrder} >= 0`),
     check("inventory_stock_unit_cost_check", sql`${table.unitCost} >= 0`),
+    check("inventory_stock_carrying_value_check", sql`${table.carryingValueMinor} >= 0`),
     check(
       "inventory_stock_allocated_limit_check",
       sql`${table.quantityAllocated} <= ${table.quantityOnHand}`,

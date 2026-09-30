@@ -1,0 +1,346 @@
+openapi: 3.1.0
+info:
+  title: MMS Financials API
+  version: 1.0.0
+  description: General ledger, supplier invoice, reporting, and period operations. Amounts are integer KES minor units.
+security: []
+servers:
+  - url: /api/v1
+tags:
+  - name: Ledger
+  - name: Reports
+  - name: Invoices
+  - name: Periods
+  - name: Exceptions
+  - name: Audit
+paths:
+  /accounts:
+    get:
+      tags: [Ledger]
+      summary: List the chart of accounts
+      responses:
+        "200":
+          description: Accounts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: "#/components/schemas/Account"}
+    post:
+      tags: [Ledger]
+      summary: Add a KES account
+      parameters: [{$ref: "#/components/parameters/Actor"}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewAccount"
+      responses:
+        "201": {description: Account created}
+        "400": {$ref: "#/components/responses/Error"}
+  /posting-mappings:
+    get:
+      tags: [Ledger]
+      summary: List posting account mappings
+      responses:
+        "200": {description: Current mappings}
+  /posting-mappings/{mappingKey}:
+    put:
+      tags: [Ledger]
+      summary: Update an account mapping
+      parameters:
+        - {name: mappingKey, in: path, required: true, schema: {type: string}}
+        - {$ref: "#/components/parameters/Actor"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [accountCode]
+              properties:
+                accountCode: {type: string, pattern: "^\\d{3,10}$"}
+      responses:
+        "200": {description: Mapping updated}
+        "400": {$ref: "#/components/responses/Error"}
+  /journals:
+    get:
+      tags: [Ledger]
+      summary: Search posted journals
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 25}}
+        - {name: sourceType, in: query, schema: {type: string}}
+        - {name: accountCode, in: query, schema: {type: string}}
+        - {name: from, in: query, schema: {type: string, format: date}}
+        - {name: to, in: query, schema: {type: string, format: date}}
+        - {name: actorId, in: query, schema: {type: string, format: uuid}}
+      responses:
+        "200": {description: Journals and pagination}
+  /journals/{id}:
+    get:
+      tags: [Ledger]
+      summary: Read a journal with lines
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      responses:
+        "200": {description: Journal detail}
+        "404": {$ref: "#/components/responses/Error"}
+  /journals/{id}/reverse:
+    post:
+      tags: [Ledger]
+      summary: Append a linked reversal
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {$ref: "#/components/parameters/Actor"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 5, maxLength: 500}
+      responses:
+        "201": {description: Reversal journal}
+        "409": {$ref: "#/components/responses/Error"}
+  /reports/trial-balance:
+    get:
+      tags: [Reports]
+      summary: Report debit and credit totals by account
+      parameters:
+        - {name: from, in: query, schema: {type: string, format: date}}
+        - {name: to, in: query, schema: {type: string, format: date}}
+        - {name: currency, in: query, schema: {type: string, enum: [KES], default: KES}}
+      responses:
+        "200": {description: Trial balance and balancing totals}
+  /reports/income-statement:
+    get:
+      tags: [Reports]
+      summary: Report revenue and expenses for a date range
+      parameters:
+        - {name: from, in: query, required: true, schema: {type: string, format: date}}
+        - {name: to, in: query, required: true, schema: {type: string, format: date}}
+        - {name: currency, in: query, schema: {type: string, enum: [KES], default: KES}}
+      responses:
+        "200": {description: Income statement}
+  /reports/inventory-value:
+    get:
+      tags: [Reports]
+      summary: Inventory asset carrying value by location and product
+      parameters:
+        - {name: asOf, in: query, schema: {type: string, format: date}}
+        - {name: locationId, in: query, schema: {type: string, format: uuid}}
+        - {name: productId, in: query, schema: {type: string, format: uuid}}
+      responses:
+        "200": {description: Posted carrying value}
+  /supplier-invoices:
+    get:
+      tags: [Invoices]
+      summary: Search supplier invoices
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 1}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100}}
+        - {name: status, in: query, schema: {type: string, enum: [DRAFT, MATCHED, EXCEPTION, POSTED]}}
+        - {name: vendorId, in: query, schema: {type: string, format: uuid}}
+      responses:
+        "200": {description: Supplier invoices and pagination}
+    post:
+      tags: [Invoices]
+      summary: Capture an idempotent invoice draft with PO and receipt lines
+      parameters:
+        - {$ref: "#/components/parameters/Actor"}
+        - {$ref: "#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewSupplierInvoice"
+      responses:
+        "201": {description: Invoice captured}
+        "400": {$ref: "#/components/responses/Error"}
+  /supplier-invoices/{id}:
+    get:
+      tags: [Invoices]
+      summary: Read an invoice with source lines
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      responses:
+        "200": {description: Invoice detail}
+  /supplier-invoices/{id}/match:
+    post:
+      tags: [Invoices]
+      summary: Match against an approved PO and accepted GRN
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {$ref: "#/components/parameters/Actor"}
+      responses:
+        "200": {description: Matching result}
+        "409": {$ref: "#/components/responses/Error"}
+  /supplier-invoices/{id}/approve:
+    post:
+      tags: [Invoices]
+      summary: Maker-checker approval and AP posting
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {$ref: "#/components/parameters/Actor"}
+      responses:
+        "200": {description: Posted invoice and journal reference}
+        "409": {$ref: "#/components/responses/Error"}
+  /periods:
+    get:
+      tags: [Periods]
+      summary: List recent accounting periods
+      responses:
+        "200": {description: Accounting periods}
+  /periods/{periodKey}/close:
+    post:
+      tags: [Periods]
+      summary: Close a period after unresolved event checks
+      parameters:
+        - {name: periodKey, in: path, required: true, schema: {type: string, pattern: "^\\d{4}-(0[1-9]|1[0-2])$"}}
+        - {$ref: "#/components/parameters/Actor"}
+      responses:
+        "200": {description: Closed period}
+        "409": {$ref: "#/components/responses/Error"}
+  /periods/{periodKey}/reopen:
+    post:
+      tags: [Periods]
+      summary: Reopen a closed period with a reason
+      parameters:
+        - {name: periodKey, in: path, required: true, schema: {type: string, pattern: "^\\d{4}-(0[1-9]|1[0-2])$"}}
+        - {$ref: "#/components/parameters/Actor"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 5, maxLength: 500}
+      responses:
+        "200": {description: Reopened period}
+  /posting-exceptions:
+    get:
+      tags: [Exceptions]
+      summary: List pending and exceptional source events
+      responses:
+        "200": {description: Posting exception page}
+  /posting-exceptions/{eventId}/retry:
+    post:
+      tags: [Exceptions]
+      summary: Retry an event after resolving its cause
+      parameters:
+        - {name: eventId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {$ref: "#/components/parameters/Actor"}
+      responses:
+        "200": {description: Updated event status}
+  /audit-logs:
+    get:
+      tags: [Audit]
+      summary: Search Financials audit records
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 1}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100}}
+        - {name: action, in: query, schema: {type: string}}
+        - {name: actorId, in: query, schema: {type: string, format: uuid}}
+      responses:
+        "200": {description: Audit records and pagination}
+  /health:
+    get:
+      summary: Liveness check
+      responses:
+        "200": {description: Process is alive}
+  /ready:
+    get:
+      summary: Database readiness check
+      responses:
+        "200": {description: Service is ready}
+        "503": {description: Database is not ready}
+components:
+  parameters:
+    Actor:
+      name: x-actor-id
+      in: header
+      required: true
+      schema: {type: string, format: uuid}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, format: uuid}
+  responses:
+    Error:
+      description: Canonical MMS error
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error:
+                type: object
+                required: [message]
+                properties:
+                  message: {type: string}
+                  details:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field: {type: string}
+                        message: {type: string}
+  schemas:
+    Account:
+      type: object
+      required: [id, code, name, accountType, normalBalance, currency, active]
+      properties:
+        id: {type: string, format: uuid}
+        code: {type: string}
+        name: {type: string}
+        accountType: {type: string, enum: [ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE]}
+        normalBalance: {type: string, enum: [DEBIT, CREDIT]}
+        currency: {type: string, enum: [KES]}
+        active: {type: boolean}
+    NewAccount:
+      type: object
+      required: [code, name, accountType, normalBalance]
+      properties:
+        code: {type: string, pattern: "^\\d{3,10}$"}
+        name: {type: string, minLength: 2, maxLength: 150}
+        accountType: {type: string, enum: [ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE]}
+        normalBalance: {type: string, enum: [DEBIT, CREDIT]}
+        currency: {type: string, enum: [KES], default: KES}
+    NewSupplierInvoice:
+      type: object
+      required: [vendorId, invoiceNumber, invoiceDate, currency, taxMinor, totalMinor, lines]
+      properties:
+        vendorId: {type: string, format: uuid}
+        invoiceNumber: {type: string, minLength: 1, maxLength: 100}
+        invoiceDate: {type: string, format: date}
+        dueDate: {type: string, format: date}
+        currency: {type: string, enum: [KES]}
+        taxMinor: {type: string, pattern: "^\\d+$"}
+        totalMinor: {type: string, pattern: "^\\d+$"}
+        lines:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [purchaseOrderId, purchaseOrderLineId, goodsReceiptId, goodsReceiptLineId, productId, quantity, unitPriceMinor, taxMinor, lineTotalMinor]
+            properties:
+              purchaseOrderId: {type: string, format: uuid}
+              purchaseOrderLineId: {type: string, format: uuid}
+              goodsReceiptId: {type: string, format: uuid}
+              goodsReceiptLineId: {type: string, format: uuid}
+              productId: {type: string, format: uuid}
+              quantity: {type: integer, minimum: 1}
+              unitPriceMinor: {type: string, pattern: "^\\d+$"}
+              taxMinor: {type: string, pattern: "^\\d+$"}
+              lineTotalMinor: {type: string, pattern: "^\\d+$"}

@@ -26,6 +26,14 @@ export default defineConfig({
         target: "http://localhost:3006",
         rewrite: (path) => path.replace(/^\/api\/retail-sales/, "/api/v1"),
       },
+      "/api/financials": {
+        target: "http://localhost:3008",
+        rewrite: (path) => path.replace(/^\/api\/financials/, "/api/v1"),
+      },
+      "/api/sales-audit": {
+        target: "http://localhost:3007",
+        rewrite: (path) => path.replace(/^\/api\/sales-audit/, "/api/v1"),
+      },
       "/api/warehouse-operations": {
         target: "http://localhost:3005",
         rewrite: (path) => path.replace(/^\/api\/warehouse-operations/, "/api/v1"),

@@ -69,8 +69,8 @@ A checkout is a small distributed workflow; there is no cross-service database t
 2. Retail Sales persists an attempt in `PENDING_STOCK` and its request hash. A replay with the same key/body returns or resumes that attempt; same key with different body returns `409`.
 3. Retail Sales requests Inventory to reserve each product/quantity at the register's location. Inventory is authoritative and must reject inactive products, insufficient availability, or a disabled location. Reservation commands need idempotency and a stable sale-attempt reference. If any line cannot be reserved, release successful reservations and leave no completed sale.
 4. Once stock is reserved, validate and record tender outcomes. If tender is declined or cancelled, release reservations and mark the attempt failed/cancelled. Retry behavior must not double-charge: real payment providers require their own idempotency key and reconciliation contract before integration.
-5. In one Retail Sales DB transaction, mark the sale complete, persist lines/tenders/audit, and insert `SaleCompleted.v1` in the outbox. Return the completed receipt only after this transaction commits.
-6. Inventory consumes `SaleCompleted.v1` idempotently and atomically reduces on-hand and allocated by the sold quantity. An event consumer failure does not erase the sale; the queue retries and the allocation continues to protect availability. Surface inventory synchronization state in operational diagnostics.
+5. In one Retail Sales DB transaction, mark the sale complete, persist lines/tenders/audit, and insert `SaleCompleted` (payload schema version 1) in the outbox. Return the completed receipt only after this transaction commits.
+6. Inventory consumes `SaleCompleted` (payload schema version 1) idempotently and atomically reduces on-hand and allocated by the sold quantity. An event consumer failure does not erase the sale; the queue retries and the allocation continues to protect availability. Surface inventory synchronization state in operational diagnostics.
 7. Sales Audit and Financials consume the same versioned event independently. Their failure must not roll back or block an already completed sale.
 
 **Required Inventory contract addition:** current Inventory supports allocate and release, but the inspected endpoints do not provide an idempotent “consume this reservation” operation or a sale-event consumer. Before checkout is considered complete, add the corresponding Inventory event handling (preferred, matching the assignment) or an Inventory-owned idempotent finalize-reservation API. Do not call `allocate` and then directly decrement stock from Retail Sales. This is a documented integration prerequisite, not something Retail Sales may bypass.
@@ -81,7 +81,7 @@ For this contract, Inventory must correlate a sale line/reference to its reserve
 
 1. Cashier looks up the original completed sale and selects remaining returnable quantities.
 2. Retail Sales verifies quantities against the original lines and all prior returns, calculates refund using the original sale-time price/tax/discount policy, and validates tender/refund rules.
-3. Persist the return, tender refund record, audit, and `SaleReturned.v1` outbox event atomically. If an external refund provider exists later, use a persisted pending/refund state and provider idempotency; do not report refunded before provider confirmation.
+3. Persist the return, tender refund record, audit, and `SaleReturned` (payload schema version 1) outbox event atomically. If an external refund provider exists later, use a persisted pending/refund state and provider idempotency; do not report refunded before provider confirmation.
 4. Inventory handles the event idempotently. Sellable goods may be added through an Inventory-owned return command; damaged or otherwise unsellable goods must be recorded into a non-sellable Warehouse disposition. If that contract does not exist yet, return completion must explicitly leave the inventory disposition pending and must not silently add stock.
 5. Sales Audit subtracts refund tenders from expected totals; Financials later records the reversal through its own consumer.
 
@@ -100,17 +100,17 @@ All routes are under `/api/v1` and use the project's canonical error shape `{ er
 | GET | `/sales/:saleId` | Read receipt/sale details and tender summary |
 | POST | `/sales` | Idempotent checkout; requires `Idempotency-Key` and `x-actor-id` until auth |
 | POST | `/sales/:saleId/returns` | Idempotent full/partial return; requires original sale reference |
-| GET | `/sales-audit/register-totals` | Read-only expected tender totals for Sales Audit (contract to be agreed between services) |
+| GET | `/sales-audit/register-totals?registerId=&from=&to=` | Read-only committed tender totals by method for the half-open register interval; coordinated with sale/refund commits |
 | GET | `/health`, `/ready` | Liveness and dependency readiness |
 
-The exact HTTP payloads should be finalized alongside OpenAPI schemas before implementation. APIs must paginate searches and never expose another service's database model wholesale.
+The Sales Audit totals endpoint is documented in `contracts/openapi/retail-sales.yaml`; other payloads should be finalized alongside OpenAPI schemas before implementation. APIs must paginate searches and never expose another service's database model wholesale.
 
 ## Events
 
 Use the shared envelope `{ eventId, eventType, aggregateType, aggregateId, payload, occurredAt }`; version payloads from the first release and include schema examples/contracts in the repository.
 
-- **`SaleCompleted.v1`**: sale ID/receipt number, register ID, Inventory location ID, cashier actor ID, currency, completed timestamp, line product IDs and quantities, price/discount/tax/final line amounts, tender method/amount summaries, and idempotency/reference data. Avoid customer PII. This event drives Inventory consumption, Sales Audit expected totals, and future Financials postings.
-- **`SaleReturned.v1`**: return ID, original sale ID, register/location, actor, currency, return time, returned line quantities/refund amounts/disposition, and tender refund summaries. Drives Inventory restock/disposition, Sales Audit tender reversal, and future Financials reversal.
+- **`SaleCompleted` (payload schema version 1)**: sale ID/receipt number, register ID, Inventory location ID, cashier actor ID, currency, completed timestamp, line product IDs and quantities, price/discount/tax/final line amounts, tender method/amount summaries, and idempotency/reference data. Avoid customer PII. This event drives Inventory consumption, Sales Audit expected totals, and future Financials postings.
+- **`SaleReturned` (payload schema version 1)**: return ID, original sale ID, register/location, actor, currency, return time, returned line quantities/refund amounts/disposition, and tender refund summaries. Drives Inventory restock/disposition, Sales Audit tender reversal, and future Financials reversal.
 
 Publish via a transactional outbox. Consumers persist event IDs and their effects atomically, acknowledge only after commit, and tolerate replay. A sale event should be a durable business fact; it must not be sent as a transient fire-and-forget message.
 

@@ -85,7 +85,7 @@ Phase 1 supports:
 * `WAREHOUSE`
 * `STORE`
 
-Detailed warehouse structures such as bins, racks, shelves, and zones are planned for the Warehouse Operations phase.
+Detailed warehouse structures such as bins, racks, shelves, and zones are owned by the Warehouse Operations service.
 
 #### `inventory_stock`
 
@@ -422,3 +422,7 @@ belong to the Warehouse Operations Service and are not implemented here.
 Procurement will use Inventory's Product Master as the canonical source for product identity.
 
 Procurement will not access `inventory_db` directly. It will reference products by UUID and communicate with Inventory through APIs and asynchronous events.
+
+## Service integrations and API contract
+
+The [Inventory OpenAPI contract](../../contracts/openapi/inventory.yaml) describes the current HTTP API. Inventory also publishes versioned valuation events for receipt cost changes, sale consumption, sellable returns, and stock adjustments so Financials can maintain posted carrying value and COGS. Sale-time cost snapshots are retained for returns; Financials handles legacy or unresolved valuation events as exceptions.

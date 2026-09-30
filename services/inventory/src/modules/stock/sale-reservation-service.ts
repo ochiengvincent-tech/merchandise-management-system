@@ -5,7 +5,9 @@ import { inventoryAuditLogs } from "../../db/schema/inventory-audit-logs.js";
 import { inventoryProcessedEvents } from "../../db/schema/inventory-processed-events.js";
 import { inventorySaleReservations } from "../../db/schema/inventory-sale-reservations.js";
 import { inventoryStock } from "../../db/schema/inventory-stock.js";
+import { inventorySaleCosts } from "../../db/schema/inventory-sale-costs.js";
 import { AppError } from "../../errors/app-error.js";
+import { allocateCarryingValue, recordValuationChange, unitCostFromCarryingValue } from "../events/valuation-outbox.js";
 import { findLocationById } from "../locations/location-repository.js";
 import { findProductById } from "../products/product-repository.js";
 import { allocateStock, findStockByProductAndLocationWithDatabase } from "./stock-repository.js";
@@ -76,12 +78,26 @@ export async function consumeSaleCompletedEvent(input: {
       }
       if (reservation.status === "CONSUMED" && reservation.consumedByEventId === input.eventId) continue;
       if (reservation.status !== "RESERVED") throw new AppError("Sale stock reservation is no longer available for consumption", 409);
+      const [currentStock] = await tx.select().from(inventoryStock).where(and(eq(inventoryStock.productId, line.productId), eq(inventoryStock.locationId, line.locationId))).for("update").limit(1);
+      if (!currentStock || currentStock.quantityOnHand < line.quantity || currentStock.quantityAllocated < line.quantity) throw new AppError("Reserved Inventory quantity could not be consumed safely", 409);
+      const costMinor = allocateCarryingValue(currentStock.carryingValueMinor, line.quantity, currentStock.quantityOnHand);
+      const newQuantityOnHand = currentStock.quantityOnHand - line.quantity;
+      const newCarryingValueMinor = BigInt(currentStock.carryingValueMinor) - costMinor;
       const [stock] = await tx.update(inventoryStock).set({
-        quantityOnHand: sql`${inventoryStock.quantityOnHand} - ${line.quantity}`,
-        quantityAllocated: sql`${inventoryStock.quantityAllocated} - ${line.quantity}`,
+        quantityOnHand: newQuantityOnHand,
+        quantityAllocated: currentStock.quantityAllocated - line.quantity,
+        carryingValueMinor: newCarryingValueMinor.toString(),
+        unitCost: unitCostFromCarryingValue(newCarryingValueMinor, newQuantityOnHand),
         updatedAt: new Date(),
-      }).where(and(eq(inventoryStock.productId, line.productId), eq(inventoryStock.locationId, line.locationId), sql`${inventoryStock.quantityOnHand} >= ${line.quantity}`, sql`${inventoryStock.quantityAllocated} >= ${line.quantity}`)).returning();
+      }).where(eq(inventoryStock.id, currentStock.id)).returning();
       if (!stock) throw new AppError("Reserved Inventory quantity could not be consumed safely", 409);
+      const [existingCost] = await tx.select().from(inventorySaleCosts).where(and(eq(inventorySaleCosts.saleId, input.saleId), eq(inventorySaleCosts.productId, line.productId), eq(inventorySaleCosts.locationId, line.locationId))).for("update").limit(1);
+      if (existingCost) {
+        await tx.update(inventorySaleCosts).set({ originalQuantity: existingCost.originalQuantity + line.quantity, originalCostMinor: existingCost.originalCostMinor + costMinor }).where(eq(inventorySaleCosts.id, existingCost.id));
+      } else {
+        await tx.insert(inventorySaleCosts).values({ saleId: input.saleId, productId: line.productId, locationId: line.locationId, originalQuantity: line.quantity, originalCostMinor: costMinor });
+      }
+      await recordValuationChange(tx, { stockId: currentStock.id, sourceType: "SALE", sourceId: input.saleId, sourceEventId: input.eventId, productId: line.productId, locationId: line.locationId, quantityDelta: -line.quantity, carryingValueDeltaMinor: -costMinor, reason: "SALE_CONSUMPTION" });
       await tx.update(inventorySaleReservations).set({ status: "CONSUMED", consumedByEventId: input.eventId, updatedAt: new Date() }).where(eq(inventorySaleReservations.id, reservation.id));
       await tx.insert(inventoryAuditLogs).values({ productId: line.productId, locationId: line.locationId, action: "SALE_STOCK_CONSUMED", actorId: input.actorId, details: { reservationId: reservation.id, saleId: input.saleId, quantity: line.quantity, eventId: input.eventId } });
     }

@@ -59,11 +59,13 @@ const navigation: { label: string; items: NavItem[] }[] = [
     label: "Sales",
     items: [
       { label: "Retail Sales", icon: "purchase-order", path: "/retail-sales", flag: "retailSales" },
+      { label: "Sales Audit", icon: "audit", path: "/sales-audit", flag: "salesAudit" },
     ],
   },
   {
     label: "System",
-    items: [{ label: "Audit", icon: "audit", path: "/audit" }],
+    items: [{ label: "Audit", icon: "audit", path: "/audit" },
+      { label: "Financials", icon: "valuation", path: "/financials", flag: "financials" }],
   },
 ];
 

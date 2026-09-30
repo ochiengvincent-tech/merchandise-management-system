@@ -7,6 +7,7 @@ import { findProductByIdWithDatabase } from "../products/product-repository.js";
 import { findLocationByIdWithDatabase } from "../locations/location-repository.js";
 import { findStockByProductAndLocationWithDatabase } from "../stock/stock-repository.js";
 import { markEventAsProcessed } from "./event-service.js";
+import { moneyToMinor, recordValuationChange, unitCostFromCarryingValue } from "./valuation-outbox.js";
 import {
   purchaseOrderApprovedEventSchema,
   purchaseOrderCancelledEventSchema,
@@ -254,6 +255,7 @@ export const processPurchaseOrderReceived = async (data: unknown) => {
       quantityReceived: number;
       unitPrice: number;
     }>;
+    goodsReceipt?: { id: string; currency: string; sourceEventId: string };
   } =
     typeof data === "object" && data !== null &&
     "eventType" in data && data.eventType === "GoodsReceived"
@@ -263,6 +265,7 @@ export const processPurchaseOrderReceived = async (data: unknown) => {
             eventId: received.eventId,
             eventType: received.eventType,
             purchaseOrderId: received.purchaseOrderId,
+            goodsReceipt: { id: received.goodsReceiptId, currency: received.currency, sourceEventId: received.eventId },
             lines: received.lines
               .filter((line) => line.quantityAccepted > 0)
               .map((line) => ({
@@ -346,42 +349,47 @@ export const processPurchaseOrderReceived = async (data: unknown) => {
       throw new AppError("Validation failed", 400, errors);
     }
 
-    for (const { line, stock } of lineData) {
-      if (!stock) {
-        throw new Error("Validation failed");
-      }
+    for (const { line, stock: originalStock } of lineData) {
+      const [stockRow] = await tx.select().from(inventoryStock).where(eq(inventoryStock.id, originalStock?.id ?? "")).for("update").limit(1);
+      if (!stockRow || stockRow.quantityOnOrder < line.quantityReceived) throw new AppError("Accepted receipt quantity exceeds current on-order stock", 409);
+      const newQuantityOnOrder = stockRow.quantityOnOrder - line.quantityReceived;
 
-      const newQuantityOnOrder = stock.quantityOnOrder - line.quantityReceived;
+      const newQuantityOnHand = stockRow.quantityOnHand + line.quantityReceived;
 
-      const newQuantityOnHand = stock.quantityOnHand + line.quantityReceived;
-
-      const oldUnitCost = Number(stock.unitCost);
       const receivedUnitPrice = line.unitPrice;
-
-      const newUnitCost =
-        newQuantityOnHand === 0
-          ? receivedUnitPrice
-          : Number(
-              (
-                (stock.quantityOnHand * oldUnitCost +
-                  line.quantityReceived * receivedUnitPrice) /
-                newQuantityOnHand
-              ).toFixed(2),
-            );
+      const receivedValueMinor = BigInt(line.quantityReceived) * moneyToMinor(receivedUnitPrice);
+      const newCarryingValueMinor = BigInt(stockRow.carryingValueMinor) + receivedValueMinor;
+      const newUnitCost = unitCostFromCarryingValue(newCarryingValueMinor, newQuantityOnHand);
 
       const [updatedStock] = await tx
         .update(inventoryStock)
         .set({
           quantityOnOrder: newQuantityOnOrder,
           quantityOnHand: newQuantityOnHand,
-          unitCost: newUnitCost.toFixed(2),
+          carryingValueMinor: newCarryingValueMinor.toString(),
+          unitCost: newUnitCost,
           updatedAt: new Date(),
         })
-        .where(eq(inventoryStock.id, stock.id))
+        .where(eq(inventoryStock.id, stockRow.id))
         .returning();
 
       if (!updatedStock) {
         throw new Error("Failed to update stock");
+      }
+
+      if (event.goodsReceipt) {
+        await recordValuationChange(tx, {
+          stockId: stockRow.id,
+          sourceType: "RECEIPT",
+          sourceId: event.goodsReceipt.id,
+          sourceEventId: event.goodsReceipt.sourceEventId,
+          productId: line.productId,
+          locationId: line.locationId,
+          quantityDelta: line.quantityReceived,
+          carryingValueDeltaMinor: receivedValueMinor,
+          reason: "RECEIPT",
+          currency: event.goodsReceipt.currency,
+        });
       }
 
       await tx.insert(inventoryAuditLogs).values({
@@ -394,12 +402,12 @@ export const processPurchaseOrderReceived = async (data: unknown) => {
           purchaseOrderId: event.purchaseOrderId,
           quantityReceived: line.quantityReceived,
           receivedUnitPrice,
-          previousQuantityOnOrder: stock.quantityOnOrder,
+          previousQuantityOnOrder: stockRow.quantityOnOrder,
           newQuantityOnOrder,
-          previousQuantityOnHand: stock.quantityOnHand,
+          previousQuantityOnHand: stockRow.quantityOnHand,
           newQuantityOnHand,
-          previousUnitCost: stock.unitCost,
-          newUnitCost: newUnitCost.toFixed(2),
+          previousUnitCost: stockRow.unitCost,
+          newUnitCost,
         },
       });
     }

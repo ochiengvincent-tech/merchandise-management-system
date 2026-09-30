@@ -49,11 +49,11 @@ describe("Adjustments API", () => {
       createdBy: actorId,
     });
 
-    expect(response.status).toBe(400);
-    expect(response.body.error.message).toBe("Validation failed");
+    expect(response.status).toBe(409);
+    expect(response.body.error.message).toBe("Adjustment would result in negative stock or reduce stock below allocated quantity");
     expect(response.body.error.details).toContainEqual({
       field: "quantityChange",
-      message: "Adjustment would result in negative stock",
+      message: "Review the latest stock and allocated quantities, then try again.",
     });
   });
   it("returns 405 for unsupported methods on known routes", async () => {

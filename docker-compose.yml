@@ -76,6 +76,28 @@ services:
     volumes:
       - retail_sales_db_data:/var/lib/postgresql/data
 
+  sales-audit-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: sales_audit_db
+      POSTGRES_USER: mms_sales_audit
+      POSTGRES_PASSWORD: mms_sales_audit
+    ports:
+      - "5440:5432"
+    volumes:
+      - sales_audit_db_data:/var/lib/postgresql/data
+
+  financials-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: financials_db
+      POSTGRES_USER: mms_financials
+      POSTGRES_PASSWORD: mms_financials
+    ports:
+      - "5441:5432"
+    volumes:
+      - financials_db_data:/var/lib/postgresql/data
+
   rabbitmq:
     image: rabbitmq:4-management
     container_name: mms-rabbitmq
@@ -96,3 +118,5 @@ volumes:
   receiving_db_data:
   warehouse_db_data:
   retail_sales_db_data:
+  sales_audit_db_data:
+  financials_db_data:

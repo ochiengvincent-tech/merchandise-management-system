@@ -1,0 +1,281 @@
+openapi: 3.1.0
+info:
+  title: MMS Retail Sales API
+  version: 1.0.0
+  description: >-
+    Register, pricing, checkout, return, audit, and register-totals APIs.
+    Money values are integer KES minor units. Caller-supplied x-actor-id is
+    audit metadata and is not an authentication credential.
+  license: {name: Proprietary, identifier: LicenseRef-Proprietary}
+security: []
+servers:
+  - url: /api/v1
+paths:
+  /registers:
+    get:
+      operationId: listRegisters
+      summary: List active registers
+      responses:
+        '200': {description: Active register list}
+    post:
+      operationId: createRegister
+      summary: Create a register for an active store location
+      parameters: [{$ref: '#/components/parameters/ActorId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, name, inventoryLocationId]
+              properties:
+                code: {type: string, minLength: 1, maxLength: 50}
+                name: {type: string, minLength: 1, maxLength: 150}
+                inventoryLocationId: {type: string, format: uuid}
+      responses:
+        '201': {description: Register created}
+        '400': {$ref: '#/components/responses/Error'}
+        '502': {$ref: '#/components/responses/Error'}
+  /products/search:
+    get:
+      operationId: searchProductsForSale
+      summary: Search active products, with optional register stock
+      parameters:
+        - {name: q, in: query, required: true, schema: {type: string, minLength: 1, maxLength: 100}}
+        - {name: registerId, in: query, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Matching Inventory products with optional available quantities}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '502': {$ref: '#/components/responses/Error'}
+  /prices:
+    get:
+      operationId: getCurrentRetailPrice
+      summary: Read the price effective for a product at the current time
+      parameters:
+        - {name: productId, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Effective price or null}
+        '400': {$ref: '#/components/responses/Error'}
+  /prices/{productId}:
+    put:
+      operationId: setRetailPrice
+      summary: Add an effective-dated price without overlapping another price window
+      parameters:
+        - {$ref: '#/components/parameters/ProductId'}
+        - {$ref: '#/components/parameters/ActorId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amountMinor]
+              properties:
+                amountMinor: {type: integer, minimum: 0, maximum: 2147483647}
+                taxRateBps: {type: integer, minimum: 0, maximum: 10000, default: 0}
+                currency: {type: string, const: KES, default: KES}
+                effectiveFrom: {type: string, format: date-time}
+      responses:
+        '201': {description: Price record created}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '502': {$ref: '#/components/responses/Error'}
+  /sales:
+    get:
+      operationId: listCompletedSales
+      summary: List recent completed sales
+      parameters:
+        - {name: search, in: query, schema: {type: string, maxLength: 100}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 25}}
+      responses:
+        '200': {description: Completed sales with lines and tenders}
+        '400': {$ref: '#/components/responses/Error'}
+    post:
+      operationId: checkoutSale
+      summary: Reserve stock and record a cash-register sale idempotently
+      parameters:
+        - {$ref: '#/components/parameters/ActorId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Checkout'}
+      responses:
+        '201': {description: Sale completed}
+        '200': {description: Previously completed idempotent checkout returned}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+  /sales/{id}:
+    get:
+      operationId: getSale
+      summary: Read a sale with lines, returns, and tender records
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Sale details}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+  /sales/{id}/returns:
+    post:
+      operationId: recordSaleReturn
+      summary: Record an itemized return and refund idempotently
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {$ref: '#/components/parameters/ActorId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Return'}
+      responses:
+        '201': {description: Return and refund recorded}
+        '200': {description: Previously recorded idempotent return returned}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /sales-audit/register-totals:
+    get:
+      operationId: getRegisterTenderTotals
+      summary: Read authoritative recorded tender totals for a register interval
+      description: Uses a consistent database snapshot for the half-open time interval [from, to). Pending and failed sales are excluded. Refunds are attributed to their recorded refund tender method.
+      parameters:
+        - {name: registerId, in: query, required: true, schema: {type: string, format: uuid}}
+        - {name: from, in: query, required: true, description: Inclusive ISO 8601 transaction time, schema: {type: string, format: date-time}}
+        - {name: to, in: query, required: true, description: Exclusive ISO 8601 transaction time, schema: {type: string, format: date-time}}
+      responses:
+        '200':
+          description: Committed Retail Sales tender totals
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [registerId, from, to, currency, snapshotAt, saleCount, returnCount, tenderTotals]
+                    properties:
+                      registerId: {type: string, format: uuid}
+                      from: {type: string, format: date-time}
+                      to: {type: string, format: date-time}
+                      currency: {type: string, const: KES}
+                      snapshotAt: {type: string, format: date-time}
+                      saleCount: {type: integer, minimum: 0}
+                      returnCount: {type: integer, minimum: 0}
+                      tenderTotals:
+                        type: object
+                        required: [CASH, CARD, GIFT_CARD]
+                        properties:
+                          CASH: {$ref: '#/components/schemas/TenderDirectionTotals'}
+                          CARD: {$ref: '#/components/schemas/TenderDirectionTotals'}
+                          GIFT_CARD: {$ref: '#/components/schemas/TenderDirectionTotals'}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+  /audit-logs:
+    get:
+      operationId: listRetailSalesAuditLogs
+      summary: List persisted Retail Sales audit events
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: action, in: query, schema: {type: string, maxLength: 100}}
+        - {name: actorId, in: query, schema: {type: string, format: uuid}}
+        - {name: from, in: query, schema: {type: string, format: date-time}}
+        - {name: to, in: query, schema: {type: string, format: date-time}}
+      responses:
+        '200': {description: Paginated newest-first audit records}
+        '400': {$ref: '#/components/responses/Error'}
+components:
+  parameters:
+    ProductId: {name: productId, in: path, required: true, schema: {type: string, format: uuid}}
+    ActorId:
+      name: x-actor-id
+      in: header
+      required: true
+      description: Caller-supplied audit actor metadata; not authentication.
+      schema: {type: string, format: uuid}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: UUID reused only when retrying the identical operation.
+      schema: {type: string, format: uuid}
+  schemas:
+    Tender:
+      type: object
+      required: [method, amountMinor]
+      properties:
+        method: {type: string, enum: [CASH, CARD, GIFT_CARD]}
+        amountMinor: {type: integer, minimum: 1, maximum: 2147483647}
+        reference: {type: string, maxLength: 150}
+    Checkout:
+      type: object
+      required: [registerId, lines, tenders]
+      properties:
+        registerId: {type: string, format: uuid}
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required: [productId, quantity]
+            properties:
+              productId: {type: string, format: uuid}
+              quantity: {type: integer, minimum: 1, maximum: 100000}
+        tenders:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/Tender'}
+    Return:
+      type: object
+      required: [reason, lines, tenders]
+      properties:
+        reason: {type: string, minLength: 1, maxLength: 255}
+        lines:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [saleLineId, quantity, disposition]
+            properties:
+              saleLineId: {type: string, format: uuid}
+              quantity: {type: integer, minimum: 1}
+              disposition: {type: string, enum: [RESTOCK_SELLABLE, QUARANTINE, NO_STOCK_RETURN]}
+        tenders:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/Tender'}
+    TenderDirectionTotals:
+      type: object
+      required: [saleMinor, refundMinor]
+      properties:
+        saleMinor: {type: integer, minimum: 0}
+        refundMinor: {type: integer, minimum: 0}
+  responses:
+    Error:
+      description: Invalid request, unavailable dependency, or business-rule conflict
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error:
+                type: object
+                required: [message]
+                properties:
+                  message: {type: string}
+                  details:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field: {type: string}
+                        message: {type: string}

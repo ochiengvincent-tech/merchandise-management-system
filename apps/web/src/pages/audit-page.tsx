@@ -29,10 +29,13 @@ const sourceLabels = {
   VENDOR_MANAGEMENT: "Vendor Management",
   RECEIVING: "Receiving",
   RETAIL_SALES: "Retail Sales",
+  WAREHOUSE_OPERATIONS: "Warehouse Operations",
+  SALES_AUDIT: "Sales Audit",
+  FINANCIALS: "Financials",
 } as const;
 
 function resourceId(record: AuditRecord) {
-  return record.goodsReceiptId ?? record.purchaseOrderId ?? record.recordId ?? record.productId ?? record.locationId ?? record.vendorProductId ?? record.vendorId ?? "—";
+  return record.goodsReceiptId ?? record.sessionId ?? record.movementId ?? record.binId ?? record.purchaseOrderId ?? record.recordId ?? record.productId ?? record.locationId ?? record.vendorProductId ?? record.vendorId ?? "—";
 }
 
 function eventDetails(record: AuditRecord) {
@@ -109,7 +112,7 @@ export function AuditPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Audit trail</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Review important operational events recorded by Procurement, Inventory, Vendor Management, and Receiving.
+          Review important operational events recorded across enabled services.
         </p>
       </div>
 
@@ -134,6 +137,9 @@ export function AuditPage() {
               <option value="VENDOR_MANAGEMENT">Vendor Management</option>
               {featureFlags.receiving && <option value="RECEIVING">Receiving</option>}
               {featureFlags.retailSales && <option value="RETAIL_SALES">Retail Sales</option>}
+              {featureFlags.warehouseOperations && <option value="WAREHOUSE_OPERATIONS">Warehouse Operations</option>}
+              {featureFlags.salesAudit && <option value="SALES_AUDIT">Sales Audit</option>}
+              {featureFlags.financials && <option value="FINANCIALS">Financials</option>}
             </Select>
           </label>
           <label className="block text-sm font-medium text-slate-700">
@@ -166,9 +172,9 @@ export function AuditPage() {
           Could not load audit events. {auditQuery.error instanceof Error ? auditQuery.error.message : "Try again."}
         </Card>
       )}
-      {result?.errors.map(({ source: failedSource, message }) => (
+      {result?.errors.map(({ source: failedSource }) => (
         <Card key={failedSource} className="border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
-          {sourceLabels[failedSource]} audit events could not be loaded: {message.includes("status 502") ? "the service or API proxy is unavailable (HTTP 502). Check that the service is running and its API URL is configured." : message}. Other available service records remain visible.
+          {sourceLabels[failedSource]} events could not be loaded. Please try again in a moment. Other available service records remain visible.
         </Card>
       ))}
 

@@ -1,0 +1,327 @@
+openapi: 3.1.0
+info:
+  title: MMS Warehouse Operations API
+  version: 1.0.0
+  description: >-
+    Bin, putaway, movement, adjustment, warehouse bootstrap, stock query,
+    reconciliation, and audit operations. Inventory remains authoritative for
+    product/location and stock totals. Actor IDs currently provide audit
+    context only; they are not authentication credentials.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+security: []
+servers:
+  - url: /
+    description: Service root; business routes are under /api/v1
+paths:
+  /health:
+    get:
+      operationId: getWarehouseHealth
+      summary: Check process liveness
+      responses:
+        '200': {description: Process is alive}
+  /ready:
+    get:
+      operationId: getWarehouseReadiness
+      summary: Check database readiness
+      responses:
+        '200': {description: Service is ready}
+        '503': {description: Database is unavailable}
+  /api/v1/locations/{locationId}/bins:
+    parameters:
+      - {$ref: '#/components/parameters/LocationId'}
+    get:
+      operationId: listLocationBins
+      summary: List bins at a warehouse-managed location
+      parameters:
+        - {name: search, in: query, schema: {type: string}}
+        - {name: status, in: query, schema: {type: string, enum: [ACTIVE, INACTIVE]}}
+      responses:
+        '200': {description: Bins ordered by code}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '502': {$ref: '#/components/responses/Error'}
+    post:
+      operationId: createWarehouseBin
+      summary: Create a bin at an active warehouse-managed location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateBin'}
+      responses:
+        '201': {description: Bin created}
+        '400': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '502': {$ref: '#/components/responses/Error'}
+  /api/v1/bins/{binId}:
+    parameters:
+      - {$ref: '#/components/parameters/BinId'}
+    get:
+      operationId: getWarehouseBin
+      summary: Read a bin and its balances
+      responses:
+        '200': {description: Bin with product balances}
+        '404': {$ref: '#/components/responses/Error'}
+    patch:
+      operationId: updateWarehouseBin
+      summary: Update bin properties or status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateBin'}
+      responses:
+        '200': {description: Bin updated}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /api/v1/putaway-tasks:
+    get:
+      operationId: listPutawayTasks
+      summary: List putaway tasks
+      parameters:
+        - {name: status, in: query, schema: {type: string, enum: [OPEN, IN_PROGRESS, COMPLETED]}}
+        - {name: locationId, in: query, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Putaway tasks}
+        '400': {$ref: '#/components/responses/Error'}
+  /api/v1/putaway-tasks/{taskId}:
+    parameters:
+      - {$ref: '#/components/parameters/TaskId'}
+    get:
+      operationId: getPutawayTask
+      summary: Read a putaway task and its lines
+      responses:
+        '200': {description: Putaway task and line quantities}
+        '404': {$ref: '#/components/responses/Error'}
+  /api/v1/putaway-tasks/{taskId}/lines/{lineId}/putaway:
+    parameters:
+      - {$ref: '#/components/parameters/TaskId'}
+      - {$ref: '#/components/parameters/LineId'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+    post:
+      operationId: recordPutawayMovement
+      summary: Move accepted sellable units from receiving to a destination bin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [destinationBinId, quantity, actorId]
+              properties:
+                destinationBinId: {type: string, format: uuid}
+                quantity: {type: integer, minimum: 1}
+                actorId: {type: string, format: uuid, description: Audit actor identifier; not an authentication credential}
+      responses:
+        '201': {description: Putaway movement recorded}
+        '200': {description: Idempotent duplicate returned}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /api/v1/stock:
+    get:
+      operationId: listWarehouseStock
+      summary: Query warehouse balances by location and optional filters
+      parameters:
+        - {name: locationId, in: query, required: true, schema: {type: string, format: uuid}}
+        - {name: productId, in: query, schema: {type: string, format: uuid}}
+        - {name: binId, in: query, schema: {type: string, format: uuid}}
+        - {name: disposition, in: query, schema: {type: string, enum: [SELLABLE, QUARANTINED, DISCREPANCY]}}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PageSize'}
+      responses:
+        '200': {description: Paginated warehouse balances}
+        '400': {$ref: '#/components/responses/Error'}
+        '502': {$ref: '#/components/responses/Error'}
+  /api/v1/movements:
+    get:
+      operationId: listWarehouseMovements
+      summary: Search immutable warehouse movements
+      parameters:
+        - {name: locationId, in: query, required: true, schema: {type: string, format: uuid}}
+        - {name: productId, in: query, schema: {type: string, format: uuid}}
+        - {name: binId, in: query, schema: {type: string, format: uuid}}
+        - {name: movementType, in: query, schema: {type: string}}
+        - {name: from, in: query, schema: {type: string, format: date-time}}
+        - {name: to, in: query, schema: {type: string, format: date-time}}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PageSize'}
+      responses:
+        '200': {description: Paginated movements}
+        '400': {$ref: '#/components/responses/Error'}
+    post:
+      operationId: transferWarehouseStock
+      summary: Transfer stock between compatible active bins
+      parameters:
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TransferStock'}
+      responses:
+        '201': {description: Transfer recorded}
+        '200': {description: Idempotent duplicate returned}
+        '400': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '502': {$ref: '#/components/responses/Error'}
+  /api/v1/locations/{locationId}/adjustments:
+    parameters:
+      - {$ref: '#/components/parameters/LocationId'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+    post:
+      operationId: submitWarehouseAdjustment
+      summary: Submit a reasoned warehouse stock adjustment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId, sourceBinId, quantityChange, reason, actorId]
+              properties:
+                productId: {type: string, format: uuid}
+                sourceBinId: {type: string, format: uuid}
+                quantityChange: {type: integer, not: {const: 0}}
+                reason: {type: string, minLength: 1, maxLength: 255}
+                actorId: {type: string, format: uuid, description: Audit actor identifier; not an authentication credential}
+      responses:
+        '200': {description: Adjustment synchronized to Inventory}
+        '202': {description: Adjustment recorded; Inventory synchronization is pending}
+        '400': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '502': {$ref: '#/components/responses/Error'}
+  /api/v1/adjustments/{id}:
+    get:
+      operationId: getWarehouseAdjustment
+      summary: Read a warehouse adjustment and its synchronization state
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Adjustment details}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+  /api/v1/reconciliation:
+    get:
+      operationId: getWarehouseReconciliation
+      summary: Compare sellable warehouse quantities with Inventory totals
+      parameters:
+        - {name: locationId, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Location stock variance report}
+        '400': {$ref: '#/components/responses/Error'}
+        '502': {$ref: '#/components/responses/Error'}
+  /api/v1/locations/{locationId}/bootstrap:
+    parameters:
+      - {$ref: '#/components/parameters/LocationId'}
+    get:
+      operationId: getWarehouseBootstrap
+      summary: Read opening-stock bootstrap status for a location
+      responses:
+        '200': {description: Bootstrap record or null}
+        '400': {$ref: '#/components/responses/Error'}
+    post:
+      operationId: bootstrapWarehouseLocation
+      summary: Import current Inventory stock into the unassigned warehouse bin
+      description: Enabling Warehouse management in Inventory is completed through the Inventory API after the warehouse bootstrap transaction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [actorId]
+              properties:
+                actorId: {type: string, format: uuid, description: Audit actor identifier; not an authentication credential}
+      responses:
+        '201': {description: Bootstrap completed}
+        '200': {description: Existing bootstrap reconciled idempotently}
+        '400': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '502': {$ref: '#/components/responses/Error'}
+  /api/v1/audit-logs:
+    get:
+      operationId: listWarehouseAuditLogs
+      summary: Search persisted Warehouse Operations audit records
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 25}}
+        - {name: action, in: query, schema: {type: string, maxLength: 100}}
+        - {name: actorId, in: query, schema: {type: string, format: uuid}}
+        - {name: from, in: query, schema: {type: string, format: date-time}}
+        - {name: to, in: query, schema: {type: string, format: date-time}}
+      responses:
+        '200': {description: Paginated newest-first audit records}
+        '400': {$ref: '#/components/responses/Error'}
+components:
+  parameters:
+    LocationId: {name: locationId, in: path, required: true, schema: {type: string, format: uuid}}
+    BinId: {name: binId, in: path, required: true, schema: {type: string, format: uuid}}
+    TaskId: {name: taskId, in: path, required: true, schema: {type: string, format: uuid}}
+    LineId: {name: lineId, in: path, required: true, schema: {type: string, format: uuid}}
+    Page: {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+    PageSize: {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 25}}
+    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, format: uuid}}
+  schemas:
+    CreateBin:
+      type: object
+      required: [code, name, binType, actorId]
+      properties:
+        code: {type: string, minLength: 1, maxLength: 50}
+        name: {type: string, minLength: 1, maxLength: 255}
+        binType: {type: string, enum: [STORAGE, PICK_FACE, QUARANTINE]}
+        zone: {type: string, maxLength: 100}
+        aisle: {type: string, maxLength: 50}
+        rack: {type: string, maxLength: 50}
+        shelf: {type: string, maxLength: 50}
+        capacity: {type: integer, minimum: 0}
+        actorId: {type: string, format: uuid, description: Audit actor identifier; not an authentication credential}
+    UpdateBin:
+      type: object
+      required: [actorId]
+      minProperties: 2
+      properties:
+        name: {type: string, minLength: 1, maxLength: 255}
+        status: {type: string, enum: [ACTIVE, INACTIVE]}
+        zone: {type: [string, 'null'], maxLength: 100}
+        aisle: {type: [string, 'null'], maxLength: 50}
+        rack: {type: [string, 'null'], maxLength: 50}
+        shelf: {type: [string, 'null'], maxLength: 50}
+        capacity: {type: [integer, 'null'], minimum: 0}
+        actorId: {type: string, format: uuid, description: Audit actor identifier; not an authentication credential}
+    TransferStock:
+      type: object
+      required: [locationId, productId, sourceBinId, destinationBinId, quantity, disposition, actorId]
+      properties:
+        locationId: {type: string, format: uuid}
+        productId: {type: string, format: uuid}
+        sourceBinId: {type: string, format: uuid}
+        destinationBinId: {type: string, format: uuid}
+        quantity: {type: integer, minimum: 1}
+        disposition: {type: string, enum: [SELLABLE, QUARANTINED, DISCREPANCY]}
+        actorId: {type: string, format: uuid, description: Audit actor identifier; not an authentication credential}
+        reason: {type: string, maxLength: 255}
+  responses:
+    Error:
+      description: Invalid input, missing record, business-rule conflict, or dependent service error
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error:
+                type: object
+                required: [message]
+                properties:
+                  message: {type: string}
+                  details:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field: {type: string}
+                        message: {type: string}

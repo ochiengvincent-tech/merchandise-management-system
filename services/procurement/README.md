@@ -202,11 +202,4 @@ received, and remaining quantities can be tracked. A future dedicated
 Receiving service may take ownership of physical receipt records while
 continuing to publish an explicit contract to Inventory.
 
-Authentication, authorization, service-to-service credentials, machine-
-readable OpenAPI contracts, and production deployment controls remain
-platform-level follow-up work for the Phase 1 production Definition of Done.
-
-The current API uses validated request data and actor identifiers supplied by
-the caller. Those identifiers are not yet backed by an authentication or
-authorization system. A configurable PO value limit and feature flag are
-also not implemented in this service yet.
+Authentication, authorization, workload credentials, and production deployment controls remain platform-level follow-up work. The API contract is maintained at [`contracts/openapi/procurement.yaml`](../../contracts/openapi/procurement.yaml). Actor identifiers are caller-supplied audit metadata and do not authenticate or authorize a caller. Receiving is a separate service and records immutable physical GRNs; the Procurement receipt endpoint remains available for its documented integration workflow.

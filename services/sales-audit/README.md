@@ -17,4 +17,4 @@ Sales Audit listens on port `3007` and exposes versioned business routes below `
 - [Retail Sales totals endpoint](../../contracts/openapi/retail-sales.yaml)
 - [Sales Audit design](../../docs/phase3/sales-audit-service-design.md)
 
-Until shared authentication is implemented, `x-actor-id` identifies the caller for audit purposes but does not enforce employee or manager authorization.
+Until shared authentication is implemented, `x-actor-id` is caller-supplied audit metadata and does not authenticate the caller or enforce employee/manager authorization. The complete browser route list and API contract index are in the [web application README](../../apps/web/README.md).

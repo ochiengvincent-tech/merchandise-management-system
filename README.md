@@ -167,18 +167,20 @@ both paths.
 
 ## API contracts
 
-The OpenAPI specifications are the source of truth for the Phase 1 REST
-contracts:
+The OpenAPI specifications are the versioned source of truth for all eight
+service REST contracts:
 
-- [Vendor Management OpenAPI](contracts/openapi/vendor-management.yaml)
-- [Procurement OpenAPI](contracts/openapi/procurement.yaml)
-- [Inventory OpenAPI](contracts/openapi/inventory.yaml)
-- [Receiving OpenAPI](contracts/openapi/receiving.yaml)
-- [Retail Sales reconciliation OpenAPI](contracts/openapi/retail-sales.yaml)
-- [Sales Audit OpenAPI](contracts/openapi/sales-audit.yaml)
+- [Vendor Management](contracts/openapi/vendor-management.yaml)
+- [Inventory](contracts/openapi/inventory.yaml)
+- [Procurement](contracts/openapi/procurement.yaml)
+- [Receiving](contracts/openapi/receiving.yaml)
+- [Warehouse Operations](contracts/openapi/warehouse-operations.yaml)
+- [Retail Sales](contracts/openapi/retail-sales.yaml)
+- [Sales Audit](contracts/openapi/sales-audit.yaml)
+- [Financials](contracts/openapi/financials.yaml)
 
-Swagger UI is not currently bundled into the services; use these versioned
-specifications when exercising the APIs or generating client documentation.
+Validate every contract locally with `pnpm openapi:validate`; this same check
+runs in GitHub Actions. Swagger UI is not bundled into the services.
 
 ## Testing
 

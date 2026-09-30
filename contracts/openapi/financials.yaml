@@ -3,6 +3,7 @@ info:
   title: MMS Financials API
   version: 1.0.0
   description: General ledger, supplier invoice, reporting, and period operations. Amounts are integer KES minor units.
+security: []
 servers:
   - url: /api/v1
 tags:

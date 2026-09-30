@@ -471,6 +471,12 @@ paths:
                         quantityAllocated: { type: integer }
                         unitCost: { type: string }
                         extendedValue: { type: string }
+        "400":
+          description: Invalid valuation filters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/v1/stock/by-product-and-location:
     get:
@@ -578,6 +584,88 @@ paths:
           $ref: "#/components/responses/ValidationError"
         "409":
           $ref: "#/components/responses/ConflictError"
+
+  /api/v1/stock/adjustments/from-warehouse:
+    post:
+      tags: [Stock]
+      summary: Apply an idempotent adjustment originating in Warehouse Operations
+      operationId: applyWarehouseAdjustment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId, locationId, quantityChange, reason, createdBy, idempotencyKey, warehouseCommandId, sourceBinId]
+              properties:
+                productId: {type: string, format: uuid}
+                locationId: {type: string, format: uuid}
+                quantityChange:
+                  oneOf:
+                    - {type: integer, maximum: -1}
+                    - {type: integer, minimum: 1}
+                reason: {type: string, minLength: 1, maxLength: 255}
+                createdBy: {type: string, format: uuid}
+                idempotencyKey: {type: string, format: uuid}
+                warehouseCommandId: {type: string, format: uuid}
+                sourceBinId: {type: string, format: uuid}
+      responses:
+        "201": {description: Warehouse adjustment applied}
+        "200": {description: Previously applied idempotent adjustment returned}
+        "400": {$ref: "#/components/responses/ValidationError"}
+        "409": {$ref: "#/components/responses/ConflictError"}
+
+  /api/v1/stock/sale-reservations:
+    post:
+      tags: [Stock]
+      summary: Reserve stock for a retail checkout
+      operationId: reserveSaleStock
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reservationId, saleId, productId, locationId, quantity, actorId]
+              properties:
+                reservationId: {type: string, format: uuid}
+                saleId: {type: string, format: uuid}
+                productId: {type: string, format: uuid}
+                locationId: {type: string, format: uuid}
+                quantity: {type: integer, minimum: 1}
+                actorId: {type: string, format: uuid, description: Audit metadata only}
+      responses:
+        "201": {description: Stock reserved}
+        "200": {description: Previously recorded idempotent reservation returned}
+        "400": {$ref: "#/components/responses/ValidationError"}
+        "409": {$ref: "#/components/responses/ConflictError"}
+
+  /api/v1/stock/sale-reservations/{id}/release:
+    post:
+      tags: [Stock]
+      summary: Release an unconsumed sale reservation
+      operationId: releaseSaleStock
+      parameters:
+        - {$ref: "#/components/parameters/ProductId"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [actorId]
+              properties:
+                actorId: {type: string, format: uuid, description: Audit metadata only}
+      responses:
+        "200": {description: Reservation released}
+        "400": {$ref: "#/components/responses/ValidationError"}
+        "404": {$ref: "#/components/responses/NotFoundError"}
+        "409": {$ref: "#/components/responses/ConflictError"}
 
   /api/v1/adjustments:
     post:
@@ -699,6 +787,13 @@ components:
 
     ConflictError:
       description: Business operation conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    NotFoundError:
+      description: Requested stock reservation was not found
       content:
         application/json:
           schema:

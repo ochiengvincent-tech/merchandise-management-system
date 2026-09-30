@@ -37,6 +37,7 @@ async function createStockRecord(input: {
     quantityOnHand: input.quantityOnHand,
     quantityAllocated: input.quantityAllocated,
     unitCost: input.unitCost,
+    carryingValueMinor: (BigInt(input.unitCost.replace(".", "")) * BigInt(input.quantityOnHand)).toString(),
   });
 
   return { product, location };
@@ -77,7 +78,7 @@ describe("GET /api/v1/stock/valuation", () => {
         locationId: first.location.id,
         quantityOnHand: 3,
         quantityAllocated: 1,
-        unitCost: "0.10",
+        unitCost: "0.100000",
         extendedValue: "0.30",
       }),
     );

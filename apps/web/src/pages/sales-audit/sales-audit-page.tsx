@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -37,7 +37,7 @@ export function SalesAuditPage() {
   const [selectedId, setSelectedId] = useState("");
   const [registerId, setRegisterId] = useState("");
   const [openingFloat, setOpeningFloat] = useState("0.00");
-  const [counts, setCounts] = useState<Record<Method, string>>({ CASH: "0.00", CARD: "0.00", GIFT_CARD: "0.00" });
+  const [countDraft, setCountDraft] = useState<{ key: string; values: Record<Method, string> } | null>(null);
   const [explanations, setExplanations] = useState<Record<string, string>>({});
   const [reviewActor, setReviewActor] = useState(CURRENT_ACTOR_ID);
   const [reviewReason, setReviewReason] = useState("");
@@ -46,20 +46,21 @@ export function SalesAuditPage() {
   const registersQuery = useQuery({ queryKey: ["sales-audit", "registers"], queryFn: () => apiRequest<ListResponse<Register>>(`${API_URLS.salesAudit}/registers`) });
   const sessionsQuery = useQuery({ queryKey: ["sales-audit", "sessions"], queryFn: () => apiRequest<ListResponse<SessionSummary>>(`${API_URLS.salesAudit}/sessions?limit=50`) });
   const sessions = sessionsQuery.data?.data ?? [];
+  const effectiveRegisterId = registerId || registersQuery.data?.data[0]?.id || "";
   const chosenId = selectedId || sessions.find((item) => ["OPEN", "SUBMITTED", "EXCEPTION", "REJECTED"].includes(item.status))?.id || sessions[0]?.id || "";
   const detailQuery = useQuery({ queryKey: ["sales-audit", "session", chosenId], queryFn: () => apiRequest<{ data: Session }>(`${API_URLS.salesAudit}/sessions/${chosenId}`), enabled: Boolean(chosenId), refetchInterval: 10000 });
   const session = detailQuery.data?.data;
-
-  useEffect(() => {
-    if (!registerId && registersQuery.data?.data[0]) setRegisterId(registersQuery.data.data[0].id);
-  }, [registerId, registersQuery.data]);
-  useEffect(() => {
-    if (session) setCounts({ CASH: ((session.expectedTotals.CASH.countedMinor ?? 0) / 100).toFixed(2), CARD: ((session.expectedTotals.CARD.countedMinor ?? 0) / 100).toFixed(2), GIFT_CARD: ((session.expectedTotals.GIFT_CARD.countedMinor ?? 0) / 100).toFixed(2) });
-  }, [session?.id, session?.submission?.id]);
+  const countDraftKey = session ? `${session.id}:${session.submission?.id ?? "draft"}` : "";
+  const sessionCounts: Record<Method, string> = session ? {
+    CASH: ((session.expectedTotals.CASH.countedMinor ?? 0) / 100).toFixed(2),
+    CARD: ((session.expectedTotals.CARD.countedMinor ?? 0) / 100).toFixed(2),
+    GIFT_CARD: ((session.expectedTotals.GIFT_CARD.countedMinor ?? 0) / 100).toFixed(2),
+  } : { CASH: "0.00", CARD: "0.00", GIFT_CARD: "0.00" };
+  const counts = countDraft?.key === countDraftKey ? countDraft.values : sessionCounts;
 
   const refresh = async () => { await queryClient.invalidateQueries({ queryKey: ["sales-audit"] }); };
   const openMutation = useMutation({
-    mutationFn: () => apiRequest<{ data: Session }>(`${API_URLS.salesAudit}/sessions`, { method: "POST", headers: { "x-actor-id": CURRENT_ACTOR_ID, "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ registerId, openingFloatMinor: parseMinor(openingFloat) }) }),
+    mutationFn: () => apiRequest<{ data: Session }>(`${API_URLS.salesAudit}/sessions`, { method: "POST", headers: { "x-actor-id": CURRENT_ACTOR_ID, "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ registerId: effectiveRegisterId, openingFloatMinor: parseMinor(openingFloat) }) }),
     onSuccess: async (result) => { setSelectedId(result.data.id); setError(""); await refresh(); },
     onError: (cause) => setError(cause instanceof Error ? cause.message : "Could not open this register session."),
   });
@@ -105,7 +106,7 @@ export function SalesAuditPage() {
       <div><h2 className="font-semibold text-[var(--app-ink)]">Open a register session</h2><p className="mt-1 text-sm text-[var(--app-muted)]">Opening float is counted cash already in the drawer.</p></div>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="space-y-1.5 text-sm font-medium text-[var(--app-ink)]">Register
-          <Select value={registerId} onChange={(event) => setRegisterId(event.target.value)} disabled={!registersQuery.data?.data.length}>
+          <Select value={effectiveRegisterId} onChange={(event) => setRegisterId(event.target.value)} disabled={!registersQuery.data?.data.length}>
             {(registersQuery.data?.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}
           </Select>
         </label>
@@ -113,7 +114,7 @@ export function SalesAuditPage() {
           <Input value={openingFloat} inputMode="decimal" onChange={(event) => setOpeningFloat(event.target.value)} />
         </label>
       </div>
-      <Button onClick={() => openMutation.mutate()} disabled={openMutation.isPending || !registerId || !Number.isFinite(parseMinor(openingFloat))}>{openMutation.isPending ? "Opening…" : "Open register"}</Button>
+      <Button onClick={() => openMutation.mutate()} disabled={openMutation.isPending || !effectiveRegisterId || !Number.isFinite(parseMinor(openingFloat))}>{openMutation.isPending ? "Opening…" : "Open register"}</Button>
     </Card>}
 
     {sessions.length > 0 && <Card className="space-y-4 p-5">
@@ -133,7 +134,7 @@ export function SalesAuditPage() {
 
         {["OPEN", "REJECTED", "EXCEPTION"].includes(session.status) && <section className="space-y-3 border-t border-[var(--app-line)] pt-4">
           <h4 className="font-semibold text-[var(--app-ink)]">{session.status === "OPEN" ? "Submit drawer count" : "Submit corrected close"}</h4>
-          <div className="grid gap-3 sm:grid-cols-3">{methods.map((method) => <label key={method} className="space-y-1 text-sm font-medium text-[var(--app-ink)]">{labels[method]} counted (KES)<Input inputMode="decimal" value={counts[method]} onChange={(event) => setCounts((old) => ({ ...old, [method]: event.target.value }))} /></label>)}</div>
+          <div className="grid gap-3 sm:grid-cols-3">{methods.map((method) => <label key={method} className="space-y-1 text-sm font-medium text-[var(--app-ink)]">{labels[method]} counted (KES)<Input inputMode="decimal" value={counts[method]} onChange={(event) => setCountDraft({ key: countDraftKey, values: { ...counts, [method]: event.target.value } })} /></label>)}</div>
           {methods.map((method) => { const variance = parseMinor(counts[method]) - session.expectedTotals[method].expectedMinor; return variance === 0 ? null : <label key={method} className="block space-y-1 text-sm font-medium text-[var(--app-ink)]">Explain {labels[method]} variance ({money(variance)})<Input value={explanations[method] ?? ""} onChange={(event) => setExplanations((old) => ({ ...old, [method]: event.target.value }))} /></label>; })}
           <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending || !amountsValid || !explanationsValid}>{submitMutation.isPending ? "Submitting…" : "Submit close for review"}</Button>
         </section>}

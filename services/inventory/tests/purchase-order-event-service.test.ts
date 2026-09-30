@@ -25,7 +25,8 @@ describe("PurchaseOrderReceived event", () => {
       .update(inventoryStock)
       .set({
         quantityOnOrder: 50,
-        unitCost: "50.00",
+        unitCost: "50.000000",
+        carryingValueMinor: "500000",
       })
       .where(eq(inventoryStock.id, stock.id));
 
@@ -56,7 +57,8 @@ describe("PurchaseOrderReceived event", () => {
     expect(updatedStock).toMatchObject({
       quantityOnHand: 150,
       quantityOnOrder: 0,
-      unitCost: "53.33",
+      unitCost: "53.333333",
+      carryingValueMinor: "800000",
     });
   });
 
@@ -106,7 +108,8 @@ describe("PurchaseOrderReceived event", () => {
     expect(updatedStock).toMatchObject({
       quantityOnHand: 50,
       quantityOnOrder: 0,
-      unitCost: "60.00",
+      unitCost: "60.000000",
+      carryingValueMinor: "300000",
     });
   });
 });

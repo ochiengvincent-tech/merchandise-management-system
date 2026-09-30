@@ -573,3 +573,7 @@ Financials
 ```
 
 Each service owns its own database and communicates with other services through defined APIs and asynchronous events where appropriate.
+
+## API contract
+
+Business APIs are versioned under `/api/v1`; health checks are `/health` and `/ready`. See the [Vendor Management OpenAPI contract](../../contracts/openapi/vendor-management.yaml) for the request and response definitions. Actor IDs are audit metadata in the current implementation and do not authenticate callers.

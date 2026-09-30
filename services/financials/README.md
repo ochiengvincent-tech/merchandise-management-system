@@ -15,4 +15,4 @@ Retail Sales persists proportional tax allocation on each return line and includ
 
 The Financials page provides trial balance, income statement, inventory carrying value, posting exception retry, period close/reopen, chart account creation, validated posting mappings, journal detail and reversal, and multi-line supplier invoice capture, matching, and approval. Invoice posting requires the posting switch to be enabled and sufficient posted GRNI value for referenced receipts. Approval actor IDs are audit metadata pending shared authorization. No payment execution is provided.
 
-The API contract is in `openapi.yaml`.
+The [Financials OpenAPI contract](../../contracts/openapi/financials.yaml) documents the versioned HTTP API.

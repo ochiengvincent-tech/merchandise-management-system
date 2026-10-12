@@ -1,4 +1,4 @@
-import { db } from "../../db/index.js";
+import { runProcurementTransaction } from "../../db/transaction-repository.js";
 import { AppError } from "../../errors/app-error.js";
 import {
   getLocationById,
@@ -84,7 +84,7 @@ export async function approvePurchaseOrderAmendment(
     }
   }
 
-  return db.transaction(async (tx) => {
+  return runProcurementTransaction(async (tx) => {
     const updatedPurchaseOrder = await updatePurchaseOrderWithDatabase(
       purchaseOrder.id,
       amendmentData,

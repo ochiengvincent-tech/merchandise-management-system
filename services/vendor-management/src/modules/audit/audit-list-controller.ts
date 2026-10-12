@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Request, Response } from "express";
 import { AppError } from "../../errors/app-error.js";
-import { listVendorAuditLogs } from "./audit-list-repository.js";
+import { listVendorAuditLogs } from "./audit-list-service.js";
 
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

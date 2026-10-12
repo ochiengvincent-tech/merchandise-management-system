@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { db } from "../../db/index.js";
+import { runProcurementTransaction } from "../../db/transaction-repository.js";
 import { AppError } from "../../errors/app-error.js";
 
 import { createProcurementAuditLogService } from "../audit/procurement-audit-service.js";
@@ -25,7 +25,10 @@ export async function sendPurchaseOrder(id: string, actorId: string) {
   const [purchaseOrderLines, vendorProducts] = await Promise.all([
     findPurchaseOrderLines(id),
     getVendorProducts(existingPurchaseOrder.vendorId).catch((error) => {
-      console.error("Could not load supplier lead times for reliability event:", error);
+      console.error(
+        "Could not load supplier lead times for reliability event:",
+        error,
+      );
       return [];
     }),
   ]);
@@ -33,7 +36,7 @@ export async function sendPurchaseOrder(id: string, actorId: string) {
     vendorProducts.map((product) => [product.productId, product.leadTimeDays]),
   );
 
-  return db.transaction(async (tx) => {
+  return runProcurementTransaction(async (tx) => {
     const purchaseOrder = await sendPurchaseOrderWithDatabase(id, tx);
 
     if (!purchaseOrder) {
@@ -66,7 +69,8 @@ export async function sendPurchaseOrder(id: string, actorId: string) {
             purchaseOrderLineId: line.id,
             productId: line.productId,
             quantityOrdered: line.quantityOrdered,
-            leadTimeDaysSnapshot: leadTimesByProduct.get(line.productId) ?? null,
+            leadTimeDaysSnapshot:
+              leadTimesByProduct.get(line.productId) ?? null,
           })),
         },
         status: "PENDING",
@@ -75,7 +79,8 @@ export async function sendPurchaseOrder(id: string, actorId: string) {
       },
       tx,
     );
-    if (!outboxEvent) throw new Error("Failed to create purchase order sent event");
+    if (!outboxEvent)
+      throw new Error("Failed to create purchase order sent event");
 
     return purchaseOrder;
   });

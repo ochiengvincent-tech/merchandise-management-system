@@ -1,4 +1,4 @@
-import { db } from "../../db/index.js";
+import type { db } from "../../db/index.js";
 import { outboxEvents } from "../../db/schema/outbox-events.js";
 
 import { createOutboxEventWithDatabase } from "./outbox-repository.js";

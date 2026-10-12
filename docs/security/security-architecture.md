@@ -1,266 +1,136 @@
-# MMS Security Architecture
+# MMS Production Security Architecture
 
-**Status:** Proposed architecture; design only
-**Date:** 2026-09-30
-**Scope:** The eight backend services, web application, service-to-service traffic, messaging, and deployment edge.
+**Status:** Proposed design; no controls in this document should be read as implemented.  
+**Date:** 2026-10-12  
+**Deployment target:** Internet-facing VPS, Docker Compose, one public web application, eight domain APIs, PostgreSQL databases, RabbitMQ.
 
-## Goals
+## Executive design
 
-- Authenticate every human and workload identity.
-- Enforce authorization in the service that owns each operation and record the verified actor.
-- Protect high-impact business actions from abuse, replay, and excessive load.
-- Keep any one replica, host, or infrastructure instance from taking the system offline.
-- Preserve service-owned data and asynchronous integration boundaries.
+Treat a single VPS as a constrained, single-failure-domain production deployment. The first release can be hardened for confidentiality and integrity, but it cannot provide host-level high availability: a host, disk, provider, or network failure takes the whole application offline. Use a provider-managed firewall, automatic encrypted off-host backups, monitoring from outside the VPS, and a tested rebuild/restore process. If the business requires continuous availability or a short recovery objective, move stateful services to managed/independent hosts and run application replicas across at least two failure zones.
 
-Security controls are defense in depth. A gateway, CORS policy, or rate limiter never replaces service authorization, database constraints, idempotency, or audit records.
-
-## Current state observed in the repository
-
-- The web app uses a Vite development proxy to route API prefixes directly to eight local services. This is a development arrangement, not a production edge.
-- Vendor Management, Inventory, Procurement, Receiving, Warehouse Operations, Retail Sales, Sales Audit, and Financials run as separate services and have separate databases.
-- API contracts currently declare no authentication requirement. The services accept API requests without an authenticated principal.
-- The browser supplies actor IDs in headers or request bodies, and the web client has configured actor IDs. These values can be forged and must not be used as proof of identity or permission.
-- No shared production gateway, authentication middleware, CORS policy, or distributed rate limiter is evident in the current application setup.
-- Zod is already used in many route handlers for request bodies, query parameters, path parameters, environment variables, and some event/client payloads. Coverage and error behavior are uneven, so this is useful validation already in place but not yet a complete validation boundary.
-- Several services set a 1 MB JSON body limit, while Vendor Management, Inventory, and Procurement use Express's default JSON parser limit. All services need explicit, route-appropriate limits.
-- Each service creates a PostgreSQL pool from its connection URL, but the inspected pool configurations do not set explicit maximum sizes or timeouts. The web router statically imports its page modules, so the initial bundle includes all routes unless the build tool splits them incidentally.
-- The local Compose setup publishes database and RabbitMQ ports. These development ports must not be exposed in a production deployment.
-
-This is a repository configuration review, not a deployment or cloud-account audit.
-
-## Target topology
+Use a same-origin web Backend-for-Frontend (BFF) as the only public application entry point. Authenticate employees through OIDC; use opaque server-side sessions in secure cookies; derive all actor identity from a verified principal. The BFF and every API enforce authentication and authorization. Keep app services, databases, RabbitMQ, and management interfaces on a private Docker network and bind host ports only to loopback when host access is required. Put a maintained TLS reverse proxy on the public interface. Apply deny-by-default network and application rules.
 
 ```mermaid
-flowchart LR
-    B[Browser] -->|HTTPS, same origin| E[WAF / redundant ingress and load balancer]
-    E --> W[Web app and BFF/API edge replicas]
-    W --> V[Vendor Management]
-    W --> I[Inventory]
-    W --> P[Procurement]
-    W --> R[Receiving]
-    W --> H[Warehouse Operations]
-    W --> S[Retail Sales]
-    W --> A[Sales Audit]
-    W --> F[Financials]
-    V --> DBV[(Vendor DB)]
-    I --> DBI[(Inventory DB)]
-    P --> DBP[(Procurement DB)]
-    R --> DBR[(Receiving DB)]
-    H --> DBH[(Warehouse DB)]
-    S --> DBS[(Retail Sales DB)]
-    A --> DBA[(Sales Audit DB)]
-    F --> DBF[(Financials DB)]
-    V -. signed events .-> MQ[(Private RabbitMQ cluster)]
-    I -. signed events .-> MQ
-    P -. signed events .-> MQ
-    R -. signed events .-> MQ
-    H -. signed events .-> MQ
-    S -. signed events .-> MQ
-    A -. signed events .-> MQ
-    F -. signed events .-> MQ
-    IDP[OIDC identity provider] -. OIDC login and key discovery .-> W
-    W -. server-side session .-> REDIS[(HA session and rate-limit store)]
+flowchart TB
+    Internet --> FW[Provider firewall: 80/443 only]
+    FW --> RP[Reverse proxy: TLS, host/path allowlist]
+    RP --> WEB[Static web + BFF]
+    WEB --> API[Private MMS APIs]
+    API --> DB[(Private per-service PostgreSQL)]
+    API --> MQ[(Private RabbitMQ)]
+    WEB -. OIDC .-> IDP[Identity provider with MFA]
+    WEB --> SESSION[(Server-side session store)]
+    VPS -. encrypted off-host backup .-> BACKUP[Separate backup account/provider]
 ```
 
-Deploy the web edge/BFF and ingress in at least two failure zones with health checks and rolling replacement. Only the edge has public ingress. Keep service APIs, databases, message broker, cache, and management consoles on private networks. Services should use direct private service discovery for internal calls rather than hairpinning through the public edge.
+## Scope and repository assessment
 
-For the initial production deployment, serve the SPA and BFF on one origin (for example, `https://mms.example.com`). A WAF/CDN may sit in front of the redundant ingress where the hosting platform supports it. The ingress must route only known paths and hosts, reject malformed requests, terminate TLS, and set forwarded headers. Trust forwarded client-IP/protocol headers only from configured ingress hops.
+The repository contains eight domain services (Vendor Management, Inventory, Procurement, Receiving, Warehouse Operations, Retail Sales, Sales Audit, Financials), a Vite/React web client, per-service PostgreSQL ownership, and RabbitMQ events. The current Compose file is a development stack: it publishes PostgreSQL and RabbitMQ ports and uses simple default credentials. It is not a production deployment manifest.
 
-The Vite proxy remains useful for local development. It must not be treated as production authentication or network isolation.
+The current APIs do not consistently authenticate callers. Existing `actorId`, `x-actor-id`, and configured browser actor values are audit metadata supplied by the caller; they are forgeable and must not be treated as identity or authorization. OpenAPI contracts do not yet declare a common security scheme. No production BFF, ingress, TLS configuration, authorization middleware, or distributed rate limiter is present. Zod validation, idempotency, domain audit logs, and transactional event patterns provide useful foundations, but coverage is incomplete. Existing local `.env.example` and development secrets are not production secret management.
 
-## Human authentication
+This assessment is based on repository configuration, not a live VPS, DNS, provider firewall, identity-provider, or backup audit.
 
-Use an OpenID Connect (OIDC) provider; do not build password storage, login protocols, or token issuance in MMS. Prefer the organization’s existing identity provider if it meets availability, MFA, account lifecycle, and audit requirements. Otherwise select an OIDC-compliant provider as an infrastructure decision. Require MFA for finance approvers, administrators, and other privileged roles.
+## VPS network and host boundary
 
-Use a Backend-for-Frontend (BFF) for the browser: the BFF performs OIDC Authorization Code flow with PKCE (S256), keeps access/refresh tokens server-side, and gives the browser an opaque session cookie. Use a high-entropy session identifier with `Secure`, `HttpOnly`, and `SameSite=Lax` (or `Strict` if navigation flows permit), narrow `Path`, and no broad `Domain`. Rotate the session on sign-in and privilege changes; enforce idle and absolute expiry; revoke server-side on logout and account disablement. Do not put bearer or refresh tokens in localStorage.
+### Public ingress
 
-If a BFF cannot be deployed, the fallback is a public OIDC client using Authorization Code + PKCE, short-lived access tokens held in memory, and no client secret. Do not use the implicit or resource-owner-password grant. The BFF is preferred for this business application because it keeps tokens out of browser storage and naturally supports same-origin requests.
+- The provider firewall permits inbound TCP 80 and 443 only. SSH is restricted to a VPN, fixed administrator IPs, or a provider console and key-based access; disable password SSH and root login. Do not expose application ports, database ports, RabbitMQ 5672/15672, Redis, Docker API, or monitoring/admin endpoints.
+- Run Caddy or another maintained reverse proxy on the host or in a hardened container. Automate certificate issuance/renewal, redirect HTTP to HTTPS, reject unknown hostnames, cap request/header/body sizes, set upstream timeouts, and forward only required headers. Trust client IP and HTTPS headers only from the proxy hop.
+- Proxy only explicit web/BFF routes and health endpoints. Never make the Vite dev server or development proxy reachable in production. Do not expose a generic `/proxy/:service` route.
+- Bind reverse proxy ports on public interfaces; bind backend host mappings (if any) to `127.0.0.1`. Prefer no host mappings for internal containers. Attach only required containers to the private application network; isolate database and broker networks where practical.
+- Run Docker with a non-root application user, read-only root filesystems where feasible, dropped Linux capabilities, `no-new-privileges`, resource limits, health checks, and bounded log rotation. Pin images to reviewed versions/digests and update on a defined patch schedule. Do not mount the Docker socket into application containers.
 
-Keep identity-provider details out of business logic: shared authentication middleware validates OIDC and maps it into a stable internal principal (subject, employee ID, scopes/roles, and permitted resource context). Route and domain code consumes that principal interface, so the identity provider or token format can change without rewriting business rules. Use short-lived signed access tokens for API identity. Validate issuer, signature, allowed algorithm, audience, expiry, not-before, key ID, and required scopes. Use per-service audiences, not one unrestricted token for every API. Cache issuer metadata and JWKS with bounded refresh and key rotation so a temporary identity-provider/JWKS outage does not invalidate already issued tokens on every request. Do not make per-request introspection a hard dependency.
+### Host operations
 
-## Workload authentication and internal calls
+- Use a supported Linux LTS image with unattended security updates, host firewall, time synchronization, disk/CPU/memory monitoring, and alerts for disk exhaustion, failed services, certificate expiry, and backup failure.
+- Administrative access uses named accounts, SSH keys, MFA at the provider, and a documented break-glass path. Keep an inventory of people with VPS/provider/DNS/backup access and remove access promptly when roles change.
+- Store production configuration outside source and images with root-only permissions. Compose secrets are acceptable only with the caveat that they are files on the same host; for stronger isolation use a secret manager or host-level secret injection. Never commit `.env`, private keys, OIDC client secrets, database passwords, or broker credentials.
+- Treat one VPS as not HA. Document Recovery Point Objective (RPO) and Recovery Time Objective (RTO), and validate them by timed restore drills. Backups must be encrypted and off-host, with credentials separate from the VPS and protection against deletion by a compromised host.
 
-- Give every service a separate workload identity. Use short-lived client-credentials tokens with explicit audience and narrow scopes for service-to-service calls.
-- Use mTLS between workloads where the platform supports managed certificate identity; token validation remains necessary for authorization.
-- For an action performed on behalf of a logged-in employee, retain a verifiable delegated user identity through a supported token exchange or signed delegation claim. Never accept a caller-provided `actorId` as the delegated identity.
-- Event consumers authenticate to RabbitMQ with service-specific credentials and permissions. The broker is private, uses TLS, and has separate credentials/vhosts or equivalent least-privilege permissions. Event actor fields are audit context, not authorization credentials; producer identity and event provenance must be trusted through broker credentials and message validation.
-- Use unique credentials and audience restrictions for every service. Rotate credentials; do not share the development `mms` broker credentials or broad database credentials in production.
+## Identity and authorization
 
-## Authorization model
+### Employees and browser sessions
 
-Adopt deny-by-default, service-enforced RBAC with resource attributes (location, store, register, ownership, amount, status) for contextual checks. Resolve the employee subject from the validated identity to a stable internal employee ID on the server. Authorization must be checked on every endpoint and every requested object, including list filters, exports, and nested IDs. Return a consistent 403 for authenticated but unauthorized callers and avoid leaking whether inaccessible resources exist.
+- Use a supported OIDC identity provider; do not implement password storage or token issuance in MMS. Require MFA for all users where possible and especially for finance approvers, administrators, and privileged operators. Disable accounts at the IdP promptly when employment or access ends.
+- Implement a same-origin BFF that performs Authorization Code flow with PKCE (S256). Keep OIDC tokens server-side. The browser receives only a random opaque session cookie with `Secure`, `HttpOnly`, `SameSite=Lax`, narrow path, and no broad domain. Rotate on login and privilege changes; set idle and absolute expiration; revoke server-side on logout and account disablement. Never put long-lived tokens in localStorage.
+- Cookie-authenticated writes require a CSRF token and Origin validation. With a same-origin BFF, disable CORS by default. If a separately approved browser origin is needed, use an exact allowlist and never wildcard credentialed CORS.
+- Resolve the OIDC subject to an internal employee identity server-side. Construct a typed principal containing stable subject/employee ID, roles/permissions, and assigned store/location context. Reject missing, invalid, expired, wrong-issuer, wrong-audience, or wrongly signed identity. Do not trust forwarded identity headers unless the receiving service is reachable only from the trusted BFF and the header is cryptographically authenticated.
 
-A gateway may reject unauthenticated traffic and coarse-grained scopes, but each owning service must independently authenticate the caller and enforce function-level, object-level, and field-level authorization. This addresses the common API failure modes of broken object-level authorization, broken authentication, unrestricted resource consumption, and broken function-level authorization.
+### Service authorization
 
-Initial role/scope map (refine against actual job duties and site assignments before enablement):
+- Deny by default. The owning service checks permission, object ownership, resource fields, and store/location scope for every route and requested object. The BFF may reject unauthenticated requests and perform coarse checks, but is not a replacement for service-local authorization.
+- Replace actor IDs from headers and bodies with a principal derived from verified identity. Keep audit metadata distinct from credentials. Automated workloads use a service identity and explicit action context, not a fabricated human actor.
+- Start with narrow domain permissions such as `purchase-orders.approve`, `inventory.adjust`, `sales.refund`, `sales-audit.approve`, and `financials.journal.post`. Avoid a universal `admin` permission. Scope policies by location/store and workflow state.
+- Enforce separation of duties and sensitive thresholds in domain services and database transactions: a creator cannot approve their own PO/invoice/session; refunds, stock adjustments, period close/reopen, journal posting, and overrides require their own permission and immutable audit entry. UI visibility and feature flags do not grant access.
+- Do not expose a service publicly before its authentication and authorization migration is complete. A temporary development identity stub must be local-only and impossible to enable through production configuration.
 
-| Domain               | Example permissions                                                                                                                       | Separation and checks                                                                                                                                             |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Vendor Management    | `vendors.read`, `vendors.write`, `vendors.manage`                                                                                         | Restrict management to procurement/vendor administrators; validate fields that may be changed.                                                                    |
-| Procurement          | `purchase-orders.read`, `.create`, `.submit`, `.approve`, `.amend`, `.cancel`                                                             | Buyer submits; authorized approver approves; author cannot approve their own PO. Enforce amount thresholds and location/vendor scope.                             |
-| Receiving            | `receipts.read`, `receipts.record`                                                                                                        | Restrict by assigned receiving location and PO; prevent over-receipt unless an authorized override is recorded.                                                   |
-| Inventory            | `inventory.read`, `inventory.adjust`, `inventory.manage`                                                                                  | Restrict adjustments by location; require reason and immutable audit record; require higher privilege/second approval above configured thresholds.                |
-| Warehouse Operations | `warehouse.operate`, `warehouse.adjust`, `warehouse.supervise`                                                                            | Check source and destination locations, operation status, and supervisor-only overrides.                                                                          |
-| Retail Sales         | `sales.checkout`, `sales.refund`, `sales.override`, `register.manage`                                                                     | Bind cashier to permitted store/register; apply refund and price-override limits; preserve receipt idempotency.                                                   |
-| Sales Audit          | `sales-audit.read`, `.submit`, `.review`, `.approve`                                                                                      | Submitter and approver must be different identities; service enforces maker-checker and register/store assignment.                                                |
-| Financials           | `financials.invoice.capture`, `.match`, `.approve`, `journal.post`, `accounts.manage`, `period.close`, `period.reopen`, `financials.read` | Invoice creator cannot approve their own invoice; journal posting and period close/reopen are separately privileged and fully audited; auditor role is read-only. |
+### Service and event identities
 
-Do not encode permissions solely as a broad `admin` flag. Central role assignment can be managed by the identity platform, but the service owns final policy decisions and business invariants. Permission changes and privileged operations must be audited.
+- For a single-host Compose deployment, private Docker networking plus unique credentials and strict ACLs are the minimum internal boundary. Use TLS for remote database/broker connections and encrypt host disks/backups. If the VPS provider or network is not trusted, use workload mTLS or short-lived audience-restricted service tokens as well; do not rely on private IP alone.
+- Give each service distinct database credentials with only its own database/schema privileges. Runtime credentials must not be superusers or migration owners. Give each RabbitMQ publisher/consumer a dedicated user/vhost and least-privilege configure/write/read permissions; disable the management listener externally and rotate credentials.
+- Validate every event at consumption, deduplicate by event ID, and treat event actor fields as provenance/audit context, not authorization. Enforce producer permissions and monitor dead-letter queues. Never allow arbitrary network clients to publish trusted business events.
+- Internal HTTP calls authenticate the calling service. When acting for a human, carry a verifiable delegated principal or signed context so the target service can authorize and audit the human action. Never accept an unverified `x-actor-id` as proof.
 
-## Rate limiting and resource controls
+## Application and data protections
 
-Use a shared, highly available Redis-compatible store or an equivalent managed distributed limiter at the edge for user/IP quotas. Apply additional domain-specific limits inside services so direct private calls and future topology changes remain protected. An in-memory limiter per replica is not sufficient because traffic can spread across replicas or restart to reset limits. Use token-bucket or sliding-window limits with explicit burst behavior. Return `429 Too Many Requests` with `Retry-After` and useful standard rate-limit headers.
+- Standardize runtime validation of path, query, headers, and body for every public and internal API. Validate inter-service responses, messages, and startup configuration at their receiving boundary. Apply explicit per-route body limits, upload limits, pagination caps, query timeouts, request timeouts, and concurrency limits.
+- Add a consistent error contract with safe messages and request IDs. Never return stack traces, SQL, secrets, internal addresses, or configuration. Log detailed diagnostics only in protected logs.
+- Apply security headers: a CSP compatible with the built app, HSTS after HTTPS is correct, `X-Content-Type-Options: nosniff`, frame protection, and a restrictive Referrer Policy. Avoid unsafe inline scripts. Serve only built production assets.
+- Use parameterized SQL, least privilege, database constraints for uniqueness/state transitions, and short transactions. Preserve service-owned database boundaries. Set explicit pool limits/timeouts and budget aggregate pool connections against each database capacity.
+- Use idempotency keys for retryable writes, backed by durable unique constraints and request hashes. This is especially important for checkout, refunds, approvals, adjustments, and financial posting. Do not assume rate limiting prevents duplicate operations.
+- Encrypt database storage and backups; classify employee, supplier, financial, and retail data; minimize sensitive data in logs/events; establish retention and deletion rules. Do not store payment card data unless a separately assessed payment architecture requires it.
+- Use a centralized, access-controlled log destination if available; on a single VPS also use rotated local logs and off-host forwarding. Never log cookies, bearer tokens, secrets, or unrestricted request bodies. Business audit records remain in their owning service and must use verified actors.
 
-These are conservative starting ceilings for production tuning, not permanent business rules. Load-test against expected store traffic and measure false throttles before enforcement. Key limits by authenticated subject and relevant business resource; use client IP only as a supplemental signal because many legitimate users can share NAT. Configure trusted proxy hops before using forwarded IPs.
+## Abuse resistance and monitoring
 
-| Operation                              | Initial limit                                                                | Additional controls                                                                                                           |
-| -------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| General API                            | 300 requests/minute/user; 1,200/minute/IP; burst 30                          | Per-route overrides; request timeout and concurrency limits.                                                                  |
-| Read/search/list                       | 120/minute/user per route                                                    | Page size max 100; require bounded search; cap response size and query time.                                                  |
-| PO create/update                       | 30/minute/user                                                               | Validate state transition and idempotency key; per-PO submit/approve 3/minute.                                                |
-| PO submit/approve                      | 10/minute/actor                                                              | Maker-checker, amount thresholds, idempotent transition.                                                                      |
-| Receipt creation                       | 30/minute/user/location                                                      | Idempotency and PO quantity constraints.                                                                                      |
-| Inventory/warehouse adjustments        | 10/minute/actor/resource                                                     | Require reason; business approval threshold; serialize conflicting stock updates.                                             |
-| POS checkout                           | 120/minute/register and 60/minute/cashier                                    | Tune per register throughput; idempotency key/unique receipt; do not throttle ordinary scans as if each were a sale.          |
-| Refund                                 | 30/minute/cashier and 5/minute/receipt                                       | Enforce return policy, amount threshold and manager override.                                                                 |
-| Sales Audit submit/review/approve      | 10/minute/actor and 3/minute/session                                         | Enforce session state and maker-checker; idempotent decisions.                                                                |
-| Financial invoice capture/match        | 30/minute/clerk                                                              | Deduplicate external invoice reference; cap attachment sizes and parsing work.                                                |
-| Financial approve/post/period controls | 5/minute/actor and 3/minute/document or period                               | Strong authorization, maker-checker, immutable posting and idempotency.                                                       |
-| Reports, audit exports, trial balance  | 10/minute/actor; max 2 concurrent/user                                       | Authorization before query; bounded date range, pagination, async export for large results.                                   |
-| Sign-in failures                       | Configure at IdP: progressive delay and risk controls per account and source | Avoid permanent account lockout as an attacker-controlled denial-of-service mechanism; alert on sprays and repeated failures. |
+- Apply edge limits by IP and authenticated subject, then tighter per-action quotas in services. IP is supplemental because stores may share NAT. Bound expensive reports, exports, search ranges, payload sizes, concurrent jobs, and downstream calls. Return 429 with `Retry-After`.
+- A single-VPS Redis instance is not HA; do not make it a new single point of correctness. If Redis backs sessions, protect it on a private network and define recovery behavior. High-risk writes should fail closed if required identity/session validation is unavailable. Define a conservative emergency request cap if a shared limiter fails.
+- Set dependency connection/read/write timeouts, bounded retries with jitter only for safe or idempotent operations, circuit breakers, and graceful shutdown. Do not report success when the transaction or outbox commit failed. Alert on repeated authorization denials, login sprays, unusual refunds/adjustments, sensitive period operations, 5xx/429 spikes, queue backlog/dead letters, resource exhaustion, and backup failures.
+- Add correlation IDs end to end. Security events record verified actor/service, operation, resource, outcome, timestamp, and request ID, without credentials or sensitive payloads.
 
-The exact limits need refinement against route inventory and store volumes; the security properties to preserve are bounded request cost, fairness, and explicit protection for costly or irreversible actions. Rate limiting never replaces permissions, transactional constraints, replay protection, or auditability. Use idempotency keys for retryable writes and enforce uniqueness/transition rules in the database.
+## Data, secrets, and recovery
 
-Define dependency-outage behavior in advance. If the distributed limiter is unavailable, the edge should alert and apply a conservative local emergency cap; high-risk financial/admin writes should fail closed with a retryable `503` if abuse controls cannot be established. Do not silently allow unlimited writes. Existing healthy sessions and normal read/checkout operations should not all be coupled to an identity-provider network check.
+- Run encrypted daily database backups and point-in-time/WAL archiving where supported. Copy encrypted backups off the VPS to a separately controlled account/provider. Include configuration needed to rebuild but exclude ephemeral credentials where they can be rotated. Test restoration of every service database and RabbitMQ recovery/replay procedures on a clean host.
+- Keep a recovery runbook: provision clean OS, patch and harden, restore secrets from trusted source, deploy pinned images, restore databases, replay outbox/events safely, verify health, rotate credentials, and update DNS. Monitor that backups are recent, complete, decryptable, and restorable.
+- Patch the OS, Node runtime, base images, and dependencies promptly for security issues. Produce an SBOM and scan dependencies/container images in CI. Require reviewed changes, protected release credentials, CI secret masking, and no production secrets in build artifacts. Roll back using known-good immutable images and database-compatible migration plans.
+- Define incident steps for suspected credential disclosure, compromised user, malicious image, database exposure, and VPS compromise: isolate ingress, revoke IdP sessions and secrets, preserve logs/backups, rebuild from trusted images, assess integrity, and notify stakeholders as required.
 
-## CORS, CSRF, and browser protections
+## Deployment profiles
 
-With a same-origin BFF, production browser API calls need no cross-origin CORS access: do not enable CORS globally by default. If an approved external browser client requires cross-origin access, allow only explicitly configured origins, methods, and headers; use `Vary: Origin`; never combine credentialed requests with `Access-Control-Allow-Origin: *`. Reject unexpected origins. CORS is a browser policy, not authentication or authorization.
+### Secure single-VPS launch
 
-Cookie-authenticated state-changing requests require CSRF protection: synchronizer or signed double-submit token, plus Origin (and where appropriate Referer) validation. SameSite cookies add protection but are not the sole CSRF control. Require JSON content types for API writes and reject unexpected simple content types.
+Suitable only when an outage during host repair/recovery is acceptable. One VPS runs reverse proxy, BFF/web, APIs, databases, and RabbitMQ in private containers; only TCP 80/443 and restricted SSH are public. Keep off-host backups and external monitoring. The host, local disk, Docker engine, and local data services remain shared failure points. A VPS-side Redis, local DB replica, or second container does not remove these failure points.
 
-Set security headers at the edge/application consistently: Content-Security-Policy tailored to the built UI, HSTS after HTTPS is complete, `X-Content-Type-Options: nosniff`, an appropriate frame policy, and a restrictive Referrer-Policy. Use secure output rendering, dependency updates, and avoid unsafe inline scripts. Set request body limits per route (small JSON defaults; explicit bounded upload routes), query depth/parameter caps, and timeouts.
+### Higher-availability target
 
-## Input validation and API contract
+For production workloads requiring bounded host failure: separate public ingress and application replicas across hosts/zones; use managed or independently hosted HA PostgreSQL, RabbitMQ, session storage, secrets, and backups. Keep the same identity and service-local authorization model. Define measured SLO, RPO, and RTO before selecting replicas and failover automation.
 
-Zod is the intended runtime validation library and is already used widely. Treat the current use as partial coverage: having Zod in dependencies does not prove that every entry point is validated. For every route, define and apply schemas to path parameters, query parameters, headers used by the API, and request bodies before domain logic or database work. Keep schemas close to the route contract and share types or generated OpenAPI where practical.
+## Ordered implementation plan
 
-Validate cross-service HTTP responses and every message at the receiving boundary too; producer-side validation alone is insufficient. Validate environment/configuration at process startup and fail closed with a clear operator-facing startup error. Parse external data as `unknown`, then use `safeParse` or a shared validation adapter that returns the canonical client error shape. Do not return raw Zod issues, stack traces, or schema internals. Normalize and bound values (trim strings, set maximum lengths, bound arrays and nested object depth), reject unsupported content types, and reject unknown properties for sensitive write schemas where compatibility permits.
+1. **Before exposing the VPS:** create production-only deployment config; close all ports except 80/443 and restricted SSH; remove default credentials; deploy TLS reverse proxy; ensure backend containers have no public port mappings; set backups, external monitoring, host patching, and restore procedure.
+2. **Identity foundation:** choose OIDC provider and employee identity mapping; implement BFF, secure sessions, CSRF, MFA policy, principal middleware, and production-safe configuration validation.
+3. **Protect every API:** add authentication and deny-by-default service authorization; remove reliance on caller-provided actor IDs; migrate API contracts; add object/location/store checks and maker-checker rules. Keep all routes private until their service is complete.
+4. **Workloads and events:** add unique service/database/broker credentials, RabbitMQ ACLs, trusted delegated actor propagation, and event provenance/validation.
+5. **Bound and observe:** standardize schemas, limits, timeouts, pool budgets, safe errors, security logs, alerting, dependency and image scanning, and rotation procedures.
+6. **Operational readiness:** conduct threat modeling for financial posting, approvals, stock changes, refunds and identity lifecycle; exercise incident response, restore and credential rotation; document residual single-VPS risks and recovery objectives.
+7. **Scale when warranted:** move stateful services and app replicas off the host according to availability and capacity measurements rather than assuming container replicas on one VPS provide HA.
 
-Use exact business representations: money as integer minor-unit amounts or decimal strings converted with decimal-safe arithmetic, never JavaScript floating-point money; quantities must match the domain's allowed integer/decimal precision and bounds. Validate UUIDs, enums, ISO dates, currency, numeric ranges, and required fields. Schema validation handles shape and range; domain rules still need explicit checks (for example, a PO state transition, available stock, actor separation, or invoice matching), and the database must enforce invariants that must remain true under concurrent requests.
+## Production release gates
 
-Invalid input must stop before business side effects. Map validation failures to a stable `400` response with field-level messages that do not expose implementation details. Distinguish malformed JSON/oversized bodies (`400`/`413`) from valid JSON with invalid fields (`400`); use consistent safe errors for database and dependency failures. Never trust validation as authorization: a well-formed object ID still requires per-object access checks.
-
-## API security controls (required baseline)
-
-| Control                | Required architecture                                                                                                                      | Current repository status / action                                                                                                               |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| HTTPS/TLS              | TLS for all external traffic; TLS internally for service and data connections where supported; redirect or reject external plaintext HTTP. | Production ingress is not configured in this repository; deploy and enforce at the edge.                                                         |
-| Authentication         | OIDC human sign-in through BFF; authenticated workload identities for service calls.                                                       | Not implemented across APIs; do not treat actor IDs as authentication.                                                                           |
-| Authorization / RBAC   | Deny by default; service-local operation, object, property, and location checks.                                                           | Not consistently implemented; add with verified principals.                                                                                      |
-| Separation of duties   | Enforce creator/approver separation and business thresholds in owning service and transaction.                                             | Some workflow invariants exist, but actor IDs are currently caller-supplied; preserve and bind checks to authenticated subjects.                 |
-| Service authentication | Audience-limited workload tokens, optionally mTLS; receiving service verifies identity and permission.                                     | Internal integrations exist but need authenticated workload identity.                                                                            |
-| Rate limiting          | Distributed edge quotas plus service-specific expensive-action limits.                                                                     | Not evident; add after stable principal/IP attribution and define store-outage policy.                                                           |
-| Input validation       | Zod schemas on every external and cross-service boundary, then domain and database invariants.                                             | Zod is already used broadly but coverage is incomplete; audit every route, event, and service client.                                            |
-| Request size limits    | Explicit JSON limits per service and smaller limits per route; separate bounded upload handling.                                           | 1 MB is set in some services; Vendor Management, Inventory, and Procurement currently use the parser default. Standardize explicitly everywhere. |
-| CORS                   | Same-origin BFF: disabled by default. External browser clients: strict origin/method/header allowlist.                                     | No production policy evident; avoid wildcard configuration.                                                                                      |
-| Security headers       | Apply established middleware/edge policy for CSP, HSTS, frame protection, MIME sniffing, and referrer policy.                              | No consistent middleware evident; configure at edge and app where defense in depth is useful.                                                    |
-| Safe errors            | Stable client contract; no stack, SQL, secrets, or internal topology in responses.                                                         | Per-service handlers exist but should be reviewed for identical redaction and request correlation.                                               |
-| Audit logging          | Record verified human/workload actor, action, resource, decision, and time; protect retention.                                             | Domain audit records exist in services; migrate actor source to verified identity and aggregate protected security events.                       |
-| Request IDs            | Accept a validated edge-generated correlation ID or generate one; propagate to services, events, logs, and responses.                      | Add consistently across edge and services; never use the ID as an identity or authorization credential.                                          |
-| Secrets                | Secret manager, least privilege, rotation, and no production secrets in source/env bundles/logs.                                           | Local `.env` usage is for development; production injection and rotation remain deployment requirements.                                         |
-
-Use established middleware for HTTP security headers and request parsing rather than hand-building headers. API response errors must expose a safe message, stable error code/category, field details where useful, and request ID; log detailed diagnostics only to protected server logs. Never send credentials, stack traces, SQL text, internal hostnames, or dependency configuration to clients.
-
-## Scaling and capacity
-
-### API and worker scaling
-
-Keep HTTP service replicas stateless: no in-process sessions, lock state, or correctness-critical counters. Run multiple replicas across failure zones behind health-checked ingress; scale using a combination of request rate, p95/p99 latency, CPU/memory, event-loop lag, and queue depth. Set resource requests/limits and graceful shutdown so a replica stops receiving traffic, finishes bounded in-flight work, and releases database/broker connections. Keep liveness checks cheap; readiness should reflect the dependencies required to serve that service's routes.
-
-Apply connection, request, and downstream timeouts; bounded retries with jitter only for safe/idempotent operations; circuit breakers and concurrency caps for calls to another service. Avoid retry storms and do not report a write as successful when its durable transaction failed. Move CPU-heavy reports, bulk imports, and large exports to bounded background jobs with status/progress APIs and per-tenant/user quotas. Use the transactional outbox for reliable event publication and idempotent consumers.
-
-### Database scaling
-
-Preserve the current service-owned database boundaries. Scale in this order, measuring before each step:
-
-1. Establish per-service baselines: query p95/p99, slow query log, CPU/IO, lock waits, pool wait time, active connections, cache hit ratio, table/index growth, and replication lag. Alert before connection or storage exhaustion.
-2. Improve query shape: inspect plans with `EXPLAIN (ANALYZE, BUFFERS)` in safe environments, add indexes for measured access patterns, avoid N+1 calls, select only needed columns, paginate all lists, and prefer keyset pagination for deep/high-volume histories. Keep transactions short and use constraints/unique indexes for concurrency-sensitive invariants.
-3. Bound connection pools. Set explicit per-process pool maximum, connection/acquire/idle timeouts, and application concurrency. Budget `replica count × pool max` across every service against database connection capacity, reserving connections for migrations, monitoring, failover, and operations. Add PgBouncer or the platform's connection pooler when connection churn/replica counts justify it; verify transaction-pooling compatibility with the driver's prepared-statement behavior.
-4. Scale database compute/storage vertically and provision IOPS based on observed load. Use HA primary/standby and point-in-time recovery for availability and recovery; replicas alone are not backups.
-5. Add read replicas only for measured read-heavy workloads and route explicitly stale-tolerant reads to them. Keep writes, financial posting/approval, read-after-write screens, and consistency-sensitive stock decisions on the primary unless the domain contract explicitly allows replica lag.
-6. Consider partitioning large append-only audit/event/history tables by time when measured table size and query/retention patterns justify it. Archive or expire data under approved retention rules. Do not introduce cross-service joins or sharding before metrics demonstrate the need; keep money/stock invariants transactional within their owning service.
-
-Every service must have a connection budget and capacity alert. Autoscaling app replicas without pool budgeting can exhaust PostgreSQL and turn a traffic spike into a shared outage.
-
-### Frontend and static asset scaling
-
-Serve the production frontend as versioned static assets through a CDN or equivalent cache in front of redundant static hosting. Use content-hashed filenames with long immutable cache headers; serve the HTML entry point with revalidation/no-cache so deployments pick up new asset hashes. Enable Brotli or gzip, HTTP/2 or HTTP/3 where supported, and use a restrictive CSP compatible with the built app. Keep API traffic on the same public origin through the BFF.
-
-The current router eagerly imports all pages. Add route-level code splitting with `React.lazy`/dynamic imports and route-level `Suspense` fallbacks as the UI grows; inspect production bundle reports and split oversized feature/vendor chunks. Load heavy charts, export tooling, and infrequently used workflows on demand. Keep list screens paginated and virtualize genuinely large tables; do not fetch entire audit or inventory histories to render a page.
-
-Use the existing TanStack Query cache intentionally: stable query keys, appropriate `staleTime`/`gcTime`, request cancellation, deduplicated fetches, and targeted invalidation. Avoid aggressive polling across every page; use bounded refresh intervals or event-driven updates for operational views. Cache only data safe for that user/session, clear user-scoped cache on logout or identity switch, and never treat a frontend feature gate or cached permission as authorization.
-
-## Network, data, and secrets
-
-- Public access: only the load balancer/ingress. Service ports, PostgreSQL, RabbitMQ and its management UI, Redis, and admin endpoints are private. Restrict egress to required dependencies.
-- TLS: HTTPS externally and TLS for service, database, broker, and cache connections where supported. Encrypt persistent data and backups at rest with managed keys.
-- Database: retain one owning database per service. Use a distinct application DB role per service, least-privilege grants, no schema-owner/superuser credential in runtime, bounded connection pools, and secret rotation. Use parameterized queries and database constraints for invariants.
-- Secrets: inject from a secret manager; do not commit production secrets to `.env`, container images, logs, or frontend bundles. Rotate on staff departure or suspected exposure.
-- Data: classify PII and financial records; minimize fields in logs and events; establish retention and deletion requirements. Avoid tokens, session cookies, payment credentials, or full sensitive payloads in logs.
-- Backups: point-in-time recovery and encrypted backups for each database; regularly prove restore procedures, not just backup creation.
-
-## Availability and single points of failure
-
-| Dependency               | Failure mitigation                                                                                                                                                | Degraded behavior                                                                                                  |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| DNS / TLS / ingress      | Managed redundant DNS; multi-zone ingress/LB; certificate automation and expiry alerts.                                                                           | Serve a maintenance response if no healthy web edge exists.                                                        |
-| Web/BFF/API edge         | At least two stateless replicas in separate failure zones; health checks, rolling deploys, autoscaling and circuit breakers.                                      | Edge is an unavoidable entry dependency; fail over replicas and avoid storing business state locally.              |
-| OIDC provider            | Prefer provider HA and documented account lifecycle; cached issuer/JWKS for existing signed tokens; monitor callback and key retrieval.                           | Existing valid sessions/tokens continue within expiry; new login may pause. Do not bypass authentication.          |
-| Session/rate-limit store | Managed HA/cluster, replica/failover, TLS, backups where session persistence is required, alerts and tested recovery.                                             | Re-authenticate if sessions are lost; emergency caps and fail-closed policy for high-risk writes if limiter fails. |
-| Each service             | Multiple replicas where capacity and deployment permit; readiness/liveness checks; bounded retries/timeouts; isolate pools and circuit-break cross-service calls. | Fail only workflows that depend on the unhealthy service; return actionable retryable errors.                      |
-| Per-service PostgreSQL   | HA primary/standby or managed HA, PITR, tested restore/failover, per-service connection budgets.                                                                  | A database incident affects its owning service; do not route around ownership or report a write as successful.     |
-| RabbitMQ                 | Multi-node quorum queues across failure zones, persistent messages, per-service permissions, monitored disk/memory/queue depth and DLQs.                          | Transactional outboxes retain events for replay; alert and bound backlog; consumers are idempotent.                |
-| Secrets/KMS              | Managed service redundancy, access logging, rotation, recovery/break-glass runbook.                                                                               | Never fall back to committed/default secrets.                                                                      |
-
-No design can remove all dependencies: the public edge remains the ingress dependency, and a service’s own database is necessary for its writes. Redundancy, recovery, bounded failure domains, and explicit degraded behavior prevent a single instance failure from becoming a system-wide outage. Avoid a single central authorization process: validate identity and enforce policy in each service, with the edge as an additional boundary.
-
-## Logging, detection, and audit
-
-Emit structured security events for authentication success/failure, authorization denial, role changes, rate-limit rejection, account disablement, token validation failure, service identity, and privileged business actions. Include request/correlation ID, verified subject/service identity, action, resource type/ID, decision, and timestamp. Never log bearer tokens, cookies, secrets, or unrestricted request bodies.
-
-Forward protected audit/security logs to a centralized, access-controlled destination with retention and tamper-resistance appropriate to financial records. Alert on credential spraying, repeated object-access denials, unusual refund/adjustment activity, unexpected period operations, high 429/5xx rates, queue dead letters, backup failures, and certificate/secret expiry. Keep business audit records in their owning domain service and use central aggregation for cross-service investigation.
-
-## Implementation and rollout
-
-1. **Baseline and decisions:** Inventory routes and data classifications; finalize the role/scope matrix, location/store assignment rules, sign-in provider, session lifetime, retention, and deployment availability objectives. Threat-model money movement, stock changes, identity lifecycle, and service messaging.
-2. **Production edge and network:** Deploy HTTPS ingress and redundant web/BFF replicas; make service and infrastructure ports private; remove default/shared credentials; apply body size, timeout, header, and request limits. Keep the local Vite proxy for development only.
-3. **Authentication foundation:** Integrate OIDC and BFF sessions; implement shared token-validation and principal-resolution middleware; add CSRF protections and security event logging. No production route should rely on browser-supplied actor IDs.
-4. **Service authorization:** Migrate one service at a time to verified principals and service-local policies. Enforce object and field access, store/location scope, and maker-checker/amount policies. Replace actor headers/body fields with server-derived actor IDs while keeping explicit trusted service identities for automated work.
-5. **Workload identities and events:** Add scoped client credentials/mTLS to internal APIs, broker ACLs, provenance checks, credential rotation, and consumer idempotency.
-6. **Abuse and resilience controls:** Add shared distributed limits plus service-level business quotas, concurrency/time limits, alerts, circuit breakers, HA cache/DB/broker arrangements, backup/restore and failover runbooks. Tune thresholds from representative load observations.
-7. **Enforcement and review:** Enable production policies by service with deny-by-default. Review authorization and rate-limit coverage for every route, perform security assessment, exercise recovery and incident procedures, and rotate/remove transitional credentials.
-
-Authentication and authorization must be enabled together for each production route; do not expose a partially migrated service publicly. During development, use a clearly separated local-only identity stub or seeded test identity, never a production bypass.
-
-## Acceptance criteria
-
-- Every public API request reaches the edge over HTTPS; no backend, database, broker, cache, or admin port is public.
-- Every route validates path, query, headers, and body with bounded schemas; cross-service HTTP responses, events, and startup configuration are validated at their receiving boundary.
-- Every service has an explicit body-size limit, bounded pagination, safe validation errors, and request IDs in responses/logs.
-- Every service rejects missing, invalid, expired, wrong-audience, or insufficient-scope identities.
-- Services derive actor IDs from validated principals and enforce resource/store/location access locally.
-- Maker-checker, approval thresholds, idempotency, and financial/stock invariants are server- and database-enforced.
-- CORS is disabled for the same-origin BFF, or strictly allowlisted for an approved cross-origin client; cookie writes have CSRF protection.
-- Expensive reads and high-impact writes have distributed limits, bounded payloads, timeouts, concurrency controls, monitoring, and documented limiter-outage behavior.
-- Loss of one edge/service/cache/broker/database replica has a tested, bounded recovery path; database and event replay procedures are documented and exercised.
-- Replica and DB pool budgets fit the configured PostgreSQL connection limits; scaling thresholds and alerting use observed latency, saturation, and queue metrics.
-- Frontend production assets are cached/versioned and feature routes are split on demand; high-volume lists use server pagination.
-- Security and business audit logs identify the verified actor and decision without exposing credentials or sensitive payloads.
+- Only the reverse proxy is publicly reachable on web ports; SSH is restricted; direct probes cannot reach services, databases, RabbitMQ, cache, Docker, or admin tools.
+- Every production route requires a verified human or workload principal and local permission checks; no actor header/body value grants identity.
+- OIDC issuer/audience/signature/expiry are checked; MFA and account disablement are operational; sessions are secure, revocable, time-bounded, and CSRF-protected.
+- Object, field, store/location access, maker-checker, and high-impact transaction invariants are enforced server-side and transactionally.
+- Unique production credentials are least-privilege, protected, rotatable, and absent from repo/images/browser bundles/logs.
+- Input and event boundaries have schemas, explicit size/time/concurrency limits, safe errors, idempotency, and monitoring.
+- Encrypted off-host backups have been restored successfully on a clean environment; incident, rebuild, credential rotation, and event replay procedures are documented.
+- The business owner accepts the measured single-host outage risk or the deployment has moved to a multi-host/managed HA profile.
 
 ## References
 
 - IETF, [OAuth 2.0 Security Best Current Practice (RFC 9700)](https://www.rfc-editor.org/rfc/rfc9700/)
-- OWASP, [API Security Top 10 (2023)](https://api-security.owasp.org/editions/2023/en/0x11-t10/)
+- OWASP, [API Security Top 10 (2023)](https://owasp.org/API-Security/editions/2023/en/0x11-t10/)
 - OWASP, [REST Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html)
-- OWASP, [Cross-Site Request Forgery Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)
+- OWASP, [Session Management Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
+- OWASP, [CSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)

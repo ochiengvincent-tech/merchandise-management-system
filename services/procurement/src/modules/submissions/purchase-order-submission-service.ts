@@ -1,4 +1,4 @@
-import { db } from "../../db/index.js";
+import { runProcurementTransaction } from "../../db/transaction-repository.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../errors/app-error.js";
 import {
@@ -68,7 +68,7 @@ export async function submitPurchaseOrderForApproval(
 
   assertPurchaseOrderWithinLimit(purchaseOrder.totalAmount);
 
-  return db.transaction(async (tx) => {
+  return runProcurementTransaction(async (tx) => {
     const updatedPurchaseOrder = await updatePurchaseOrderWithDatabase(
       purchaseOrderId,
       {

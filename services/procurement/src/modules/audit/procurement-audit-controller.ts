@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Request, Response } from "express";
 import { AppError } from "../../errors/app-error.js";
-import { listProcurementAuditLogs } from "./procurement-audit-list-repository.js";
+import { listProcurementAuditLogsService } from "./procurement-audit-service.js";
 
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -21,7 +21,7 @@ export async function listProcurementAuditLogsController(req: Request, res: Resp
     throw new AppError("Invalid audit query", 400, parsed.error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })));
   }
   const { from, to, ...filters } = parsed.data;
-  const result = await listProcurementAuditLogs({
+  const result = await listProcurementAuditLogsService({
     ...filters,
     from: from ? new Date(from) : undefined,
     to: to ? new Date(to) : undefined,

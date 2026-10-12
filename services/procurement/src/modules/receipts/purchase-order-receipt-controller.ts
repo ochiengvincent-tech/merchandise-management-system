@@ -76,3 +76,29 @@ export async function receivePurchaseOrderController(
     next(error);
   }
 }
+
+export function receivePurchaseOrderFromReceivingController(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  if (typeof req.body?.receivingReceiptId !== "string") {
+    return res.status(400).json({
+      error: { message: "A Receiving receipt ID is required" },
+    });
+  }
+
+  return receivePurchaseOrderController(req, res, next);
+}
+
+export function rejectDirectPurchaseOrderReceiptController(
+  _req: Request,
+  res: Response,
+) {
+  return res.status(409).json({
+    error: {
+      message:
+        "Direct purchase-order receipt is disabled while Receiving is enabled. Record deliveries through the Receiving service.",
+    },
+  });
+}

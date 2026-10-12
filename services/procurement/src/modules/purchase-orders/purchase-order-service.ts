@@ -1,4 +1,4 @@
-import { db } from "../../db/index.js";
+import { runProcurementTransaction } from "../../db/transaction-repository.js";
 
 import { AppError } from "../../errors/app-error.js";
 
@@ -236,7 +236,7 @@ export async function createPurchaseOrder(data: CreatePurchaseOrderInput) {
 
   const subtotal = centsToMoney(subtotalCents);
 
-  return db.transaction(async (tx) => {
+  return runProcurementTransaction(async (tx) => {
     const purchaseOrder = await createPurchaseOrderWithDatabase(
       {
         poNumber: data.poNumber,

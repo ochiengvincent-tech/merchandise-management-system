@@ -15,7 +15,11 @@ import { submitPurchaseOrderForApprovalController } from "../submissions/purchas
 import { updatePurchaseOrderController } from "../updates/purchase-order-update-controller.js";
 
 import { cancelPurchaseOrderController } from "../cancellations/purchase-order-cancellation-controller.js";
-import { receivePurchaseOrderController } from "../receipts/purchase-order-receipt-controller.js";
+import {
+  receivePurchaseOrderController,
+  receivePurchaseOrderFromReceivingController,
+  rejectDirectPurchaseOrderReceiptController,
+} from "../receipts/purchase-order-receipt-controller.js";
 
 const router: Router = Router();
 
@@ -38,24 +42,10 @@ router.patch("/:id/cancel", cancelPurchaseOrderController);
 router.all("/:id/cancel", methodNotAllowed);
 
 if (featureFlags.receiving) {
-  router.post("/:id/receipts/from-receiving", (req, res, next) => {
-    if (typeof req.body?.receivingReceiptId !== "string") {
-      return res.status(400).json({
-        error: { message: "A Receiving receipt ID is required" },
-      });
-    }
-    return receivePurchaseOrderController(req, res, next);
-  });
+  router.post("/:id/receipts/from-receiving", receivePurchaseOrderFromReceivingController);
   router.all("/:id/receipts/from-receiving", methodNotAllowed);
 
-  router.post("/:id/receipts", (_req, res) =>
-    res.status(409).json({
-      error: {
-        message:
-          "Direct purchase-order receipt is disabled while Receiving is enabled. Record deliveries through the Receiving service.",
-      },
-    }),
-  );
+  router.post("/:id/receipts", rejectDirectPurchaseOrderReceiptController);
 } else {
   router.post("/:id/receipts", receivePurchaseOrderController);
 }

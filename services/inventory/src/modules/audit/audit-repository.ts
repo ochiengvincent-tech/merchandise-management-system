@@ -2,6 +2,8 @@ import { and, count, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { inventoryAuditLogs } from "../../db/schema/inventory-audit-logs.js";
 
+export type AuditDatabase = Pick<typeof db, "insert">;
+
 export type AuditLogFilters = {
   page: number;
   limit: number;
@@ -11,19 +13,46 @@ export type AuditLogFilters = {
   to?: Date;
 };
 
+export async function createInventoryAuditLog(
+  data: typeof inventoryAuditLogs.$inferInsert,
+  database: AuditDatabase = db,
+) {
+  const [auditLog] = await database
+    .insert(inventoryAuditLogs)
+    .values(data)
+    .returning();
+  return auditLog ?? null;
+}
+
 export async function listInventoryAuditLogs(filters: AuditLogFilters) {
   const conditions = [];
-  if (filters.action) conditions.push(eq(inventoryAuditLogs.action, filters.action));
-  if (filters.actorId) conditions.push(eq(inventoryAuditLogs.actorId, filters.actorId));
-  if (filters.from) conditions.push(gte(inventoryAuditLogs.createdAt, filters.from));
-  if (filters.to) conditions.push(lte(inventoryAuditLogs.createdAt, filters.to));
+  if (filters.action)
+    conditions.push(eq(inventoryAuditLogs.action, filters.action));
+  if (filters.actorId)
+    conditions.push(eq(inventoryAuditLogs.actorId, filters.actorId));
+  if (filters.from)
+    conditions.push(gte(inventoryAuditLogs.createdAt, filters.from));
+  if (filters.to)
+    conditions.push(lte(inventoryAuditLogs.createdAt, filters.to));
   const where = conditions.length ? and(...conditions) : undefined;
   const [rows, [totalRow]] = await Promise.all([
-    db.select().from(inventoryAuditLogs).where(where)
+    db
+      .select()
+      .from(inventoryAuditLogs)
+      .where(where)
       .orderBy(desc(inventoryAuditLogs.createdAt), desc(inventoryAuditLogs.id))
-      .limit(filters.limit).offset((filters.page - 1) * filters.limit),
+      .limit(filters.limit)
+      .offset((filters.page - 1) * filters.limit),
     db.select({ total: count() }).from(inventoryAuditLogs).where(where),
   ]);
   const total = Number(totalRow?.total ?? 0);
-  return { data: rows, pagination: { page: filters.page, limit: filters.limit, total, totalPages: Math.ceil(total / filters.limit) } };
+  return {
+    data: rows,
+    pagination: {
+      page: filters.page,
+      limit: filters.limit,
+      total,
+      totalPages: Math.ceil(total / filters.limit),
+    },
+  };
 }

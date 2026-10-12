@@ -1,4 +1,4 @@
-import { db } from "../../db/index.js";
+import { runProcurementTransaction } from "../../db/transaction-repository.js";
 import { AppError } from "../../errors/app-error.js";
 
 import {
@@ -33,7 +33,7 @@ export async function approvePurchaseOrder(
     );
   }
 
-  return db.transaction(async (tx) => {
+  return runProcurementTransaction(async (tx) => {
     const purchaseOrderLines = await findPurchaseOrderLinesWithDatabase(
       purchaseOrderId,
       tx,
@@ -129,7 +129,7 @@ export async function rejectPurchaseOrder(
     );
   }
 
-  return db.transaction(async (tx) => {
+  return runProcurementTransaction(async (tx) => {
     const updatedPurchaseOrder = await rejectPurchaseOrderWithDatabase(
       purchaseOrderId,
       tx,

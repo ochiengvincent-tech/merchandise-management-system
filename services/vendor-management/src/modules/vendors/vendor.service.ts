@@ -1,4 +1,4 @@
-import { db } from "../../db/index.js";
+import { runVendorManagementTransaction } from "../../db/transaction-repository.js";
 import { AppError } from "../../errors/app-error.js";
 import { createAuditLogService } from "../audit/audit.service.js";
 import {
@@ -30,7 +30,7 @@ export async function createVendorService(
     throw new AppError("Vendor code already exists", 409);
   }
 
-  return db.transaction(async (tx) => {
+  return runVendorManagementTransaction(async (tx) => {
     const vendor = await createVendorWithDatabase(data, tx);
 
     if (!vendor) {
@@ -59,6 +59,12 @@ export async function getVendorByIdService(id: string) {
   return { ...vendor, reliabilitySummary: reliability.summary };
 }
 
+export async function getVendorReliabilityService(id: string) {
+  const vendor = await findVendorById(id);
+  if (!vendor) return null;
+  return getVendorReliability(id);
+}
+
 export async function getVendorsService({
   page = 1,
   limit = 20,
@@ -74,7 +80,9 @@ export async function getVendorsService({
   const summaries = await getVendorReliabilitySummaries(
     result.data.map((vendor) => vendor.id),
   );
-  const summaryByVendorId = new Map(summaries.map((summary) => [summary.vendorId, summary]));
+  const summaryByVendorId = new Map(
+    summaries.map((summary) => [summary.vendorId, summary]),
+  );
   return {
     ...result,
     data: result.data.map((vendor) => {
@@ -108,7 +116,7 @@ export async function updateVendorService(
   if (!existingVendor) {
     return null;
   }
-  return db.transaction(async (tx) => {
+  return runVendorManagementTransaction(async (tx) => {
     const vendor = await updateVendorWithDatabase(id, data, tx);
     if (!vendor) {
       throw new Error("Failed to update vendor");
@@ -135,7 +143,7 @@ export async function deactivateVendorService(id: string, actorId: string) {
   if (existingVendor.status === "INACTIVE") {
     throw new AppError("Vendor is already inactive", 409);
   }
-  return db.transaction(async (tx) => {
+  return runVendorManagementTransaction(async (tx) => {
     const vendor = await updateVendorStatusWithDatabase(id, "INACTIVE", tx);
     if (!vendor) {
       throw new Error("Failed to deactivate vendor");
@@ -162,7 +170,7 @@ export async function reactivateVendorService(id: string, actorId: string) {
   if (existingVendor.status === "ACTIVE") {
     throw new AppError("Vendor is already active", 409);
   }
-  return db.transaction(async (tx) => {
+  return runVendorManagementTransaction(async (tx) => {
     const vendor = await updateVendorStatusWithDatabase(id, "ACTIVE", tx);
     if (!vendor) {
       throw new Error("Failed to reactivate vendor");

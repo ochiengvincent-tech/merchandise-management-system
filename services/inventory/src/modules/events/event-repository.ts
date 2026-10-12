@@ -16,15 +16,21 @@ export const findProcessedEvent = async (eventId: string) => {
 
 export const createProcessedEvent = async (
   data: typeof inventoryProcessedEvents.$inferInsert,
-  database: Database
+  database: Database,
 ) => {
   const [event] = await database
     .insert(inventoryProcessedEvents)
     .values(data)
     .onConflictDoNothing({
-      target: inventoryProcessedEvents.eventId
+      target: inventoryProcessedEvents.eventId,
     })
     .returning();
 
   return event;
 };
+
+export const runInventoryTransaction = <T>(
+  operation: (
+    tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  ) => Promise<T>,
+) => db.transaction(operation);

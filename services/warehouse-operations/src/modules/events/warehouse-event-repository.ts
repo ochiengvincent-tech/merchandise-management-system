@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { getInventoryLocation } from "../../clients/inventory-client.js";
 import {
   warehouseAdjustmentCommands,
   warehouseAuditLogs,
@@ -127,10 +126,6 @@ async function recordReceiptMovement(
 }
 
 export async function recordGoodsReceivedEvent(event: GoodsReceivedEvent) {
-  const location = await getInventoryLocation(event.payload.destinationLocationId);
-  if (location.status !== "ACTIVE" || !location.warehouseManaged) {
-    return { duplicate: false, ignored: true, reason: "Location is not Warehouse-managed" };
-  }
   return db.transaction(async (tx) => {
     const [processed] = await tx
       .insert(warehouseProcessedEvents)

@@ -1,4 +1,4 @@
-import { db } from "../../db/index.js";
+import { runProcurementTransaction } from "../../db/transaction-repository.js";
 import { AppError } from "../../errors/app-error.js";
 
 import { createProcurementAuditLogService } from "../audit/procurement-audit-service.js";
@@ -44,7 +44,7 @@ export async function cancelPurchaseOrder(
     ]);
   }
 
-  return db.transaction(async (tx) => {
+  return runProcurementTransaction(async (tx) => {
     const purchaseOrderLines = await findPurchaseOrderLinesWithDatabase(id, tx);
 
     if (purchaseOrderLines.length === 0) {

@@ -10,7 +10,7 @@ import {
 import { AppError } from "../../errors/app-error.js";
 import { findVendorById } from "../vendors/vendor.repository.js";
 import { createAuditLogService } from "../audit/audit.service.js";
-import { db } from "../../db/index.js";
+import { runVendorManagementTransaction } from "../../db/transaction-repository.js";
 import { getProductById } from "../../clients/inventory-client.js";
 
 export async function createVendorProductService(
@@ -50,7 +50,7 @@ export async function createVendorProductService(
 
   const effectiveFrom = new Date();
 
-  return db.transaction(async (tx) => {
+  return runVendorManagementTransaction(async (tx) => {
     const result = await createVendorProductWithPriceWithDatabase(
       {
         vendorId,
@@ -113,7 +113,7 @@ export async function updateVendorProductService(
     return null;
   }
 
-  return db.transaction(async (tx) => {
+  return runVendorManagementTransaction(async (tx) => {
     const result = await updateVendorProductWithPriceWithDatabase(id, data, tx);
 
     if (!result.vendorProduct) {
@@ -167,7 +167,7 @@ export async function deactivateVendorProductService(
     throw new AppError("Vendor product is already inactive", 409);
   }
 
-  return db.transaction(async (tx) => {
+  return runVendorManagementTransaction(async (tx) => {
     const vendorProduct = await updateVendorProductStatusWithDatabase(
       id,
       "INACTIVE",
@@ -208,7 +208,7 @@ export async function reactivateVendorProductService(
     throw new AppError("Vendor product is already active", 409);
   }
 
-  return db.transaction(async (tx) => {
+  return runVendorManagementTransaction(async (tx) => {
     const vendorProduct = await updateVendorProductStatusWithDatabase(
       id,
       "ACTIVE",

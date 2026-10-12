@@ -1,4 +1,4 @@
-import { db } from "../../db/index.js";
+import { runProcurementTransaction } from "../../db/transaction-repository.js";
 import { AppError } from "../../errors/app-error.js";
 import {
   getLocationById,
@@ -21,9 +21,7 @@ import {
   findPurchaseOrderLines,
 } from "../purchase-orders/purchase-order-line-repository.js";
 import { createApprovalAuditLogWithDatabase } from "../approvals/approval-audit-repository.js";
-import {
-  assertRequestedDeliveryDateIsNotBeforeCreation,
-} from "../purchase-orders/purchase-order-service.js";
+import { assertRequestedDeliveryDateIsNotBeforeCreation } from "../purchase-orders/purchase-order-service.js";
 import { centsToMoney, moneyToCents } from "../purchase-orders/money.js";
 
 export type UpdatePurchaseOrderInput = {
@@ -68,12 +66,16 @@ export async function updatePurchaseOrder(
     data.notes !== undefined && data.notes !== purchaseOrder.notes;
 
   if (vendorChanged && data.lines === undefined) {
-    throw new AppError("Changing the vendor requires updated order lines", 400, [
-      {
-        field: "lines",
-        message: "Review the products and quantities for the new vendor.",
-      },
-    ]);
+    throw new AppError(
+      "Changing the vendor requires updated order lines",
+      400,
+      [
+        {
+          field: "lines",
+          message: "Review the products and quantities for the new vendor.",
+        },
+      ],
+    );
   }
 
   const existingPurchaseOrder = poNumberChanged
@@ -95,7 +97,10 @@ export async function updatePurchaseOrder(
     } catch (error) {
       if (error instanceof InventoryServiceError && error.status === 404) {
         throw new AppError("Destination location not found", 404, [
-          { field: "destinationLocationId", message: "Choose an active destination." },
+          {
+            field: "destinationLocationId",
+            message: "Choose an active destination.",
+          },
         ]);
       }
       throw new AppError("Inventory service is unavailable", 503);
@@ -103,7 +108,10 @@ export async function updatePurchaseOrder(
 
     if (location.status !== "ACTIVE") {
       throw new AppError("Destination location is inactive", 409, [
-        { field: "destinationLocationId", message: "Choose an active destination." },
+        {
+          field: "destinationLocationId",
+          message: "Choose an active destination.",
+        },
       ]);
     }
   }
@@ -132,13 +140,15 @@ export async function updatePurchaseOrder(
       }));
 
   let nextPaymentTerms: string | undefined;
-  let nextLines: Array<{
-    productId: string;
-    quantityOrdered: number;
-    unitPrice: string;
-    lineTotal: string;
-    lineTotalCents: bigint;
-  }> | undefined;
+  let nextLines:
+    | Array<{
+        productId: string;
+        quantityOrdered: number;
+        unitPrice: string;
+        lineTotal: string;
+        lineTotalCents: bigint;
+      }>
+    | undefined;
 
   if (data.lines !== undefined) {
     if (data.lines.length === 0) {
@@ -150,16 +160,23 @@ export async function updatePurchaseOrder(
     const seenProducts = new Set<string>();
     data.lines.forEach((line, index) => {
       if (seenProducts.has(line.productId)) {
-        throw new AppError("A product cannot appear more than once in an order", 400, [
-          {
-            field: `lines.${index}.productId`,
-            message: "A product can only appear once in an order.",
-          },
-        ]);
+        throw new AppError(
+          "A product cannot appear more than once in an order",
+          400,
+          [
+            {
+              field: `lines.${index}.productId`,
+              message: "A product can only appear once in an order.",
+            },
+          ],
+        );
       }
       seenProducts.add(line.productId);
 
-      if (!Number.isInteger(line.quantityOrdered) || line.quantityOrdered <= 0) {
+      if (
+        !Number.isInteger(line.quantityOrdered) ||
+        line.quantityOrdered <= 0
+      ) {
         throw new AppError("Ordered quantity must be a positive integer", 400, [
           {
             field: `lines.${index}.quantityOrdered`,
@@ -169,9 +186,9 @@ export async function updatePurchaseOrder(
       }
     });
 
-    const freshProductsNeeded = vendorChanged || data.lines.some(
-      (line) => !currentLineByProductId.has(line.productId),
-    );
+    const freshProductsNeeded =
+      vendorChanged ||
+      data.lines.some((line) => !currentLineByProductId.has(line.productId));
 
     let vendorProductsByProductId = new Map<
       string,
@@ -199,7 +216,10 @@ export async function updatePurchaseOrder(
 
       if (!vendor.paymentTerms) {
         throw new AppError("Vendor payment terms are not configured", 409, [
-          { field: "vendorId", message: "This vendor has no payment terms configured." },
+          {
+            field: "vendorId",
+            message: "This vendor has no payment terms configured.",
+          },
         ]);
       }
       nextPaymentTerms = vendor.paymentTerms;
@@ -211,7 +231,10 @@ export async function updatePurchaseOrder(
         throw new AppError("Vendor service is unavailable", 503);
       }
       vendorProductsByProductId = new Map(
-        vendorProducts.map((vendorProduct) => [vendorProduct.productId, vendorProduct]),
+        vendorProducts.map((vendorProduct) => [
+          vendorProduct.productId,
+          vendorProduct,
+        ]),
       );
     }
 
@@ -253,9 +276,15 @@ export async function updatePurchaseOrder(
             }
           } catch (error) {
             if (error instanceof AppError) throw error;
-            if (error instanceof InventoryServiceError && error.status === 404) {
+            if (
+              error instanceof InventoryServiceError &&
+              error.status === 404
+            ) {
               throw new AppError("Product not found", 404, [
-                { field: `lines.${index}.productId`, message: "Choose an active product." },
+                {
+                  field: `lines.${index}.productId`,
+                  message: "Choose an active product.",
+                },
               ]);
             }
             throw new AppError("Inventory service is unavailable", 503);
@@ -285,7 +314,10 @@ export async function updatePurchaseOrder(
     notesChanged ||
     linesChanged;
   if (!hasChanges) {
-    throw new AppError("Change at least one purchase-order field before saving", 400);
+    throw new AppError(
+      "Change at least one purchase-order field before saving",
+      400,
+    );
   }
 
   const subtotalCents = nextLines?.reduce(
@@ -293,7 +325,7 @@ export async function updatePurchaseOrder(
     0n,
   );
 
-  return db.transaction(async (tx) => {
+  return runProcurementTransaction(async (tx) => {
     const updatedPurchaseOrder = await updatePurchaseOrderWithDatabase(
       purchaseOrderId,
       {
@@ -306,7 +338,8 @@ export async function updatePurchaseOrder(
           requestedDeliveryDate: data.requestedDeliveryDate,
         }),
         ...(notesChanged && { notes: data.notes }),
-        ...(vendorChanged && nextPaymentTerms && { paymentTerms: nextPaymentTerms }),
+        ...(vendorChanged &&
+          nextPaymentTerms && { paymentTerms: nextPaymentTerms }),
         ...(subtotalCents !== undefined && {
           subtotal: centsToMoney(subtotalCents),
           totalAmount: centsToMoney(subtotalCents),

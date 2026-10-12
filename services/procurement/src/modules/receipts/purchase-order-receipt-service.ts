@@ -1,8 +1,5 @@
 import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
-import { db } from "../../db/index.js";
-import { purchaseOrders } from "../../db/schema/purchase-orders.js";
-import { purchaseOrderReceiptRequests } from "../../db/schema/purchase-order-receipt-requests.js";
+import { runProcurementTransaction } from "../../db/transaction-repository.js";
 import { AppError } from "../../errors/app-error.js";
 
 import { createProcurementAuditLogService } from "../audit/procurement-audit-service.js";
@@ -12,7 +9,12 @@ import { updatePurchaseOrderWithDatabase } from "../purchase-orders/purchase-ord
 
 import { findPurchaseOrderLinesWithDatabase } from "../purchase-orders/purchase-order-line-repository.js";
 
-import { updatePurchaseOrderLineReceivedQuantityWithDatabase } from "./purchase-order-receipt-repository.js";
+import {
+  createPurchaseOrderReceiptRequest,
+  findPurchaseOrderForUpdate,
+  findPurchaseOrderReceiptRequest,
+  updatePurchaseOrderLineReceivedQuantityWithDatabase,
+} from "./purchase-order-receipt-repository.js";
 
 type ReceiptItem = {
   purchaseOrderLineId: string;
@@ -33,16 +35,8 @@ export async function receivePurchaseOrder(
     .digest("hex");
 
   if (receivingReceiptId) {
-    const [savedRequest] = await db
-      .select()
-      .from(purchaseOrderReceiptRequests)
-      .where(
-        eq(
-          purchaseOrderReceiptRequests.receivingReceiptId,
-          receivingReceiptId,
-        ),
-      )
-      .limit(1);
+    const [savedRequest] =
+      await findPurchaseOrderReceiptRequest(receivingReceiptId);
 
     if (savedRequest) {
       if (savedRequest.requestHash !== requestHash) {
@@ -69,29 +63,18 @@ export async function receivePurchaseOrder(
     }
   }
 
-  return db.transaction(async (tx) => {
-    const [existingPurchaseOrder] = await tx
-      .select()
-      .from(purchaseOrders)
-      .where(eq(purchaseOrders.id, id))
-      .for("update")
-      .limit(1);
+  return runProcurementTransaction(async (tx) => {
+    const [existingPurchaseOrder] = await findPurchaseOrderForUpdate(id, tx);
 
     if (!existingPurchaseOrder) {
       throw new AppError("Purchase order not found", 404);
     }
 
     if (receivingReceiptId) {
-      const [savedRequest] = await tx
-        .select()
-        .from(purchaseOrderReceiptRequests)
-        .where(
-          eq(
-            purchaseOrderReceiptRequests.receivingReceiptId,
-            receivingReceiptId,
-          ),
-        )
-        .limit(1);
+      const [savedRequest] = await findPurchaseOrderReceiptRequest(
+        receivingReceiptId,
+        tx,
+      );
 
       if (savedRequest) {
         if (savedRequest.requestHash !== requestHash) {
@@ -132,7 +115,10 @@ export async function receivePurchaseOrder(
 
       const line = lineMap.get(item.purchaseOrderLineId);
       if (!line) throw new AppError("Purchase order line not found", 404);
-      if (line.quantityReceived + item.quantityReceived > line.quantityOrdered) {
+      if (
+        line.quantityReceived + item.quantityReceived >
+        line.quantityOrdered
+      ) {
         throw new AppError(
           "Received quantity cannot exceed ordered quantity",
           409,
@@ -217,11 +203,14 @@ export async function receivePurchaseOrder(
 
     if (receivingReceiptId) {
       const response = { purchaseOrder, lines: updatedLines };
-      await tx.insert(purchaseOrderReceiptRequests).values({
-        receivingReceiptId,
-        requestHash,
-        response,
-      });
+      await createPurchaseOrderReceiptRequest(
+        {
+          receivingReceiptId,
+          requestHash,
+          response,
+        },
+        tx,
+      );
       return response;
     }
 

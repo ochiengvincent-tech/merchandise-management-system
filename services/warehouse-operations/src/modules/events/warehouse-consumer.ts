@@ -2,9 +2,9 @@ import type { ConfirmChannel, ConsumeMessage } from "amqplib";
 import { z } from "zod";
 import { env } from "../../config/env.js";
 import {
-  recordGoodsReceivedEvent,
   recordInventoryStockAdjustedEvent,
 } from "./warehouse-event-repository.js";
+import { processGoodsReceivedEvent } from "./warehouse-event-service.js";
 import { processSaleCompletedWarehouseEvent, processSaleReturnedWarehouseEvent } from "./sale-completed-service.js";
 import { getRabbitMQChannel } from "./rabbitmq.js";
 
@@ -105,7 +105,7 @@ async function deadLetter(channel: ConfirmChannel, message: ConsumeMessage) {
 async function processMessage(message: ConsumeMessage) {
   const event = messageSchema.parse(JSON.parse(message.content.toString()));
   if (event.eventType === "GoodsReceived") {
-    await recordGoodsReceivedEvent({ eventId: event.eventId, occurredAt: event.occurredAt, payload: event.payload });
+    await processGoodsReceivedEvent({ eventId: event.eventId, occurredAt: event.occurredAt, payload: event.payload });
     return;
   }
   if (event.eventType === "InventoryStockAdjusted") {

@@ -1,7 +1,10 @@
-import { db } from "../../db/index.js";
+import type { db } from "../../db/index.js";
 import { procurementAuditLogs } from "../../db/schema/procurement-audit-logs.js";
 
 import { createProcurementAuditLog } from "./procurement-audit-repository.js";
+import { listProcurementAuditLogs } from "./procurement-audit-list-repository.js";
+
+export const listProcurementAuditLogsService = listProcurementAuditLogs;
 
 export async function createProcurementAuditLogService<
   T extends Pick<typeof db, "insert">,

@@ -1,4 +1,4 @@
-import { db } from "../../db/index.js";
+import { runProcurementTransaction } from "../../db/transaction-repository.js";
 import { AppError } from "../../errors/app-error.js";
 import { createApprovalAuditLogWithDatabase } from "../approvals/approval-audit-repository.js";
 import {
@@ -28,7 +28,7 @@ export async function rejectPurchaseOrderAmendment(
     );
   }
 
-  return db.transaction(async (tx) => {
+  return runProcurementTransaction(async (tx) => {
     const rejectedAmendment = await updatePurchaseOrderAmendmentWithDatabase(
       amendment.id,
       {

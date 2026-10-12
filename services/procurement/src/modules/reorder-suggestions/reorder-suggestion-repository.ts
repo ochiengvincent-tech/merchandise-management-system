@@ -10,6 +10,22 @@ export const findPendingReorderSuggestion = (id: string) =>
     ),
   });
 
+export const findPendingReorderSuggestionForProductLocation = (
+  productId: string,
+  locationId: string,
+) =>
+  db.query.reorderSuggestions.findFirst({
+    where: and(
+      eq(reorderSuggestions.productId, productId),
+      eq(reorderSuggestions.locationId, locationId),
+      eq(reorderSuggestions.status, "PENDING"),
+    ),
+  });
+
+export const createReorderSuggestion = (
+  data: typeof reorderSuggestions.$inferInsert,
+) => db.insert(reorderSuggestions).values(data).returning();
+
 export const listReorderSuggestions = () =>
   db
     .select()

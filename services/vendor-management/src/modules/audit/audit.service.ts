@@ -1,4 +1,4 @@
-import { db } from "../../db/index.js";
+import type { db } from "../../db/index.js";
 import { createAuditSignature } from "./audit-signature.js";
 import { createVendorAuditLog } from "./audit.repository.js";
 
@@ -16,7 +16,7 @@ export async function createAuditLogService(
     ipAddress?: string | undefined;
     userAgent?: string | undefined;
   },
-  database: Database | Transaction = db,
+  database: Database | Transaction,
 ) {
   const createdAt = new Date();
 

@@ -1,4 +1,4 @@
-import { db } from "../../db/index.js";
+import { runProcurementTransaction } from "../../db/transaction-repository.js";
 import { AppError } from "../../errors/app-error.js";
 import {
   getLocationById,
@@ -77,7 +77,7 @@ export async function requestPurchaseOrderAmendment(
         ) + 1
       : 1;
 
-  return db.transaction(async (tx) => {
+  return runProcurementTransaction(async (tx) => {
     const amendment = await createPurchaseOrderAmendmentWithDatabase(
       {
         purchaseOrderId,
@@ -132,7 +132,6 @@ export async function getPurchaseOrderAmendments(purchaseOrderId: string) {
     (first, second) => first.amendmentNumber - second.amendmentNumber,
   );
 }
-
 
 export async function listPurchaseOrderAmendmentQueue(data: {
   offset: number;

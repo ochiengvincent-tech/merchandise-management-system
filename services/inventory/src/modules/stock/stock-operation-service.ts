@@ -1,13 +1,11 @@
-import { db } from "../../db/index.js";
-import { inventoryAuditLogs } from "../../db/schema/inventory-audit-logs.js";
 import { AppError } from "../../errors/app-error.js";
 import { findProductById } from "../products/product-repository.js";
-import { createStockLowEvent } from "../events/stock-low-event-service.js";
 import { findLocationById } from "../locations/location-repository.js";
+import { createStockLowEvent } from "../events/stock-low-event-service.js";
 import {
-  allocateStock,
+  allocateStockTransaction,
   findStockByProductAndLocation,
-  releaseStock,
+  releaseStockTransaction,
 } from "./stock-repository.js";
 
 export const allocateStockService = async (data: {
@@ -80,47 +78,7 @@ export const allocateStockService = async (data: {
     ]);
   }
 
-  return db.transaction(async (tx) => {
-    const updatedStock = await allocateStock(stock.id, data.quantity, tx);
-
-    if (!updatedStock) {
-      throw new AppError("Insufficient available stock", 409, [
-        {
-          field: "quantity",
-          message: "Insufficient available stock",
-        },
-      ]);
-    }
-
-    await tx.insert(inventoryAuditLogs).values({
-      productId: data.productId,
-      locationId: data.locationId,
-      action: "STOCK_ALLOCATED",
-      actorId: data.actorId,
-      details: {
-        previousQuantityAllocated: stock.quantityAllocated,
-        newQuantityAllocated: updatedStock.quantityAllocated,
-        quantity: data.quantity,
-        reference: data.reference,
-      },
-    });
-
-    const stockLowEvent = await createStockLowEvent(
-      stock,
-      updatedStock,
-      product.reorderLevel,
-      tx,
-    );
-
-    return {
-      stock: {
-        ...updatedStock,
-        quantityAvailable:
-          updatedStock.quantityOnHand - updatedStock.quantityAllocated,
-      },
-      stockLowEvent,
-    };
-  });
+  return allocateStockTransaction(stock, data, product.reorderLevel, createStockLowEvent);
 };
 
 export const releaseStockService = async (data: {
@@ -188,35 +146,5 @@ export const releaseStockService = async (data: {
     ]);
   }
 
-  return db.transaction(async (tx) => {
-    const updatedStock = await releaseStock(stock.id, data.quantity, tx);
-
-    if (!updatedStock) {
-      throw new AppError("Cannot release more than allocated stock", 409, [
-        {
-          field: "quantity",
-          message: "Cannot release more than allocated stock",
-        },
-      ]);
-    }
-
-    await tx.insert(inventoryAuditLogs).values({
-      productId: data.productId,
-      locationId: data.locationId,
-      action: "STOCK_RELEASED",
-      actorId: data.actorId,
-      details: {
-        previousQuantityAllocated: stock.quantityAllocated,
-        newQuantityAllocated: updatedStock.quantityAllocated,
-        quantity: data.quantity,
-        reference: data.reference,
-      },
-    });
-
-    return {
-      ...updatedStock,
-      quantityAvailable:
-        updatedStock.quantityOnHand - updatedStock.quantityAllocated,
-    };
-  });
+  return releaseStockTransaction(stock, data);
 };

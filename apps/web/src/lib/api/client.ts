@@ -1,3 +1,5 @@
+import { getCsrfToken } from "../auth/session";
+
 export type ApiFieldError = {
   field: string;
   message: string;
@@ -23,7 +25,6 @@ export function getFieldErrorMap(error: unknown): Record<string, string> {
     error.fieldErrors.map(({ field, message }) => [field, message]),
   );
 }
-
 export class ApiError extends Error {
   fieldErrors: ApiFieldError[];
 
@@ -38,15 +39,23 @@ export async function apiRequest<T>(
   url: string,
   options?: RequestInit,
 ): Promise<T> {
+  const method = options?.method?.toUpperCase() ?? "GET";
+  const headers = new Headers(options?.headers);
+  headers.set("Accept", "application/json");
+  if (options?.body !== undefined) headers.set("Content-Type", "application/json");
+  if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+    const csrfToken = getCsrfToken();
+    if (!csrfToken) throw new ApiError("Your session security token is missing. Reload the page and try again.");
+    headers.set("X-CSRF-Token", csrfToken);
+  }
   const response = await fetch(url, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
+    credentials: "same-origin",
+    headers,
   });
 
   if (!response.ok) {
+    if (response.status === 401) window.location.assign("/auth/login");
     const body = (await response
       .json()
       .catch(() => null)) as ApiErrorBody | null;

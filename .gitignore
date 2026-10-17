@@ -4,4 +4,6 @@ build/
 .env
 .env.*
 !.env.example
+!.env.development.example
 .pnpm-store/
+.local-security/

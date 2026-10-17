@@ -80,7 +80,7 @@ Requirements: Node.js 22, pnpm 12.3.4, and Docker Compose.
    pnpm install
    ```
 
-2. Start PostgreSQL databases and RabbitMQ:
+2. Start PostgreSQL databases, RabbitMQ, and the loopback-only development Redis used for BFF sessions:
 
    ```bash
    pnpm infra:up
@@ -96,7 +96,10 @@ Requirements: Node.js 22, pnpm 12.3.4, and Docker Compose.
    cp services/warehouse-operations/.env.example services/warehouse-operations/.env
    cp services/retail-sales/.env.example services/retail-sales/.env
    cp services/sales-audit/.env.example services/sales-audit/.env
+   cp apps/bff/.env.development.example apps/bff/.env
    ```
+
+   Configure the BFF's OIDC issuer, registered local client ID/secret, and employee ID claim as described in the [BFF setup guide](apps/bff/README.md). The identity provider must issue a UUID `employee_id` claim and allow `http://localhost:5173/auth/callback` as a redirect URI.
 
 4. Apply all database migrations:
 
@@ -114,6 +117,8 @@ Requirements: Node.js 22, pnpm 12.3.4, and Docker Compose.
    pnpm --dir services/warehouse-operations dev
    pnpm --dir services/retail-sales dev
    pnpm --dir services/sales-audit dev
+   pnpm --filter @mms/bff dev
+   pnpm --filter web dev
    ```
 
 RabbitMQ can be unavailable during startup. Services remain available for

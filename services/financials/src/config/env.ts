@@ -13,6 +13,7 @@ const flags = z.enum(["true", "false"]).default("false");
 const parsed = z.object({
   DATABASE_URL: z.url(),
   PORT: z.coerce.number().int().positive().default(3008),
+  BFF_ASSERTION_PUBLIC_KEY_PATH: z.string().min(1),
   FINANCIALS_POSTING_ENABLED: flags,
   RABBITMQ_URL: z.url().default("amqp://localhost:5672"),
   RABBITMQ_QUEUE_PREFIX: z.string().default(""),

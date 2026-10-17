@@ -1,0 +1,30 @@
+{
+  "name": "@mms/bff",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mms/security": "workspace:*",
+    "connect-redis": "^9.0.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-session": "^1.18.2",
+    "http-proxy-middleware": "^3.0.5",
+    "openid-client": "^6.8.1",
+    "redis": "^5.8.2",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/express-session": "^1.18.2",
+    "@types/node": "^22.20.1",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
+}

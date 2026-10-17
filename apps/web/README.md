@@ -23,9 +23,9 @@ The React, TypeScript, and Vite app provides the browser interface for the MMS o
 
 Feature pages may be hidden until their corresponding web feature flag is enabled. A web feature flag only controls navigation and rendering; service-side flags and authorization remain separate controls.
 
-## API development proxy
+## API proxy and sign-in
 
-The Vite development server proxies `/api/{service}` prefixes to local backend services and rewrites them to `/api/v1`. These routes are development-only and are not a production gateway. Configure service URLs in `src/lib/api/config.ts` for deployed environments.
+The browser requires an authenticated BFF session. It uses same-origin `/auth/*` and `/api/{service}` paths; access and refresh tokens remain server-side. The Vite development server forwards those paths to the BFF on port `3100`. The BFF checks the session and CSRF token, strips browser identity headers, derives actor fields from the verified employee UUID claim, and rewrites API paths to each private service's `/api/v1` routes. In production, the reverse proxy must route only web assets and `/auth` and `/api` paths to the BFF; do not expose service ports directly. The BFF does not yet enforce domain-level permissions, so it is not a production-ready authorization boundary by itself.
 
 | Web API prefix | Local service | Port |
 | --- | --- | ---: |
@@ -60,7 +60,12 @@ From the repository root:
 ```bash
 pnpm install
 pnpm infra:up
+cp apps/bff/.env.development.example apps/bff/.env
+# Configure the OIDC issuer, client ID/secret, callback, and UUID employee_id claim.
+pnpm --filter @mms/bff dev
 pnpm --filter web dev
 ```
+
+Run the BFF and Vite commands in separate terminals. The identity provider must allow `http://localhost:5173/auth/callback` and issue the configured stable employee UUID claim. Local development intentionally has no authentication bypass.
 
 Run frontend checks with `pnpm --filter web lint` and `pnpm --filter web build`.

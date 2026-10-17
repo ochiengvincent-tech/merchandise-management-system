@@ -6,7 +6,7 @@ import { Card } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Select } from "../../components/ui/select";
 import { apiRequest } from "../../lib/api/client";
-import { API_URLS, CURRENT_ACTOR_ID, SYSTEM_ACTOR_ID } from "../../lib/api/config";
+import { API_URLS, CURRENT_ACTOR_ID } from "../../lib/api/config";
 
 type PurchaseOrder = { id: string; poNumber: string; vendorId: string; currency: string; status: string; approvedAt: string | null; lines: Array<{ id: string; productId: string; unitPrice: string; quantityOrdered: number; quantityReceived: number }> };
 type ReceiptLine = { id: string; productId: string; purchaseOrderLineId: string | null; quantityAccepted: number };
@@ -29,7 +29,7 @@ export function SupplierInvoicesPanel() {
   const [tax, setTax] = useState("0.00");
   const [number, setNumber] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [reviewer, setReviewer] = useState(SYSTEM_ACTOR_ID);
+  const [reviewer, setReviewer] = useState(CURRENT_ACTOR_ID);
   const [draftLines, setDraftLines] = useState<DraftLine[]>([]);
   const [message, setMessage] = useState("");
   const pos = useQuery({ queryKey: ["financials", "invoice-pos"], queryFn: () => apiRequest<{ data: PurchaseOrder[] }>(API_URLS.procurement + "/purchase-orders?status=SENT,PARTIALLY_RECEIVED,COMPLETED&limit=100") });

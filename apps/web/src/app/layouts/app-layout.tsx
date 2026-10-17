@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { Sidebar } from "./sidebar";
+import { useAuthenticatedUser } from "../providers/auth-provider";
+import { logout } from "../../lib/auth/session";
 
 const routeLabels: Array<[RegExp, string]> = [
   [/^\/dashboard$/, "Dashboard"],
@@ -55,6 +57,8 @@ export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const theme = useThemePreference();
+  const user = useAuthenticatedUser();
+  const [signOutError, setSignOutError] = useState("");
   const pageLabel = routeLabels.find(([pattern]) => pattern.test(location.pathname))?.[1] ?? "Workspace";
   const group = ["Products", "Inventory", "Locations", "Adjustments", "Valuation", "Receiving", "Warehouse Operations"].includes(pageLabel)
     ? "Merchandising"
@@ -123,11 +127,20 @@ export function AppLayout() {
               )}
             </button>
             <div className="hidden border-l border-slate-200 pl-3 sm:block">
-              <p className="text-sm font-semibold text-slate-800">Vincent</p>
-              <p className="text-xs text-slate-500">Workspace</p>
+              <p className="max-w-48 truncate text-sm font-semibold text-slate-800">{user?.displayName ?? user?.email ?? "MMS user"}</p>
+              <p className="text-xs text-slate-500">{user?.employeeId}</p>
             </div>
+            <button
+              type="button"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              onClick={() => { void logout().catch((error: unknown) => setSignOutError(error instanceof Error ? error.message : "Could not sign out.")); }}
+            >
+              Sign out
+            </button>
           </div>
         </header>
+
+        {signOutError && <p role="alert" className="px-4 pt-3 text-right text-sm text-red-700">{signOutError}</p>}
 
         <main className="app-main-content min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
           <Outlet />

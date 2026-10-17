@@ -1,7 +1,6 @@
 import {
   API_URLS,
   CURRENT_ACTOR_ID,
-  SYSTEM_ACTOR_ID,
 } from "../../lib/api/config";
 import { apiRequest } from "../../lib/api/client";
 
@@ -116,7 +115,7 @@ export const createPurchaseOrder = async (
       method: "POST",
       body: JSON.stringify({
         ...data,
-        createdBy: SYSTEM_ACTOR_ID,
+        createdBy: CURRENT_ACTOR_ID,
       }),
     },
   );

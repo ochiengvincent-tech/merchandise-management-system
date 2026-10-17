@@ -1,6 +1,6 @@
 # MMS Production Security Architecture
 
-**Status:** Proposed design; no controls in this document should be read as implemented.  
+**Status:** BFF login/browser gateway foundation and local Keycloak development realm are implemented. BFF-signed service assertions are implemented in the BFF and verified by Financials as the first protected API. The other seven APIs, permission checks, and production deployment controls remain incomplete.
 **Date:** 2026-10-12  
 **Deployment target:** Internet-facing VPS, Docker Compose, one public web application, eight domain APIs, PostgreSQL databases, RabbitMQ.
 
@@ -27,7 +27,7 @@ flowchart TB
 
 The repository contains eight domain services (Vendor Management, Inventory, Procurement, Receiving, Warehouse Operations, Retail Sales, Sales Audit, Financials), a Vite/React web client, per-service PostgreSQL ownership, and RabbitMQ events. The current Compose file is a development stack: it publishes PostgreSQL and RabbitMQ ports and uses simple default credentials. It is not a production deployment manifest.
 
-The current APIs do not consistently authenticate callers. Existing `actorId`, `x-actor-id`, and configured browser actor values are audit metadata supplied by the caller; they are forgeable and must not be treated as identity or authorization. OpenAPI contracts do not yet declare a common security scheme. No production BFF, ingress, TLS configuration, authorization middleware, or distributed rate limiter is present. Zod validation, idempotency, domain audit logs, and transactional event patterns provide useful foundations, but coverage is incomplete. Existing local `.env.example` and development secrets are not production secret management.
+`apps/bff` implements provider-neutral OIDC Authorization Code + PKCE, Redis-backed opaque sessions, a session endpoint, CSRF-protected logout and browser API writes, idle/absolute session lifetime, and proxying for all eight web API prefixes. The web client requires a BFF session and uses same-origin API URLs. The BFF requires a UUID employee ID claim, replaces browser-supplied actor fields, and signs short-lived, per-service RS256 assertions with the verified employee as subject. A loopback-only, development-profile Keycloak realm is provided for local OIDC integration; its static credentials and development-mode server must never be deployed. Financials verifies the assertion signature and its issuer, audience, expiry, method, path, and actor ID for `/api/v1` requests. The other seven APIs do not yet verify these assertions, and no API yet has complete deny-by-default domain permission checks. Financials currently establishes caller identity only; it does not establish that a user may perform every Financials action. Keep service ports private. OpenAPI contracts do not yet declare a common security scheme. No production ingress, TLS configuration, full service authorization middleware, or distributed rate limiter is present. Zod validation, idempotency, domain audit logs, and transactional event patterns provide useful foundations, but coverage is incomplete. Existing local `.env.example` and development secrets are not production secret management.
 
 This assessment is based on repository configuration, not a live VPS, DNS, provider firewall, identity-provider, or backup audit.
 
@@ -109,8 +109,8 @@ For production workloads requiring bounded host failure: separate public ingress
 ## Ordered implementation plan
 
 1. **Before exposing the VPS:** create production-only deployment config; close all ports except 80/443 and restricted SSH; remove default credentials; deploy TLS reverse proxy; ensure backend containers have no public port mappings; set backups, external monitoring, host patching, and restore procedure.
-2. **Identity foundation:** choose OIDC provider and employee identity mapping; implement BFF, secure sessions, CSRF, MFA policy, principal middleware, and production-safe configuration validation.
-3. **Protect every API:** add authentication and deny-by-default service authorization; remove reliance on caller-provided actor IDs; migrate API contracts; add object/location/store checks and maker-checker rules. Keep all routes private until their service is complete.
+2. **Identity foundation:** choose OIDC provider and employee identity mapping; configure the BFF in `apps/bff`, verify MFA policy at the provider, and keep the web client behind the BFF.
+3. **Protect every API:** extend assertion verification to the other seven services and all trusted service-to-service clients; then add deny-by-default service authorization, remove reliance on caller-provided actor IDs, migrate API contracts, and add object/location/store checks and maker-checker rules. Keep all routes private until their service is complete.
 4. **Workloads and events:** add unique service/database/broker credentials, RabbitMQ ACLs, trusted delegated actor propagation, and event provenance/validation.
 5. **Bound and observe:** standardize schemas, limits, timeouts, pool budgets, safe errors, security logs, alerting, dependency and image scanning, and rotation procedures.
 6. **Operational readiness:** conduct threat modeling for financial posting, approvals, stock changes, refunds and identity lifecycle; exercise incident response, restore and credential rotation; document residual single-VPS risks and recovery objectives.

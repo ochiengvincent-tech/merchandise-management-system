@@ -110,6 +110,32 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
 
+  bff-redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - bff_session_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.0
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: mms-local-admin-only
+    ports:
+      - "127.0.0.1:8180:8080"
+    volumes:
+      - ./infra/keycloak:/opt/keycloak/data/import:ro
+    profiles:
+      - oidc-dev
+
 volumes:
   vendor_db_data:
   procurement_db_data:
@@ -120,3 +146,4 @@ volumes:
   retail_sales_db_data:
   sales_audit_db_data:
   financials_db_data:
+  bff_session_data:
